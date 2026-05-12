@@ -1,0 +1,603 @@
+﻿import 'package:flutter/material.dart';
+
+import '../app/app_colors.dart';
+import '../app/app_scope.dart';
+import '../app/app_text.dart';
+import '../app/routes.dart';
+import '../data/mock_data.dart';
+import '../models/competition_model.dart';
+import '../models/match_model.dart';
+import '../models/player_model.dart';
+import '../models/standing_model.dart';
+import '../models/team_model.dart';
+import '../widgets/ad_placeholder.dart';
+import '../widgets/app_empty_state.dart';
+import '../widgets/match_card.dart';
+import '../widgets/section_header.dart';
+import '../widgets/skeleton_box.dart';
+import '../widgets/team_logo.dart';
+
+class CompetitionDetailsScreen extends StatefulWidget {
+  const CompetitionDetailsScreen({super.key, required this.competition});
+
+  final CompetitionModel competition;
+
+  @override
+  State<CompetitionDetailsScreen> createState() =>
+      _CompetitionDetailsScreenState();
+}
+
+class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    final app = AppScope.of(context);
+    final matches = MockData.matches()
+        .where((m) => m.competition.id == widget.competition.id)
+        .toList();
+    final teams = MockData.competitionTeams(widget.competition.id);
+    final scorers = MockData.topScorers(widget.competition.id);
+    final featured = matches.isNotEmpty ? matches.first : null;
+
+    return DefaultTabController(
+      length: 5,
+      child: Scaffold(
+        body: NestedScrollView(
+          headerSliverBuilder: (context, inner) => [
+            SliverAppBar(
+              pinned: true,
+              expandedHeight: 200,
+              stretch: true,
+              actions: [
+                IconButton(
+                  onPressed: () =>
+                      app.toggleCompetitionFavorite(widget.competition.id),
+                  icon: Icon(
+                    app.isCompetitionFavorite(widget.competition.id)
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                  ),
+                ),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(widget.competition.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        shadows: [Shadow(blurRadius: 8, color: Colors.black54)])),
+                background: _CompetitionHeader(competition: widget.competition),
+              ),
+              bottom: TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                tabs: [
+                  Tab(text: text.matches),
+                  Tab(text: text.standings),
+                  Tab(text: text.teams),
+                  Tab(text: text.topScorers),
+                  Tab(text: text.news),
+                ],
+              ),
+            ),
+          ],
+          body: TabBarView(
+            physics: const BouncingScrollPhysics(),
+            children: [
+              _MatchesTab(
+                loading: _loading,
+                featured: featured,
+                matches: matches,
+                refresh: () async {
+                  setState(() => _loading = true);
+                  await _load();
+                },
+              ),
+              _StandingsTab(loading: _loading, standings: MockData.standings),
+              _TeamsTab(loading: _loading, teams: teams),
+              _ScorersTab(loading: _loading, scorers: scorers),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: AppEmptyState(
+                    icon: Icons.article_outlined,
+                    title: text.isArabic ? 'الأخبار قريبًا' : 'News coming soon',
+                    subtitle: text.isArabic
+                        ? 'نعمل على جلب أبرز أخبار البطولات.'
+                        : 'We are working on bringing top competition news.',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompetitionHeader extends StatelessWidget {
+  const _CompetitionHeader({required this.competition});
+  final CompetitionModel competition;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final text = AppText.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primary.withValues(alpha: 0.55),
+            primary.withValues(alpha: 0.22),
+            const Color(0xFF0A0C10),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 64, 20, 30),
+          child: Row(
+            children: [
+              CompetitionBadge(logo: competition.logo, size: 76),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.public_rounded,
+                            size: 12, color: Colors.white70),
+                        const SizedBox(width: 4),
+                        Text(competition.region,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    if (competition.isFeatured)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.teal, AppColors.neonGreen],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          text.isArabic ? 'مميزة' : 'FEATURED',
+                          style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                              letterSpacing: 0.8),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchesTab extends StatelessWidget {
+  const _MatchesTab({
+    required this.loading,
+    required this.featured,
+    required this.matches,
+    required this.refresh,
+  });
+
+  final bool loading;
+  final MatchModel? featured;
+  final List<MatchModel> matches;
+  final Future<void> Function() refresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    return RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (loading) ...[
+            const SkeletonBox(height: 130),
+            const SizedBox(height: 12),
+            const MatchCardSkeleton(),
+            const SizedBox(height: 12),
+            const MatchCardSkeleton(),
+          ] else ...[
+            if (featured != null) ...[
+              SectionHeader(
+                title: text.isArabic
+                    ? 'المباراة المميزة'
+                    : 'Featured match',
+                icon: Icons.star_rounded,
+              ),
+              const SizedBox(height: 10),
+              MatchCard(
+                match: featured!,
+                onTap: () => Navigator.pushNamed(
+                    context, AppRoutes.matchDetails, arguments: featured),
+              ),
+              const SizedBox(height: 18),
+            ],
+            SectionHeader(
+              title: text.isArabic ? 'كل المباريات' : 'All matches',
+              icon: Icons.sports_soccer_rounded,
+            ),
+            const SizedBox(height: 10),
+            ...matches.map(
+              (match) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: MatchCard(
+                  match: match,
+                  onTap: () => Navigator.pushNamed(
+                      context, AppRoutes.matchDetails, arguments: match),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const NativeAdPlaceholder(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StandingsTab extends StatelessWidget {
+  const _StandingsTab({required this.loading, required this.standings});
+
+  final bool loading;
+  final List<StandingModel> standings;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: 6,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (_, _) => const SkeletonBox(height: 56, radius: 14),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: standings.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        if (i == 0) return const _StandingsLegend();
+        final item = standings[i - 1];
+        final isUcl = i - 1 < 4;
+        final isRel = i - 1 >= standings.length - 1;
+        Color? rowAccent;
+        if (isUcl) {
+          rowAccent =
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.16);
+        }
+        if (isRel) rowAccent = AppColors.cardRed.withValues(alpha: 0.12);
+        return Container(
+          decoration: BoxDecoration(
+            color: rowAccent ?? Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: isUcl
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+                    : (isRel
+                        ? AppColors.cardRed.withValues(alpha: 0.25)
+                        : Colors.white.withValues(alpha: 0.06))),
+          ),
+          child: ListTile(
+            leading: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: isUcl
+                    ? LinearGradient(colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.55),
+                      ])
+                    : null,
+                color: isUcl ? null : Colors.white12,
+              ),
+              child: Text('${item.position}',
+                  style: const TextStyle(fontWeight: FontWeight.w900)),
+            ),
+            title: Row(
+              children: [
+                TeamLogo(shortName: item.team.shortName, size: 22),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(item.team.name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 13.5)),
+                ),
+              ],
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  _smallStat('P', '${item.played}'),
+                  _smallStat('W', '${item.wins}', color: AppColors.formWin),
+                  _smallStat('D', '${item.draws}',
+                      color: AppColors.formDraw),
+                  _smallStat('L', '${item.losses}',
+                      color: AppColors.formLoss),
+                  _smallStat('GD',
+                      '${item.goalDifference > 0 ? '+' : ''}${item.goalDifference}'),
+                ],
+              ),
+            ),
+            trailing: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text('${item.points}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900, fontSize: 16)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _smallStat(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Row(
+        children: [
+          Text('$label ',
+              style: const TextStyle(fontSize: 11, color: Colors.white60)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StandingsLegend extends StatelessWidget {
+  const _StandingsLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          _legend(context, Theme.of(context).colorScheme.primary,
+              'Champions League'),
+          const SizedBox(width: 10),
+          _legend(context, AppColors.cardRed, 'Relegation'),
+        ],
+      ),
+    );
+  }
+
+  Widget _legend(BuildContext context, Color c, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(
+                color: Theme.of(context).hintColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+class _TeamsTab extends StatelessWidget {
+  const _TeamsTab({required this.loading, required this.teams});
+  final bool loading;
+  final List<TeamModel> teams;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.5,
+        ),
+        itemCount: 6,
+        itemBuilder: (_, _) => const SkeletonBox(height: 90),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.5,
+      ),
+      itemCount: teams.length,
+      itemBuilder: (context, i) {
+        final team = teams[i];
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TeamLogo(shortName: team.shortName, size: 44),
+              const SizedBox(height: 10),
+              Text(team.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 14)),
+              Text(team.nationality,
+                  style: TextStyle(
+                      color: Theme.of(context).hintColor,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ScorersTab extends StatelessWidget {
+  const _ScorersTab({required this.loading, required this.scorers});
+  final bool loading;
+  final List<PlayerModel> scorers;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    if (loading) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: 6,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, _) => const SkeletonBox(height: 64),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: scorers.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, i) {
+        final player = scorers[i];
+        return Material(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => Navigator.pushNamed(
+                context, AppRoutes.playerDetails, arguments: player),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: i < 3
+                          ? const LinearGradient(colors: [
+                              AppColors.teal,
+                              AppColors.neonGreen,
+                            ])
+                          : null,
+                      color: i < 3 ? null : Colors.white10,
+                    ),
+                    child: Text('${i + 1}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 12),
+                  TeamLogo(
+                      shortName: player.teamLogoShort.isEmpty
+                          ? player.team.substring(0, 3)
+                          : player.teamLogoShort,
+                      size: 38),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(player.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 14)),
+                        Text(
+                            '${player.team} · ${text.isArabic ? 'التقييم' : 'Rating'} ${player.seasonRating}',
+                            style: TextStyle(
+                                color: Theme.of(context).hintColor,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        AppColors.goalGreen.withValues(alpha: 0.32),
+                        AppColors.goalGreen.withValues(alpha: 0.1),
+                      ]),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sports_soccer_rounded,
+                            size: 14, color: AppColors.goalGreen),
+                        const SizedBox(width: 4),
+                        Text('${player.goals}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.goalGreen)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
