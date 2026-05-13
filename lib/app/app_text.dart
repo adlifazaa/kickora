@@ -64,6 +64,10 @@ class AppText {
   String get recentMatches => _isArabic ? 'آخر المباريات' : 'Recent matches';
   String get appVersion => _isArabic ? 'إصدار التطبيق' : 'App version';
   String get about => _isArabic ? 'عن Kickora' : 'About Kickora';
+  String get privacy =>
+      _isArabic ? 'سياسة الخصوصية' : 'Privacy policy';
+  String get terms => _isArabic ? 'شروط الاستخدام' : 'Terms of use';
+  String get contactUs => _isArabic ? 'تواصل معنا' : 'Contact us';
   String get all => _isArabic ? 'عرض الكل' : 'See all';
   String get live => _isArabic ? 'مباشر' : 'LIVE';
   String get upcoming => _isArabic ? 'قادمة' : 'Upcoming';

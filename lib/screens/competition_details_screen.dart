@@ -59,10 +59,26 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
           headerSliverBuilder: (context, inner) => [
             SliverAppBar(
               pinned: true,
-              expandedHeight: 200,
+              expandedHeight: 196,
               stretch: true,
+              centerTitle: false,
+              titleSpacing: 0,
+              title: Padding(
+                padding: const EdgeInsetsDirectional.only(end: 4),
+                child: Text(
+                  widget.competition.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
               actions: [
                 IconButton(
+                  tooltip: text.favorites,
                   onPressed: () =>
                       app.toggleCompetitionFavorite(widget.competition.id),
                   icon: Icon(
@@ -73,11 +89,9 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
                 ),
               ],
               flexibleSpace: FlexibleSpaceBar(
-                title: Text(widget.competition.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        shadows: [Shadow(blurRadius: 8, color: Colors.black54)])),
-                background: _CompetitionHeader(competition: widget.competition),
+                collapseMode: CollapseMode.parallax,
+                background:
+                    _CompetitionHeader(competition: widget.competition),
               ),
               bottom: TabBar(
                 isScrollable: true,
@@ -135,6 +149,12 @@ class _CompetitionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final text = AppText.of(context);
+    // Reserve room for the AppBar (toolbar + status bar) at the top so our
+    // hero content (badge + region) never slides under the back/favorite icons
+    // or the competition title. Bottom padding leaves a breathing strip above
+    // the TabBar.
+    final topPad = MediaQuery.paddingOf(context).top + kToolbarHeight + 8;
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -147,60 +167,69 @@ class _CompetitionHeader extends StatelessWidget {
           ],
         ),
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 64, 20, 30),
-          child: Row(
-            children: [
-              CompetitionBadge(logo: competition.logo, size: 76),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.public_rounded,
-                            size: 12, color: Colors.white70),
-                        const SizedBox(width: 4),
-                        Text(competition.region,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    if (competition.isFeatured)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.teal, AppColors.neonGreen],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+      child: Padding(
+        padding:
+            EdgeInsetsDirectional.fromSTEB(18, topPad, 18, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CompetitionBadge(logo: competition.logo, size: 64),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.public_rounded,
+                          size: 12, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Flexible(
                         child: Text(
-                          text.isArabic ? 'مميزة' : 'FEATURED',
+                          competition.region,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.black,
-                              letterSpacing: 0.8),
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
+                    ],
+                  ),
+                  if (competition.isFeatured) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.teal, AppColors.neonGreen],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        text.isArabic ? 'مميزة' : 'FEATURED',
+                        style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                            letterSpacing: 0.8),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
 
 class _MatchesTab extends StatelessWidget {
   const _MatchesTab({

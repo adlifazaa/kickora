@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../app/app_colors.dart';
 import '../app/app_text.dart';
 
+/// "About Kickora" — explains what Kickora is, who it is for, and which
+/// features it ships with. Legal and data handling content lives in
+/// [PrivacyPolicyScreen] instead so these two pages never look duplicated.
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
@@ -20,173 +23,191 @@ class AboutScreen extends StatelessWidget {
     final text = AppText.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(text.about)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        children: [
-          _Logo(),
-          const SizedBox(height: 18),
-          Center(
-            child: Text(
-              'Kickora',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-          ),
-          Center(
-            child: Text(
-              text.isArabic
-                  ? 'صُمم لعشاق كرة القدم'
-                  : 'Built for football fans',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).hintColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Center(
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(20),
-              ),
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          children: [
+            const _Logo(),
+            const SizedBox(height: 18),
+            Center(
               child: Text(
-                'v$appVersion · build $buildNumber',
+                'Kickora',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+              ),
+            ),
+            Center(
+              child: Text(
+                text.isArabic
+                    ? 'صُمم لعشاق كرة القدم'
+                    : 'Built for football fans',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).hintColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(child: _VersionPill(context: context)),
+            const SizedBox(height: 22),
+            _Section(
+              title: text.isArabic ? 'ما هو Kickora؟' : 'What is Kickora?',
+              child: Text(
+                text.isArabic
+                    ? 'Kickora هو رفيقك المباشر لمتابعة كرة القدم. يقدّم لك نتائج المباريات، التشكيلات، الإحصائيات، الترتيب، وملفات اللاعبين بتصميم أنيق ومريح، سواء كنت متابعًا عاديًا أو من محبي التفاصيل العميقة.'
+                    : 'Kickora is your live football companion. It brings match scores, lineups, statistics, standings, and player profiles together in one fast, elegant experience — whether you are a casual viewer or a hardcore stats fan.',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 22),
-          _Section(
-            title: text.isArabic ? 'حول التطبيق' : 'About the app',
-            child: Text(
-              text.isArabic
-                  ? 'Kickora هو رفيقك المباشر لمتابعة كرة القدم. ابقَ على اطلاع بكل المباريات المباشرة، النتائج، التشكيلات، الترتيب، والإحصاءات بتصميم فاخر سريع وخفيف.'
-                  : 'Kickora is your live football companion. Follow real-time matches, scores, lineups, standings, and rich stats — wrapped in a premium, fast, and lightweight UI.',
-              style: TextStyle(
                   color: Theme.of(context).hintColor,
-                  height: 1.5,
-                  fontSize: 13.5),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _Section(
-            title: text.isArabic ? 'المميزات' : 'Features',
-            child: Column(
-              children: [
-                _featureTile(context, Icons.flash_on_rounded,
-                    text.isArabic ? 'نتائج مباشرة' : 'Live scores'),
-                _featureTile(context, Icons.emoji_events_rounded,
-                    text.isArabic ? 'البطولات والترتيب' : 'Competitions & standings'),
-                _featureTile(context, Icons.groups_2_rounded,
-                    text.isArabic ? 'تشكيلات وملعب احترافي' : 'Premium lineup pitch'),
-                _featureTile(context, Icons.translate_rounded,
-                    text.isArabic ? 'عربي/إنجليزي مع RTL' : 'Arabic & English with RTL'),
-                _featureTile(context, Icons.dark_mode_rounded,
-                    text.isArabic ? 'وضع داكن فاخر' : 'Premium dark mode'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _Section(
-            title: text.isArabic ? 'تابعنا' : 'Follow us',
-            child: Row(
-              children: [
-                _socialButton(context, Icons.public_rounded, 'Website',
-                    () => _snack(context, 'Website')),
-                const SizedBox(width: 10),
-                _socialButton(context, Icons.tag_rounded, 'Twitter / X',
-                    () => _snack(context, 'Twitter')),
-                const SizedBox(width: 10),
-                _socialButton(context, Icons.camera_alt_outlined, 'Instagram',
-                    () => _snack(context, 'Instagram')),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _Section(
-            title: text.isArabic ? 'تواصل ودعم' : 'Contact & support',
-            child: Column(
-              children: [
-                _linkTile(
-                  context,
-                  icon: Icons.email_outlined,
-                  title: text.isArabic ? 'البريد الإلكتروني' : 'Email',
-                  subtitle: 'hello@kickora.live',
-                  onTap: () => _snack(context, 'Email'),
+                  height: 1.55,
+                  fontSize: 13.5,
                 ),
-                _linkTile(
-                  context,
-                  icon: Icons.support_agent_rounded,
-                  title: text.isArabic ? 'الدعم' : 'Support',
-                  subtitle: text.isArabic
-                      ? 'تواصل مع فريق Kickora'
-                      : 'Reach the Kickora team',
-                  onTap: () => _snack(context, 'Support'),
-                ),
-                _linkTile(
-                  context,
-                  icon: Icons.star_border_rounded,
-                  title: text.isArabic ? 'قيّم التطبيق' : 'Rate the app',
-                  subtitle: text.isArabic
-                      ? 'متجر التطبيقات'
-                      : 'App store rating',
-                  onTap: () => _snack(context, 'Rate'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _Section(
-            title: text.isArabic ? 'قانوني' : 'Legal',
-            child: Column(
-              children: [
-                _linkTile(
-                  context,
-                  icon: Icons.privacy_tip_outlined,
-                  title: text.isArabic ? 'سياسة الخصوصية' : 'Privacy policy',
-                  subtitle: text.isArabic
-                      ? 'حماية بياناتك أولاً'
-                      : 'Your data, protected',
-                  onTap: () => _snack(context, 'Privacy'),
-                ),
-                _linkTile(
-                  context,
-                  icon: Icons.description_outlined,
-                  title: text.isArabic ? 'شروط الاستخدام' : 'Terms of use',
-                  subtitle: text.isArabic
-                      ? 'القواعد التي تحكم استخدامك'
-                      : 'Rules of using Kickora',
-                  onTap: () => _snack(context, 'Terms'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Center(
-            child: Text(
-              text.isArabic
-                  ? '© 2025 Kickora · صُنع بشغف ⚽'
-                  : '© 2025 Kickora · Made with passion ⚽',
-              style: TextStyle(
-                color: Theme.of(context).hintColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            _Section(
+              title: text.isArabic ? 'المميزات الرئيسية' : 'Key features',
+              child: Column(
+                children: [
+                  _featureTile(
+                    context,
+                    Icons.flash_on_rounded,
+                    text.isArabic ? 'نتائج مباشرة لحظية' : 'Live scores in real time',
+                  ),
+                  _featureTile(
+                    context,
+                    Icons.sports_soccer_rounded,
+                    text.isArabic
+                        ? 'تفاصيل مباريات احترافية وأحداث لحظية'
+                        : 'Rich match details with live events',
+                  ),
+                  _featureTile(
+                    context,
+                    Icons.leaderboard_rounded,
+                    text.isArabic ? 'جداول الترتيب' : 'League standings',
+                  ),
+                  _featureTile(
+                    context,
+                    Icons.groups_2_rounded,
+                    text.isArabic
+                        ? 'ملعب تشكيلات بصري مع الخطط'
+                        : 'Football pitch lineups with formations',
+                  ),
+                  _featureTile(
+                    context,
+                    Icons.person_pin_circle_rounded,
+                    text.isArabic
+                        ? 'ملفات اللاعبين وآخر المباريات'
+                        : 'Player profiles & recent matches',
+                  ),
+                  _featureTile(
+                    context,
+                    Icons.star_rounded,
+                    text.isArabic
+                        ? 'المفضلة: فرق، بطولات، ومباريات'
+                        : 'Favorites: teams, competitions & matches',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _Section(
+              title: text.isArabic ? 'لماذا Kickora؟' : 'Why Kickora?',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _bullet(
+                    context,
+                    text.isArabic
+                        ? 'خفيف وسريع — يفتح في ثوانٍ.'
+                        : 'Lightweight and fast — opens in seconds.',
+                  ),
+                  _bullet(
+                    context,
+                    text.isArabic
+                        ? 'تصميم فاخر بمظهر ملعب ليلي.'
+                        : 'Premium design with a night-stadium feel.',
+                  ),
+                  _bullet(
+                    context,
+                    text.isArabic
+                        ? 'يدعم العربية والإنجليزية مع RTL كامل.'
+                        : 'Arabic & English with full RTL support.',
+                  ),
+                  _bullet(
+                    context,
+                    text.isArabic
+                        ? 'لا حاجة لتسجيل دخول.'
+                        : 'No sign-up required.',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _Section(
+              title: text.isArabic ? 'تابعنا' : 'Follow us',
+              child: Row(
+                children: [
+                  _socialButton(context, Icons.public_rounded, 'Website',
+                      () => _snack(context, 'Website')),
+                  const SizedBox(width: 10),
+                  _socialButton(context, Icons.tag_rounded, 'Twitter / X',
+                      () => _snack(context, 'Twitter')),
+                  const SizedBox(width: 10),
+                  _socialButton(context, Icons.camera_alt_outlined, 'Instagram',
+                      () => _snack(context, 'Instagram')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _Section(
+              title: text.contactUs,
+              child: Column(
+                children: [
+                  _linkTile(
+                    context,
+                    icon: Icons.email_outlined,
+                    title: text.isArabic ? 'البريد الإلكتروني' : 'Email',
+                    subtitle: 'hello@kickora.live',
+                    onTap: () => _snack(context, 'Email'),
+                  ),
+                  _linkTile(
+                    context,
+                    icon: Icons.support_agent_rounded,
+                    title: text.isArabic ? 'الدعم الفني' : 'Support',
+                    subtitle: text.isArabic
+                        ? 'تواصل مع فريق Kickora'
+                        : 'Reach the Kickora team',
+                    onTap: () => _snack(context, 'Support'),
+                  ),
+                  _linkTile(
+                    context,
+                    icon: Icons.star_border_rounded,
+                    title: text.isArabic ? 'قيّم التطبيق' : 'Rate the app',
+                    subtitle:
+                        text.isArabic ? 'متجر التطبيقات' : 'App store rating',
+                    onTap: () => _snack(context, 'Rate'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            Center(
+              child: Text(
+                text.isArabic
+                    ? '© 2025 Kickora · صُنع بشغف ⚽'
+                    : '© 2025 Kickora · Made with passion ⚽',
+                style: TextStyle(
+                  color: Theme.of(context).hintColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -207,17 +228,53 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-              child: Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 13.5))),
+            child: Text(
+              label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700, fontSize: 13.5),
+            ),
+          ),
           const Icon(Icons.check_circle, color: AppColors.goalGreen, size: 18),
         ],
       ),
     );
   }
 
-  Widget _socialButton(
-      BuildContext context, IconData icon, String label, VoidCallback onTap) {
+  Widget _bullet(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 5, right: 8, left: 0),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: AppColors.teal,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Theme.of(context).hintColor,
+                height: 1.5,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _socialButton(BuildContext context, IconData icon, String label,
+      VoidCallback onTap) {
     return Expanded(
       child: Material(
         color: Theme.of(context).cardTheme.color,
@@ -231,11 +288,13 @@ class AboutScreen extends StatelessWidget {
               children: [
                 Icon(icon, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 6),
-                Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11.5, fontWeight: FontWeight.w800)),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.w800),
+                ),
               ],
             ),
           ),
@@ -295,7 +354,33 @@ class AboutScreen extends StatelessWidget {
   }
 }
 
+class _VersionPill extends StatelessWidget {
+  const _VersionPill({required this.context});
+  final BuildContext context;
+
+  @override
+  Widget build(BuildContext _) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        'v${AboutScreen.appVersion} · build ${AboutScreen.buildNumber}',
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _Logo extends StatelessWidget {
+  const _Logo();
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -332,7 +417,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         color: Theme.of(context).cardTheme.color,
@@ -362,12 +447,18 @@ class _Section extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(title,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 14.5)),
+                      fontWeight: FontWeight.w800, fontSize: 15),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           child,
         ],
       ),
