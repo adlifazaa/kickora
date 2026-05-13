@@ -63,6 +63,15 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
               stretch: true,
               centerTitle: false,
               titleSpacing: 0,
+              // The flexibleSpace below is ALWAYS a dark gradient hero,
+              // therefore we lock the AppBar foreground to white so the
+              // back arrow, favorite icon and title stay readable in both
+              // light and dark themes.
+              backgroundColor: const Color(0xFF0A0C10),
+              foregroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.white),
+              actionsIconTheme: const IconThemeData(color: Colors.white),
               title: Padding(
                 padding: const EdgeInsetsDirectional.only(end: 4),
                 child: Text(
@@ -70,6 +79,7 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                     letterSpacing: -0.2,
@@ -85,6 +95,7 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
                     app.isCompetitionFavorite(widget.competition.id)
                         ? Icons.bookmark_rounded
                         : Icons.bookmark_border_rounded,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -339,7 +350,7 @@ class _StandingsTab extends StatelessWidget {
                     ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
                     : (isRel
                         ? AppColors.cardRed.withValues(alpha: 0.25)
-                        : Colors.white.withValues(alpha: 0.06))),
+                        : Theme.of(context).dividerColor)),
           ),
           child: ListTile(
             leading: Container(
@@ -357,7 +368,12 @@ class _StandingsTab extends StatelessWidget {
                             .withValues(alpha: 0.55),
                       ])
                     : null,
-                color: isUcl ? null : Colors.white12,
+                color: isUcl
+                    ? null
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.08),
               ),
               child: Text('${item.position}',
                   style: const TextStyle(fontWeight: FontWeight.w900)),
@@ -377,13 +393,14 @@ class _StandingsTab extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Row(
                 children: [
-                  _smallStat('P', '${item.played}'),
-                  _smallStat('W', '${item.wins}', color: AppColors.formWin),
-                  _smallStat('D', '${item.draws}',
+                  _smallStat(context, 'P', '${item.played}'),
+                  _smallStat(context, 'W', '${item.wins}',
+                      color: AppColors.formWin),
+                  _smallStat(context, 'D', '${item.draws}',
                       color: AppColors.formDraw),
-                  _smallStat('L', '${item.losses}',
+                  _smallStat(context, 'L', '${item.losses}',
                       color: AppColors.formLoss),
-                  _smallStat('GD',
+                  _smallStat(context, 'GD',
                       '${item.goalDifference > 0 ? '+' : ''}${item.goalDifference}'),
                 ],
               ),
@@ -408,13 +425,15 @@ class _StandingsTab extends StatelessWidget {
     );
   }
 
-  Widget _smallStat(String label, String value, {Color? color}) {
+  Widget _smallStat(BuildContext context, String label, String value,
+      {Color? color}) {
     return Padding(
       padding: const EdgeInsets.only(right: 10),
       child: Row(
         children: [
           Text('$label ',
-              style: const TextStyle(fontSize: 11, color: Colors.white60)),
+              style: TextStyle(
+                  fontSize: 11, color: Theme.of(context).hintColor)),
           Text(value,
               style: TextStyle(
                   fontSize: 11.5,
@@ -499,7 +518,7 @@ class _TeamsTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -570,7 +589,12 @@ class _ScorersTab extends StatelessWidget {
                               AppColors.neonGreen,
                             ])
                           : null,
-                      color: i < 3 ? null : Colors.white10,
+                      color: i < 3
+                          ? null
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.08),
                     ),
                     child: Text('${i + 1}',
                         style: const TextStyle(

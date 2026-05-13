@@ -172,138 +172,161 @@ class _GlowMatchHeader extends StatelessWidget {
     final isLive =
         match.status == MatchStatus.live && match.timeLabel != 'HT';
     final primary = Theme.of(context).colorScheme.primary;
-    final card =
-        Theme.of(context).cardTheme.color ?? AppColors.darkCard;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            primary.withValues(alpha: 0.32),
-            const Color(0xFF0E1218),
-            card,
-          ],
-          stops: const [0.0, 0.5, 1.0],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: primary.withValues(alpha: 0.22),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
-          ),
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 20,
-              offset: const Offset(0, 10)),
-        ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CompetitionBadge(logo: match.competition.logo, size: 36),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(match.competition.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 13.5)),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${match.stadium} • ${match.date.day}/${match.date.month}/${match.date.year}',
-                      style: TextStyle(
-                          color: Theme.of(context).hintColor,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+    // Hero card stays visually dark in BOTH themes so that the white/teal
+    // foreground always reads correctly. (In light mode the previous gradient
+    // faded to white at the bottom-right, swallowing the team names.)
+    return DefaultTextStyle(
+      style: const TextStyle(color: Colors.white),
+      child: IconTheme(
+        data: const IconThemeData(color: Colors.white),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                primary.withValues(alpha: 0.55),
+                const Color(0xFF0E1218),
+                const Color(0xFF11151D),
+              ],
+              stops: const [0.0, 0.55, 1.0],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primary.withValues(alpha: 0.22),
+                blurRadius: 26,
+                offset: const Offset(0, 12),
               ),
-              IconButton(
-                onPressed: () => app.toggleMatchFavorite(match.id),
-                icon: Icon(
-                  app.isMatchFavorite(match.id)
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
-                  color: app.isMatchFavorite(match.id) ? Colors.amber : null,
-                ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          const SizedBox(height: 14),
-          Row(
+          child: Column(
             children: [
-              Expanded(
-                child: _TeamBlock(
-                  name: match.homeTeam.name,
-                  shortName: match.homeTeam.shortName,
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
+              Row(
                 children: [
-                  _AnimatedScoreRow(
-                    homeScore: match.homeScore,
-                    awayScore: match.awayScore,
-                  ),
-                  const SizedBox(height: 8),
-                  if (isLive)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                  CompetitionBadge(logo: match.competition.logo, size: 36),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        LiveBadge(label: text.live, dense: true),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
+                        Text(
+                          match.competition.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13.5,
                           ),
-                          child: Text(minuteLabel,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${match.stadium} • ${match.date.day}/${match.date.month}/${match.date.year}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        statusLabel,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 12),
-                      ),
                     ),
+                  ),
+                  IconButton(
+                    onPressed: () => app.toggleMatchFavorite(match.id),
+                    icon: Icon(
+                      app.isMatchFavorite(match.id)
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      color: app.isMatchFavorite(match.id)
+                          ? Colors.amber
+                          : Colors.white,
+                    ),
+                  ),
                 ],
               ),
-              Expanded(
-                child: _TeamBlock(
-                  name: match.awayTeam.name,
-                  shortName: match.awayTeam.shortName,
-                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TeamBlock(
+                      name: match.homeTeam.name,
+                      shortName: match.homeTeam.shortName,
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _AnimatedScoreRow(
+                        homeScore: match.homeScore,
+                        awayScore: match.awayScore,
+                      ),
+                      const SizedBox(height: 8),
+                      if (isLive)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            LiveBadge(label: text.live, dense: true),
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                minuteLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Expanded(
+                    child: _TeamBlock(
+                      name: match.awayTeam.name,
+                      shortName: match.awayTeam.shortName,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -377,7 +400,13 @@ class _TeamBlock extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          // Always white because this block sits inside the dark hero
+          // gradient regardless of the active app theme.
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
         ),
       ],
     );
@@ -442,7 +471,12 @@ class _LiveFeelStrip extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Container(color: Colors.white.withValues(alpha: 0.08)),
+                      Container(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.10),
+                      ),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: FractionallySizedBox(
@@ -789,8 +823,7 @@ class _StatsTab extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(18),
-                border:
-                    Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: Theme.of(context).dividerColor),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.18),
@@ -837,7 +870,10 @@ class _StatsTab extends StatelessWidget {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(colors: [
                                   secondary.withValues(alpha: 0.5),
-                                  Colors.white24
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.12),
                                 ]),
                               ),
                             ),
@@ -857,7 +893,10 @@ class _StatsTab extends StatelessWidget {
                           CircularProgressIndicator(
                             value: animatedHome,
                             strokeWidth: 7,
-                            backgroundColor: Colors.white12,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.10),
                             valueColor:
                                 AlwaysStoppedAnimation<Color>(primary),
                           ),
@@ -1145,7 +1184,8 @@ class _TeamLineupCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.flag_rounded, size: 16, color: Colors.white54),
+          Icon(Icons.flag_rounded,
+              size: 16, color: Theme.of(context).hintColor),
         ],
       ),
     );
@@ -1219,7 +1259,7 @@ class _StandingsTab extends StatelessWidget {
                         .colorScheme
                         .primary
                         .withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.06),
+                    : Theme.of(context).dividerColor,
               ),
             ),
             leading: CircleAvatar(
@@ -1228,7 +1268,10 @@ class _StandingsTab extends StatelessWidget {
                       .colorScheme
                       .primary
                       .withValues(alpha: 0.25)
-                  : Colors.white12,
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.08),
               child: Text('${item.position}',
                   style: const TextStyle(fontWeight: FontWeight.w900)),
             ),

@@ -69,12 +69,12 @@ class _HeroHeader extends StatelessWidget {
   final PlayerModel player;
   final String heroTag;
 
-  Color _ratingColor(double r) {
+  Color _ratingColor(BuildContext context, double r) {
     if (r >= 7.5) return AppColors.goalGreen;
     if (r >= 6.5) return AppColors.teal;
     if (r >= 5.5) return AppColors.cardYellow;
     if (r > 0) return AppColors.cardRed;
-    return Colors.white54;
+    return Theme.of(context).hintColor;
   }
 
   @override
@@ -206,9 +206,12 @@ class _HeroHeader extends StatelessWidget {
                       runSpacing: 4,
                       children: [
                         _chip(context, player.position, primary),
-                        _chip(context, player.nationality, Colors.white24),
-                        _chip(context, '${player.age} ${text.isArabic ? 'سنة' : 'yrs'}',
-                            Colors.white24),
+                        _chip(context, player.nationality,
+                            Theme.of(context).colorScheme.onSurface),
+                        _chip(
+                            context,
+                            '${player.age} ${text.isArabic ? 'سنة' : 'yrs'}',
+                            Theme.of(context).colorScheme.onSurface),
                       ],
                     ),
                   ],
@@ -216,7 +219,8 @@ class _HeroHeader extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _RatingDial(
-                  value: ratingValue, color: _ratingColor(ratingValue)),
+                  value: ratingValue,
+                  color: _ratingColor(context, ratingValue)),
             ],
           ),
         ),
@@ -262,7 +266,10 @@ class _RatingDial extends StatelessWidget {
               CircularProgressIndicator(
                 value: anim,
                 strokeWidth: 6,
-                backgroundColor: Colors.white12,
+                backgroundColor: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.10),
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
               Center(

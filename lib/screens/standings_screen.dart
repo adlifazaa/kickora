@@ -50,7 +50,12 @@ class StandingsScreen extends StatelessWidget {
                             AppColors.neonGreen,
                           ])
                         : null,
-                    color: isTop ? null : Colors.white10,
+                    color: isTop
+                        ? null
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.08),
                   ),
                   child: Text('${item.position}',
                       style: const TextStyle(fontWeight: FontWeight.w900)),
@@ -103,7 +108,7 @@ class StandingsScreen extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w800,
-          color: color ?? Colors.white70,
+          color: color ?? Theme.of(context).hintColor,
         ),
       ),
     );

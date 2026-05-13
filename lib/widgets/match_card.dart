@@ -14,14 +14,19 @@ class MatchCard extends StatelessWidget {
   final MatchModel match;
   final VoidCallback? onTap;
 
-  Color _statusColor(MatchStatus status) {
+  Color _statusColor(BuildContext context, MatchStatus status) {
     switch (status) {
       case MatchStatus.live:
         return AppColors.goalGreen;
       case MatchStatus.upcoming:
         return AppColors.teal;
       case MatchStatus.finished:
-        return Colors.white60;
+        // Theme-aware muted tone so the "finished" pill stays readable
+        // in BOTH dark and light mode (was hardcoded white60 → invisible
+        // on the white card in light mode).
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.white60
+            : const Color(0xFF5B6473);
     }
   }
 
@@ -108,13 +113,14 @@ class MatchCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _statusColor(match.status).withValues(alpha: 0.18),
+                        color: _statusColor(context, match.status)
+                            .withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         match.timeLabel,
                         style: TextStyle(
-                          color: _statusColor(match.status),
+                          color: _statusColor(context, match.status),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),

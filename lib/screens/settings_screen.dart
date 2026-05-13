@@ -94,7 +94,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
           _SettingsTile(
             icon: Icons.verified_outlined,
-            iconColor: Colors.white54,
+            iconColor: Theme.of(context).hintColor,
             title: text.appVersion,
             subtitle: 'v1.0.0 · Kickora',
             onTap: () => Navigator.pushNamed(context, AppRoutes.about),

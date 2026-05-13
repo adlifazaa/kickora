@@ -37,6 +37,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final labels = [
       text.home,
       text.matches,
@@ -54,14 +56,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
           child: Container(
             decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
+              color: theme.cardTheme.color,
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : AppColors.lightBorder,
+              ),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6)),
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                  blurRadius: isDark ? 16 : 18,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
             child: Padding(
@@ -104,8 +111,15 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        selected ? Theme.of(context).colorScheme.primary : Colors.white60;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    // Pull the unselected color from the active theme so it reads correctly
+    // in BOTH light and dark mode (was hardcoded white60 → invisible on white
+    // in light mode).
+    final unselected = theme.bottomNavigationBarTheme.unselectedItemColor ??
+        theme.hintColor;
+    final color = selected ? primary : unselected;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -117,16 +131,17 @@ class _NavItem extends StatelessWidget {
           gradient: selected
               ? LinearGradient(
                   colors: [
-                    AppColors.teal.withValues(alpha: 0.22),
-                    AppColors.neonGreen.withValues(alpha: 0.12),
+                    primary.withValues(alpha: 0.22),
+                    primary.withValues(alpha: 0.08),
                   ],
                 )
               : null,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: selected
-                  ? AppColors.teal.withValues(alpha: 0.4)
-                  : Colors.transparent),
+            color: selected
+                ? primary.withValues(alpha: 0.45)
+                : Colors.transparent,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -140,7 +155,7 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontSize: 10.5,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
               ),
             ),
           ],
