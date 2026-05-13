@@ -9,6 +9,7 @@ class AppController extends ChangeNotifier {
   static const String _favTeamsKey = 'favorite_teams';
   static const String _favCompetitionsKey = 'favorite_competitions';
   static const String _favMatchesKey = 'favorite_matches';
+  static const String _notificationsKey = 'notifications_enabled';
 
   final SharedPreferences _preferences;
 
@@ -17,6 +18,7 @@ class AppController extends ChangeNotifier {
   Set<int> _favoriteTeamIds = <int>{};
   Set<int> _favoriteCompetitionIds = <int>{};
   Set<int> _favoriteMatchIds = <int>{};
+  bool _notificationsEnabled = false;
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
@@ -25,6 +27,7 @@ class AppController extends ChangeNotifier {
   Set<int> get favoriteTeamIds => _favoriteTeamIds;
   Set<int> get favoriteCompetitionIds => _favoriteCompetitionIds;
   Set<int> get favoriteMatchIds => _favoriteMatchIds;
+  bool get notificationsEnabled => _notificationsEnabled;
 
   Future<void> load() async {
     final themeValue = _preferences.getString(_themeKey) ?? ThemeMode.dark.name;
@@ -36,6 +39,14 @@ class AppController extends ChangeNotifier {
     _favoriteTeamIds = _readSet(_favTeamsKey);
     _favoriteCompetitionIds = _readSet(_favCompetitionsKey);
     _favoriteMatchIds = _readSet(_favMatchesKey);
+    _notificationsEnabled = _preferences.getBool(_notificationsKey) ?? false;
+    notifyListeners();
+  }
+
+  /// Persists preference only; no OS push registration yet.
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    await _preferences.setBool(_notificationsKey, enabled);
     notifyListeners();
   }
 
@@ -61,7 +72,12 @@ class AppController extends ChangeNotifier {
 
   Set<int> _readSet(String key) {
     final values = _preferences.getStringList(key) ?? <String>[];
-    return values.map(int.parse).toSet();
+    final out = <int>{};
+    for (final s in values) {
+      final v = int.tryParse(s);
+      if (v != null) out.add(v);
+    }
+    return out;
   }
 
   Future<void> _toggleSet(int id, Set<int> source, String key) async {

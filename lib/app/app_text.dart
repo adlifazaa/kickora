@@ -40,16 +40,32 @@ class AppText {
   String get noMatchesSub => _isArabic
       ? 'تحقق لاحقًا أو اسحب للأسفل للتحديث.'
       : 'Check back later or pull to refresh.';
+  String get noMatchesEmptyDetail => _isArabic
+      ? 'جرّب تبويبًا آخر أو غيّر التاريخ من الشريط العلوي.'
+      : 'Try another tab or pick a different date from the chip above.';
+  String get noSearchResultsTitle =>
+      _isArabic ? 'لا توجد نتائج بحث' : 'No search results';
+  String get noSearchResultsSubtitle => _isArabic
+      ? 'جرّب اسمًا مختلفًا أو أقل أحرفًا.'
+      : 'Try a different name or fewer characters.';
   String get noFavoritesTitle =>
       _isArabic ? 'لا توجد مفضلات بعد' : 'No favorites yet';
   String get noFavoritesSubtitle => _isArabic
       ? 'أضف فرقًا، بطولات، أو مباريات لتظهر هنا.'
       : 'Add teams, competitions, or matches and they will appear here.';
+  String get noFavoritesDetail => _isArabic
+      ? 'اضغط على النجمة في بطاقة المباراة أو أيقونة الإشارة المرجعية في البطولة.'
+      : 'Tap the star on a match card or the bookmark on a competition.';
 
   String get language => _isArabic ? 'اللغة' : 'Language';
   String get darkMode => _isArabic ? 'الوضع الداكن' : 'Dark mode';
   String get notifications =>
       _isArabic ? 'إشعارات المباريات' : 'Match notifications';
+  String get notificationsPrefsBody => _isArabic
+      ? 'تنبيهات الأهداف والجولات (وضع تجريبي محلي فقط).'
+      : 'Goals & kick-off alerts (local preference only for now).';
+  String get pushNotificationsComingSoon =>
+      _isArabic ? 'الإشعارات الفورية قريبًا.' : 'Push notifications coming soon.';
   String get matchDetails => _isArabic ? 'تفاصيل المباراة' : 'Match details';
 
   String get overview => _isArabic ? 'نظرة عامة' : 'Overview';

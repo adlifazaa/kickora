@@ -15,129 +15,131 @@ class SettingsScreen extends StatelessWidget {
     final text = AppText.of(context);
 
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-        children: [
-          Text(text.settings,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.4,
-                  )),
-          const SizedBox(height: 4),
-          Text(
-            text.isArabic
-                ? 'خصص تجربة Kickora'
-                : 'Customize your Kickora experience',
-            style: TextStyle(
-                color: Theme.of(context).hintColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          SectionHeader(
-            title: text.isArabic ? 'التفضيلات' : 'Preferences',
-            icon: Icons.tune_rounded,
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.language_rounded,
-            iconColor: AppColors.teal,
-            title: '${text.language}: العربية / English',
-            subtitle: text.isArabic
-                ? 'دعم كامل لاتجاه RTL'
-                : 'Full RTL & LTR support',
-            trailing: Switch.adaptive(
-              value: app.isArabic,
-              onChanged: (v) => app.setLocale(Locale(v ? 'ar' : 'en')),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.dark_mode_rounded,
-            iconColor: AppColors.neonGreen,
-            title: text.darkMode,
-            subtitle: text.isArabic
-                ? 'مظهر ملعب ليلي فاخر'
-                : 'Premium night stadium look',
-            trailing: Switch.adaptive(
-              value: app.themeMode == ThemeMode.dark,
-              onChanged: (v) =>
-                  app.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.notifications_active_outlined,
-            iconColor: Colors.amber,
-            title: text.notifications,
-            subtitle: text.isArabic
-                ? 'تنبيهات الأهداف والجولات (وهمي)'
-                : 'Goals & kick-off alerts (placeholder)',
-            trailing: Switch.adaptive(value: false, onChanged: (_) {}),
-          ),
-          const SizedBox(height: 26),
-          SectionHeader(
-            title: text.isArabic ? 'معلومات Kickora' : 'About Kickora',
-            icon: Icons.info_outline_rounded,
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.sports_soccer_rounded,
-            iconColor: Theme.of(context).colorScheme.primary,
-            title: text.about,
-            subtitle: text.isArabic
-                ? 'قصة التطبيق، المميزات، والروابط'
-                : 'Story, features, and links',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.about),
-            trailing: const Icon(Icons.chevron_right_rounded),
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.verified_outlined,
-            iconColor: Theme.of(context).hintColor,
-            title: text.appVersion,
-            subtitle: 'v1.0.0 · Kickora',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.about),
-            trailing: const Icon(Icons.chevron_right_rounded),
-          ),
-          const SizedBox(height: 26),
-          SectionHeader(
-            title: text.isArabic ? 'الخصوصية والقانون' : 'Privacy & legal',
-            icon: Icons.shield_outlined,
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.privacy_tip_outlined,
-            iconColor: AppColors.subBlue,
-            title: text.privacy,
-            subtitle: text.isArabic
-                ? 'كيف نتعامل مع بياناتك'
-                : 'How we handle your data',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.privacy),
-            trailing: const Icon(Icons.chevron_right_rounded),
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            icon: Icons.description_outlined,
-            iconColor: AppColors.varPurple,
-            title: text.terms,
-            subtitle: text.isArabic
-                ? 'القواعد التي تحكم الاستخدام'
-                : 'Rules of using Kickora',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    text.isArabic
-                        ? 'شروط الاستخدام قريبًا'
-                        : 'Terms of use coming soon',
-                  ),
+      child: ListenableBuilder(
+        listenable: app,
+        builder: (context, _) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+            children: [
+              Text(text.settings,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      )),
+              const SizedBox(height: 4),
+              Text(
+                text.isArabic
+                    ? 'خصص تجربة Kickora'
+                    : 'Customize your Kickora experience',
+                style: TextStyle(
+                    color: Theme.of(context).hintColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
+              ),
+              const SizedBox(height: 24),
+              SectionHeader(
+                title: text.isArabic ? 'التفضيلات' : 'Preferences',
+                icon: Icons.tune_rounded,
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.language_rounded,
+                iconColor: AppColors.teal,
+                title: '${text.language}: العربية / English',
+                subtitle: text.isArabic
+                    ? 'دعم كامل لاتجاه RTL'
+                    : 'Full RTL & LTR support',
+                trailing: Switch.adaptive(
+                  value: app.isArabic,
+                  onChanged: (v) => app.setLocale(Locale(v ? 'ar' : 'en')),
                 ),
-              );
-            },
-            trailing: const Icon(Icons.chevron_right_rounded),
-          ),
-        ],
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.dark_mode_rounded,
+                iconColor: AppColors.neonGreen,
+                title: text.darkMode,
+                subtitle: text.isArabic
+                    ? 'مظهر ملعب ليلي فاخر'
+                    : 'Premium night stadium look',
+                trailing: Switch.adaptive(
+                  value: app.themeMode == ThemeMode.dark,
+                  onChanged: (v) =>
+                      app.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.notifications_active_outlined,
+                iconColor: Colors.amber,
+                title: text.notifications,
+                subtitle:
+                    '${text.notificationsPrefsBody}\n${text.pushNotificationsComingSoon}',
+                subtitleMaxLines: 4,
+                trailing: Switch.adaptive(
+                  value: app.notificationsEnabled,
+                  onChanged: (v) => app.setNotificationsEnabled(v),
+                ),
+              ),
+              const SizedBox(height: 26),
+              SectionHeader(
+                title: text.isArabic ? 'معلومات Kickora' : 'About Kickora',
+                icon: Icons.info_outline_rounded,
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.sports_soccer_rounded,
+                iconColor: Theme.of(context).colorScheme.primary,
+                title: text.about,
+                subtitle: text.isArabic
+                    ? 'قصة التطبيق، المميزات، والروابط'
+                    : 'Story, features, and links',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.verified_outlined,
+                iconColor: Theme.of(context).hintColor,
+                title: text.appVersion,
+                subtitle: 'v1.0.0 · Kickora',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
+              ),
+              const SizedBox(height: 26),
+              SectionHeader(
+                title: text.isArabic ? 'الخصوصية والقانون' : 'Privacy & legal',
+                icon: Icons.shield_outlined,
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.privacy_tip_outlined,
+                iconColor: AppColors.subBlue,
+                title: text.privacy,
+                subtitle: text.isArabic
+                    ? 'كيف نتعامل مع بياناتك'
+                    : 'How we handle your data',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.privacy),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.description_outlined,
+                iconColor: AppColors.varPurple,
+                title: text.terms,
+                subtitle: text.isArabic
+                    ? 'القواعد التي تحكم الاستخدام'
+                    : 'Rules of using Kickora',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.terms),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -149,6 +151,7 @@ class _SettingsTile extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.subtitle,
+    this.subtitleMaxLines = 2,
     this.trailing,
     this.onTap,
   });
@@ -157,6 +160,7 @@ class _SettingsTile extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String subtitle;
+  final int subtitleMaxLines;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -171,6 +175,7 @@ class _SettingsTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.all(11),
@@ -201,7 +206,7 @@ class _SettingsTile extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      maxLines: 2,
+                      maxLines: subtitleMaxLines,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           color: Theme.of(context).hintColor,

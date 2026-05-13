@@ -53,6 +53,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             child: AppEmptyState(
               title: text.noFavoritesTitle,
               subtitle: text.noFavoritesSubtitle,
+              detail: text.noFavoritesDetail,
               icon: Icons.star_border_rounded,
             ),
           ),

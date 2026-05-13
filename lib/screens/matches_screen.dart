@@ -141,6 +141,7 @@ class _MatchesScreenState extends State<MatchesScreen>
                                         icon: Icons.sports_soccer_outlined,
                                         title: text.noMatches,
                                         subtitle: text.noMatchesSub,
+                                        detail: text.noMatchesEmptyDetail,
                                       ),
                                     ],
                                   )

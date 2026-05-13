@@ -63,14 +63,17 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
           ),
           Expanded(
             child: competitions.isEmpty
-                ? AppEmptyState(
-                    icon: Icons.search_off_rounded,
-                    title: text.isArabic
-                        ? 'لا توجد نتائج'
-                        : 'No matches',
-                    subtitle: text.isArabic
-                        ? 'جرب كلمة بحث مختلفة.'
-                        : 'Try a different keyword.',
+                ? Center(
+                    child: AppEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: text.noSearchResultsTitle,
+                      subtitle: text.noSearchResultsSubtitle,
+                      detail: _query.trim().isEmpty
+                          ? null
+                          : (text.isArabic
+                              ? 'البحث عن: "$_query"'
+                              : 'Searched for: "$_query"'),
+                    ),
                   )
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
