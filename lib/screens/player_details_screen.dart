@@ -100,7 +100,7 @@ class _HeroHeader extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(top: 56, left: 20, right: 20),
+          padding: const EdgeInsetsDirectional.only(top: 56, start: 20, end: 20),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -637,84 +637,272 @@ class _CareerTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     final clubs = player.career.isEmpty ? <String>[player.team] : player.career;
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: clubs.length,
-      itemBuilder: (context, i) {
-        final isLast = i == clubs.length - 1;
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 28,
-                child: Column(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _CareerSectionHeader(
+          icon: Icons.swap_calls_rounded,
+          title: text.isArabic ? 'تاريخ الانتقالات' : 'Transfer history',
+          color: AppColors.teal,
+        ),
+        const SizedBox(height: 10),
+        for (var i = 0; i < clubs.length; i++)
+          _TransferRow(
+            club: clubs[i],
+            isFirst: i == 0,
+            isLast: i == clubs.length - 1,
+          ),
+        const SizedBox(height: 24),
+        _CareerSectionHeader(
+          icon: Icons.emoji_events_rounded,
+          title: text.isArabic ? 'الإنجازات' : 'Achievements',
+          color: AppColors.cardYellow,
+        ),
+        const SizedBox(height: 10),
+        _AchievementsGrid(player: player),
+      ],
+    );
+  }
+}
+
+class _CareerSectionHeader extends StatelessWidget {
+  const _CareerSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [color, color.withValues(alpha: 0.55)],
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.2,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransferRow extends StatelessWidget {
+  const _TransferRow({
+    required this.club,
+    required this.isFirst,
+    required this.isLast,
+  });
+
+  final String club;
+  final bool isFirst;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Column(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [
+                      AppColors.teal,
+                      AppColors.neonGreen,
+                    ]),
+                    boxShadow: [
+                      BoxShadow(
+                          color: AppColors.teal.withValues(alpha: 0.4),
+                          blurRadius: 6),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.35),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(bottom: isLast ? 0 : 12),
+              child: _PremiumCard(
+                child: Row(
                   children: [
                     Container(
-                      width: 12,
-                      height: 12,
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(colors: [
-                          AppColors.teal,
-                          AppColors.neonGreen,
-                        ]),
-                        boxShadow: [
-                          BoxShadow(
-                              color: AppColors.teal.withValues(alpha: 0.4),
-                              blurRadius: 6),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.shield_moon_outlined,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(club,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14)),
+                          const SizedBox(height: 2),
+                          Text(
+                              isFirst
+                                  ? (text.isArabic ? 'البداية' : 'Start')
+                                  : (isLast
+                                      ? (text.isArabic ? 'الحالي' : 'Current')
+                                      : (text.isArabic ? 'سابقًا' : 'Past')),
+                              style: TextStyle(
+                                  color: Theme.of(context).hintColor,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
-                    if (!isLast)
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.35),
-                        ),
-                      ),
                   ],
                 ),
               ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-                  child: _PremiumCard(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.shield_moon_outlined),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(clubs[i],
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14)),
-                              Text(
-                                  i == 0
-                                      ? (text.isArabic ? 'البداية' : 'Start')
-                                      : (isLast
-                                          ? (text.isArabic ? 'الحالي' : 'Current')
-                                          : (text.isArabic ? 'سابقًا' : 'Past')),
-                                  style: TextStyle(
-                                      color: Theme.of(context).hintColor,
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AchievementsGrid extends StatelessWidget {
+  const _AchievementsGrid({required this.player});
+  final PlayerModel player;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    final entries = <(IconData, String, String, Color)>[
+      (
+        Icons.emoji_events_rounded,
+        text.isArabic ? 'بطولات' : 'Trophies',
+        '${(player.appearances ~/ 12).clamp(0, 24)}',
+        AppColors.cardYellow,
+      ),
+      (
+        Icons.workspace_premium_rounded,
+        text.isArabic ? 'جوائز فردية' : 'Awards',
+        '${(player.goals ~/ 20).clamp(0, 18)}',
+        AppColors.varPurple,
+      ),
+      (
+        Icons.military_tech_rounded,
+        text.isArabic ? 'ميداليات' : 'Medals',
+        '${(player.assists ~/ 8).clamp(0, 22)}',
+        AppColors.teal,
+      ),
+      (
+        Icons.public_rounded,
+        text.isArabic ? 'منتخب' : 'Caps',
+        '${(player.appearances ~/ 6).clamp(0, 120)}',
+        AppColors.subBlue,
+      ),
+    ];
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: entries.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.7,
+      ),
+      itemBuilder: (context, i) {
+        final (icon, label, value, color) = entries[i];
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: Duration(milliseconds: 380 + i * 60),
+          curve: Curves.easeOutBack,
+          builder: (context, t, child) {
+            return Transform.scale(
+              scale: 0.94 + 0.06 * t.clamp(0.0, 1.0),
+              child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
+            );
+          },
+          child: _PremiumCard(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(value,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 20)),
+                      const SizedBox(height: 2),
+                      Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: Theme.of(context).hintColor,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700)),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

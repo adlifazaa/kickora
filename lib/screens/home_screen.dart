@@ -9,6 +9,7 @@ import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/competition_card.dart';
 import '../widgets/match_card.dart';
+import '../widgets/micro_interactions.dart';
 import '../widgets/section_header.dart';
 import '../widgets/skeleton_box.dart';
 import '../widgets/team_logo.dart';
@@ -75,30 +76,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.star_rounded,
                 ),
                 const SizedBox(height: 10),
-                MatchCard(
-                  match: liveMatches.first,
-                  onTap: () => Navigator.pushNamed(
-                      context, AppRoutes.matchDetails,
-                      arguments: liveMatches.first),
-                ),
+                _FeaturedCarousel(matches: liveMatches),
                 const SizedBox(height: 20),
                 SectionHeader(
                   title: text.liveNow,
-                  subtitle: '${liveMatches.length} ${text.isArabic ? 'مباراة' : 'matches'}',
+                  subtitle:
+                      '${liveMatches.length} ${text.isArabic ? 'مباراة' : 'matches'}',
                   icon: Icons.flash_on_rounded,
                   actionText: text.all,
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.matches),
                 ),
                 const SizedBox(height: 10),
-                ...liveMatches.map((match) => Padding(
+                for (var i = 0; i < liveMatches.length; i++)
+                  _StaggeredItem(
+                    index: i,
+                    child: Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: MatchCard(
-                          match: match,
-                          onTap: () => Navigator.pushNamed(
-                              context, AppRoutes.matchDetails,
-                              arguments: match)),
-                    )),
+                        match: liveMatches[i],
+                        onTap: () => Navigator.pushNamed(
+                            context, AppRoutes.matchDetails,
+                            arguments: liveMatches[i]),
+                      ),
+                    ),
+                  ),
               ],
               const SizedBox(height: 4),
               SectionHeader(
@@ -108,14 +110,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icons.today_rounded,
               ),
               const SizedBox(height: 10),
-              ...todayMatches.map((match) => Padding(
+              for (var i = 0; i < todayMatches.length; i++)
+                _StaggeredItem(
+                  index: i,
+                  child: Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: MatchCard(
-                        match: match,
-                        onTap: () => Navigator.pushNamed(
-                            context, AppRoutes.matchDetails,
-                            arguments: match)),
-                  )),
+                      match: todayMatches[i],
+                      onTap: () => Navigator.pushNamed(
+                          context, AppRoutes.matchDetails,
+                          arguments: todayMatches[i]),
+                    ),
+                  ),
+                ),
             ],
             const SizedBox(height: 6),
             _FeaturedCompetitionStrip(competition: featuredCompetition),
@@ -222,57 +229,172 @@ class _FeaturedCompetitionStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     final primary = Theme.of(context).colorScheme.primary;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => Navigator.pushNamed(
-            context, AppRoutes.competitionDetails,
-            arguments: competition),
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                primary.withValues(alpha: 0.28),
-                primary.withValues(alpha: 0.07),
+    return TapScale(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => Navigator.pushNamed(
+          context, AppRoutes.competitionDetails,
+          arguments: competition),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.pushNamed(
+              context, AppRoutes.competitionDetails,
+              arguments: competition),
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  primary.withValues(alpha: 0.28),
+                  primary.withValues(alpha: 0.07),
+                ],
+              ),
+              border: Border.all(color: primary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                CompetitionBadge(logo: competition.logo, size: 46),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        text.isArabic
+                            ? 'بطولة مميزة'
+                            : 'Featured competition',
+                        style: TextStyle(
+                            color: Theme.of(context).hintColor,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700),
+                      ),
+                      Text(competition.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15.5,
+                              letterSpacing: -0.2)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: primary),
               ],
             ),
-            border: Border.all(color: primary.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              CompetitionBadge(logo: competition.logo, size: 46),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      text.isArabic ? 'بطولة مميزة' : 'Featured competition',
-                      style: TextStyle(
-                          color: Theme.of(context).hintColor,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700),
-                    ),
-                    Text(competition.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15.5,
-                            letterSpacing: -0.2)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: primary),
-            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Horizontal PageView showing the top live matches with a subtle peek of the
+/// next card on either side — gives the home screen a real "carousel" feel.
+class _FeaturedCarousel extends StatefulWidget {
+  const _FeaturedCarousel({required this.matches});
+
+  final List<MatchModel> matches;
+
+  @override
+  State<_FeaturedCarousel> createState() => _FeaturedCarouselState();
+}
+
+class _FeaturedCarouselState extends State<_FeaturedCarousel> {
+  late final PageController _ctrl =
+      PageController(viewportFraction: widget.matches.length == 1 ? 1 : 0.94);
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = widget.matches;
+    return Column(
+      children: [
+        SizedBox(
+          height: 152,
+          child: PageView.builder(
+            controller: _ctrl,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemCount: matches.length,
+            itemBuilder: (context, i) {
+              return AnimatedPadding(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.symmetric(
+                    horizontal: matches.length == 1 ? 0 : 6,
+                    vertical: i == _page ? 0 : 6),
+                child: MatchCard(
+                  match: matches[i],
+                  onTap: () => Navigator.pushNamed(
+                      context, AppRoutes.matchDetails,
+                      arguments: matches[i]),
+                ),
+              );
+            },
+          ),
+        ),
+        if (matches.length > 1) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(matches.length, (i) {
+              final selected = i == _page;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: selected ? 16 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Subtle slide+fade-in for list items, indexed by [index] so a stack of cards
+/// staggers naturally on first paint.
+class _StaggeredItem extends StatelessWidget {
+  const _StaggeredItem({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 280 + index * 50),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        return Opacity(
+          opacity: t.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 14),
+            child: child,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

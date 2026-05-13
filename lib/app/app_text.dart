@@ -57,6 +57,15 @@ class AppText {
       ? 'اضغط على النجمة في بطاقة المباراة أو أيقونة الإشارة المرجعية في البطولة.'
       : 'Tap the star on a match card or the bookmark on a competition.';
 
+  String get searchEmptyTitle =>
+      _isArabic ? 'ابدأ البحث' : 'Start searching';
+  String get searchEmptySubtitle => _isArabic
+      ? 'اكتب اسم بطولة أو فريق أو لاعب لتبدأ.'
+      : 'Type a competition, team, or player name to begin.';
+  String get recentSearches =>
+      _isArabic ? 'عمليات البحث الأخيرة' : 'Recent searches';
+  String get clearAll => _isArabic ? 'مسح الكل' : 'Clear';
+
   String get language => _isArabic ? 'اللغة' : 'Language';
   String get darkMode => _isArabic ? 'الوضع الداكن' : 'Dark mode';
   String get notifications =>

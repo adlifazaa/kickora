@@ -15,6 +15,7 @@ import '../screens/privacy_policy_screen.dart';
 import '../screens/splash_screen.dart';
 import '../screens/terms_of_use_screen.dart';
 import '../screens/standings_screen.dart';
+import '../widgets/micro_interactions.dart';
 
 class AppRoutes {
   static const splash = '/';
@@ -32,32 +33,57 @@ class AppRoutes {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case splash:
-        return MaterialPageRoute(builder: (context) => const SplashScreen());
+        // Splash should use the platform default fade so the first paint
+        // doesn't feel "pushed".
+        return MaterialPageRoute(
+            settings: settings,
+            builder: (context) => const SplashScreen());
       case mainNavigation:
-        return MaterialPageRoute(builder: (context) => const MainNavigationScreen());
+        return MaterialPageRoute(
+            settings: settings,
+            builder: (context) => const MainNavigationScreen());
       case matches:
-        return MaterialPageRoute(builder: (context) => const MatchesScreen());
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const MatchesScreen());
       case matchDetails:
         final match = settings.arguments as MatchModel;
-        return MaterialPageRoute(builder: (context) => MatchDetailsScreen(match: match));
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => MatchDetailsScreen(match: match));
       case competitions:
-        return MaterialPageRoute(builder: (context) => const CompetitionsScreen());
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const CompetitionsScreen());
       case standings:
-        return MaterialPageRoute(builder: (context) => const StandingsScreen());
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const StandingsScreen());
       case competitionDetails:
         final competition = settings.arguments as CompetitionModel;
-        return MaterialPageRoute(builder: (context) => CompetitionDetailsScreen(competition: competition));
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) =>
+                CompetitionDetailsScreen(competition: competition));
       case playerDetails:
         final player = settings.arguments as PlayerModel;
-        return MaterialPageRoute(builder: (context) => PlayerDetailsScreen(player: player));
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => PlayerDetailsScreen(player: player));
       case about:
-        return MaterialPageRoute(builder: (context) => const AboutScreen());
+        return PremiumPageRoute(
+            settings: settings, builder: (context) => const AboutScreen());
       case privacy:
-        return MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen());
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const PrivacyPolicyScreen());
       case terms:
-        return MaterialPageRoute(builder: (context) => const TermsOfUseScreen());
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const TermsOfUseScreen());
       default:
-        return MaterialPageRoute(builder: (context) => const HomeScreen());
+        return MaterialPageRoute(
+            settings: settings, builder: (context) => const HomeScreen());
     }
   }
 }

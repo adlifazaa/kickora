@@ -10,6 +10,8 @@ class AppController extends ChangeNotifier {
   static const String _favCompetitionsKey = 'favorite_competitions';
   static const String _favMatchesKey = 'favorite_matches';
   static const String _notificationsKey = 'notifications_enabled';
+  static const String _recentSearchesKey = 'recent_searches';
+  static const int _maxRecentSearches = 8;
 
   final SharedPreferences _preferences;
 
@@ -19,6 +21,7 @@ class AppController extends ChangeNotifier {
   Set<int> _favoriteCompetitionIds = <int>{};
   Set<int> _favoriteMatchIds = <int>{};
   bool _notificationsEnabled = false;
+  List<String> _recentSearches = const <String>[];
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
@@ -28,6 +31,7 @@ class AppController extends ChangeNotifier {
   Set<int> get favoriteCompetitionIds => _favoriteCompetitionIds;
   Set<int> get favoriteMatchIds => _favoriteMatchIds;
   bool get notificationsEnabled => _notificationsEnabled;
+  List<String> get recentSearches => List.unmodifiable(_recentSearches);
 
   Future<void> load() async {
     final themeValue = _preferences.getString(_themeKey) ?? ThemeMode.dark.name;
@@ -40,6 +44,38 @@ class AppController extends ChangeNotifier {
     _favoriteCompetitionIds = _readSet(_favCompetitionsKey);
     _favoriteMatchIds = _readSet(_favMatchesKey);
     _notificationsEnabled = _preferences.getBool(_notificationsKey) ?? false;
+    _recentSearches =
+        _preferences.getStringList(_recentSearchesKey) ?? const <String>[];
+    notifyListeners();
+  }
+
+  /// Adds [query] to the front of the recent searches list (dedup, capped).
+  Future<void> addRecentSearch(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    final updated = <String>[q];
+    for (final item in _recentSearches) {
+      if (item.toLowerCase() == q.toLowerCase()) continue;
+      updated.add(item);
+      if (updated.length >= _maxRecentSearches) break;
+    }
+    _recentSearches = updated;
+    await _preferences.setStringList(_recentSearchesKey, _recentSearches);
+    notifyListeners();
+  }
+
+  Future<void> removeRecentSearch(String query) async {
+    final next = _recentSearches.where((e) => e != query).toList();
+    if (next.length == _recentSearches.length) return;
+    _recentSearches = next;
+    await _preferences.setStringList(_recentSearchesKey, _recentSearches);
+    notifyListeners();
+  }
+
+  Future<void> clearRecentSearches() async {
+    if (_recentSearches.isEmpty) return;
+    _recentSearches = const <String>[];
+    await _preferences.remove(_recentSearchesKey);
     notifyListeners();
   }
 

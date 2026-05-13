@@ -5,6 +5,7 @@ import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../models/match_model.dart';
 import 'live_badge.dart';
+import 'micro_interactions.dart';
 import 'team_logo.dart';
 
 /// Premium match card with gradient surface, live pulse, and animated score.
@@ -43,35 +44,38 @@ class MatchCard extends StatelessWidget {
         ? AppColors.liveRed.withValues(alpha: 0.06)
         : Theme.of(context).colorScheme.primary.withValues(alpha: 0.045);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [base, Color.alphaBlend(overlay, base)],
-            ),
-            border: Border.all(
-              color: isLive
-                  ? AppColors.liveRed.withValues(alpha: 0.35)
-                  : (isDark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : AppColors.lightBorder),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+    return TapScale(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [base, Color.alphaBlend(overlay, base)],
               ),
-            ],
-          ),
+              border: Border.all(
+                color: isLive
+                    ? AppColors.liveRed.withValues(alpha: 0.35)
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : AppColors.lightBorder),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
           child: Column(
             children: [
               Row(
@@ -126,19 +130,9 @@ class MatchCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  IconButton(
-                    onPressed: () => app.toggleMatchFavorite(match.id),
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      transitionBuilder: (child, anim) =>
-                          ScaleTransition(scale: anim, child: child),
-                      child: Icon(
-                        isFav ? Icons.star_rounded : Icons.star_border_rounded,
-                        key: ValueKey(isFav),
-                        color: isFav ? Colors.amber : null,
-                      ),
-                    ),
-                    visualDensity: VisualDensity.compact,
+                  FavoriteToggle(
+                    value: isFav,
+                    onChanged: (_) => app.toggleMatchFavorite(match.id),
                   ),
                 ],
               ),
@@ -190,6 +184,7 @@ class MatchCard extends StatelessWidget {
                 ),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -107,6 +107,19 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
               bottom: TabBar(
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
+                labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 0.1),
+                unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 12.5),
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
+                indicatorWeight: 2.6,
+                splashFactory: NoSplash.splashFactory,
+                overlayColor: WidgetStatePropertyAll(
+                    Colors.white.withValues(alpha: 0.06)),
                 tabs: [
                   Tab(text: text.matches),
                   Tab(text: text.standings),
@@ -337,34 +350,61 @@ class _StandingsTab extends StatelessWidget {
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: standings.length + 1,
+      itemCount: standings.length + 2,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         if (i == 0) return const _StandingsLegend();
-        final item = standings[i - 1];
-        final isUcl = i - 1 < 4;
-        final isRel = i - 1 >= standings.length - 1;
-        Color? rowAccent;
-        if (isUcl) {
-          rowAccent =
-              Theme.of(context).colorScheme.primary.withValues(alpha: 0.16);
-        }
-        if (isRel) rowAccent = AppColors.cardRed.withValues(alpha: 0.12);
-        return Container(
-          decoration: BoxDecoration(
-            color: rowAccent ?? Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: isUcl
-                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
-                    : (isRel
-                        ? AppColors.cardRed.withValues(alpha: 0.25)
-                        : Theme.of(context).dividerColor)),
-          ),
-          child: ListTile(
-            leading: Container(
-              width: 36,
-              height: 36,
+        if (i == 1) return const _StandingsTableHeader();
+        final idx = i - 2;
+        final item = standings[idx];
+        return _StandingsRow(
+          item: item,
+          isUcl: idx < 4,
+          isRel: idx >= standings.length - 1,
+        );
+      },
+    );
+  }
+}
+
+class _StandingsRow extends StatelessWidget {
+  const _StandingsRow({
+    required this.item,
+    required this.isUcl,
+    required this.isRel,
+  });
+
+  final StandingModel item;
+  final bool isUcl;
+  final bool isRel;
+
+  @override
+  Widget build(BuildContext context) {
+    Color? rowAccent;
+    if (isUcl) {
+      rowAccent =
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.10);
+    }
+    if (isRel) rowAccent = AppColors.cardRed.withValues(alpha: 0.08);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: rowAccent ?? Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: isUcl
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+                : (isRel
+                    ? AppColors.cardRed.withValues(alpha: 0.25)
+                    : Theme.of(context).dividerColor)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: Container(
+              width: 26,
+              height: 26,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -385,69 +425,104 @@ class _StandingsTab extends StatelessWidget {
                         .withValues(alpha: 0.08),
               ),
               child: Text('${item.position}',
-                  style: const TextStyle(fontWeight: FontWeight.w900)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900, fontSize: 11)),
             ),
-            title: Row(
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 4,
+            child: Row(
               children: [
                 TeamLogo(shortName: item.team.shortName, size: 22),
                 const SizedBox(width: 8),
-                Flexible(
+                Expanded(
                   child: Text(item.team.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 13.5)),
+                          fontWeight: FontWeight.w800, fontSize: 13)),
                 ),
               ],
             ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                children: [
-                  _smallStat(context, 'P', '${item.played}'),
-                  _smallStat(context, 'W', '${item.wins}',
-                      color: AppColors.formWin),
-                  _smallStat(context, 'D', '${item.draws}',
-                      color: AppColors.formDraw),
-                  _smallStat(context, 'L', '${item.losses}',
-                      color: AppColors.formLoss),
-                  _smallStat(context, 'GD',
-                      '${item.goalDifference > 0 ? '+' : ''}${item.goalDifference}'),
-                ],
-              ),
-            ),
-            trailing: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text('${item.points}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900, fontSize: 16)),
-            ),
           ),
-        );
-      },
+          _ColCell(value: '${item.played}'),
+          _ColCell(value: '${item.wins}', color: AppColors.formWin),
+          _ColCell(value: '${item.draws}', color: AppColors.formDraw),
+          _ColCell(value: '${item.losses}', color: AppColors.formLoss),
+          _ColCell(
+            value:
+                '${item.goalDifference > 0 ? '+' : ''}${item.goalDifference}',
+          ),
+          Container(
+            margin: const EdgeInsetsDirectional.only(start: 4),
+            width: 38,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary
+                  .withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text('${item.points}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w900, fontSize: 13)),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _smallStat(BuildContext context, String label, String value,
-      {Color? color}) {
+class _ColCell extends StatelessWidget {
+  const _ColCell({required this.value, this.color});
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 24,
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _StandingsTableHeader extends StatelessWidget {
+  const _StandingsTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = Theme.of(context).hintColor;
+    TextStyle s(String _) => TextStyle(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        color: hint,
+        letterSpacing: 0.4);
     return Padding(
-      padding: const EdgeInsetsDirectional.only(end: 10),
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
       child: Row(
         children: [
-          Text('$label ',
-              style: TextStyle(
-                  fontSize: 11, color: Theme.of(context).hintColor)),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  color: color)),
+          SizedBox(width: 28, child: Text('#', style: s('#'))),
+          const SizedBox(width: 8),
+          Expanded(flex: 4, child: Text('TEAM', style: s('TEAM'))),
+          SizedBox(width: 24, child: Text('P', style: s('P'), textAlign: TextAlign.center)),
+          SizedBox(width: 24, child: Text('W', style: s('W'), textAlign: TextAlign.center)),
+          SizedBox(width: 24, child: Text('D', style: s('D'), textAlign: TextAlign.center)),
+          SizedBox(width: 24, child: Text('L', style: s('L'), textAlign: TextAlign.center)),
+          SizedBox(width: 24, child: Text('GD', style: s('GD'), textAlign: TextAlign.center)),
+          const SizedBox(width: 4),
+          SizedBox(width: 38, child: Text('PTS', style: s('PTS'), textAlign: TextAlign.center)),
         ],
       ),
     );

@@ -816,10 +816,13 @@ class _StatsTab extends StatelessWidget {
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-      itemCount: match.stats.length,
+      itemCount: match.stats.length + 1,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final stat = match.stats[index];
+        if (index == 0) {
+          return _TeamComparisonCard(match: match);
+        }
+        final stat = match.stats[index - 1];
         final total = (stat.home + stat.away).clamp(0.001, double.infinity);
         final homeRate = (stat.home / total).clamp(0.0, 1.0);
         final primary = Theme.of(context).colorScheme.primary;
@@ -827,7 +830,7 @@ class _StatsTab extends StatelessWidget {
 
         return TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: homeRate),
-          duration: Duration(milliseconds: 650 + index * 40),
+          duration: Duration(milliseconds: 650 + (index - 1) * 40),
           curve: Curves.easeOutCubic,
           builder: (context, animatedHome, child) {
             final awayPart = (1 - animatedHome).clamp(0.0, 1.0);
@@ -963,6 +966,287 @@ class _StatsTab extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
         ),
       ),
+    );
+  }
+}
+
+/// Header card on the Stats tab that shows both teams + score + a "recent
+/// form" strip (last 5 results), giving the page a strong anchor before the
+/// individual stat bars.
+class _TeamComparisonCard extends StatelessWidget {
+  const _TeamComparisonCard({required this.match});
+
+  final MatchModel match;
+
+  List<_FormResult> _recentForm(int seed) {
+    // Deterministic pseudo-form derived from the team id so it stays stable
+    // between rebuilds. Demo only – will be replaced by API "form: WWDLW".
+    const pool = <_FormResult>[
+      _FormResult.win,
+      _FormResult.draw,
+      _FormResult.win,
+      _FormResult.loss,
+      _FormResult.win,
+      _FormResult.draw,
+      _FormResult.win,
+      _FormResult.loss,
+    ];
+    final out = <_FormResult>[];
+    for (var i = 0; i < 5; i++) {
+      out.add(pool[(seed + i) % pool.length]);
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final secondary = Theme.of(context).colorScheme.secondary;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).cardTheme.color ?? AppColors.darkCard,
+            Color.alphaBlend(
+              primary.withValues(alpha: 0.07),
+              Theme.of(context).cardTheme.color ?? AppColors.darkCard,
+            ),
+          ],
+        ),
+        border: Border.all(color: Theme.of(context).dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _ComparisonSide(
+                  name: match.homeTeam.name,
+                  short: match.homeTeam.shortName,
+                  alignEnd: false,
+                  accent: primary,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (match.status == MatchStatus.upcoming)
+                      Text(
+                        match.timeLabel,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 18),
+                      )
+                    else
+                      Text(
+                        '${match.homeScore} - ${match.awayScore}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                            letterSpacing: -0.5),
+                      ),
+                    const SizedBox(height: 2),
+                    Text(
+                      match.status == MatchStatus.live
+                          ? text.live
+                          : (match.status == MatchStatus.finished
+                              ? 'FT'
+                              : text.upcoming),
+                      style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _ComparisonSide(
+                  name: match.awayTeam.name,
+                  short: match.awayTeam.shortName,
+                  alignEnd: true,
+                  accent: secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _FormStrip(
+                  label: text.isArabic ? 'آخر 5' : 'Last 5',
+                  results: _recentForm(match.homeTeam.id),
+                  alignEnd: false,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _FormStrip(
+                  label: text.isArabic ? 'آخر 5' : 'Last 5',
+                  results: _recentForm(match.awayTeam.id + 1),
+                  alignEnd: true,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComparisonSide extends StatelessWidget {
+  const _ComparisonSide({
+    required this.name,
+    required this.short,
+    required this.alignEnd,
+    required this.accent,
+  });
+
+  final String name;
+  final String short;
+  final bool alignEnd;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = [
+      Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [
+              accent.withValues(alpha: 0.32),
+              accent.withValues(alpha: 0.12),
+            ],
+          ),
+          border: Border.all(color: accent.withValues(alpha: 0.5)),
+        ),
+        child: Text(
+          short,
+          style: TextStyle(
+              fontWeight: FontWeight.w900, fontSize: 13, color: accent),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13.5,
+              letterSpacing: -0.2),
+        ),
+      ),
+    ];
+    return Row(
+      children: alignEnd ? children.reversed.toList() : children,
+    );
+  }
+}
+
+enum _FormResult { win, draw, loss }
+
+class _FormStrip extends StatelessWidget {
+  const _FormStrip({
+    required this.label,
+    required this.results,
+    required this.alignEnd,
+  });
+
+  final String label;
+  final List<_FormResult> results;
+  final bool alignEnd;
+
+  Color _c(_FormResult r) {
+    switch (r) {
+      case _FormResult.win:
+        return AppColors.formWin;
+      case _FormResult.draw:
+        return AppColors.formDraw;
+      case _FormResult.loss:
+        return AppColors.formLoss;
+    }
+  }
+
+  String _letter(_FormResult r) {
+    switch (r) {
+      case _FormResult.win:
+        return 'W';
+      case _FormResult.draw:
+        return 'D';
+      case _FormResult.loss:
+        return 'L';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pips = results
+        .map(
+          (r) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            width: 18,
+            height: 18,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _c(r).withValues(alpha: 0.22),
+              shape: BoxShape.circle,
+              border: Border.all(color: _c(r).withValues(alpha: 0.7)),
+            ),
+            child: Text(
+              _letter(r),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                color: _c(r),
+              ),
+            ),
+          ),
+        )
+        .toList();
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+              color: Theme.of(context).hintColor,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment:
+              alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: pips,
+        ),
+      ],
     );
   }
 }
