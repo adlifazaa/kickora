@@ -85,6 +85,26 @@ class AppTheme {
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
         unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.darkSurface,
+        indicatorColor: AppColors.teal.withValues(alpha: 0.28),
+        surfaceTintColor: Colors.transparent,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? AppColors.teal : Colors.white54,
+            size: 24,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            fontSize: 12,
+            color: selected ? AppColors.teal : Colors.white54,
+          );
+        }),
+      ),
       tabBarTheme: const TabBarThemeData(
         indicatorColor: AppColors.teal,
         labelColor: Colors.white,
@@ -188,11 +208,31 @@ class AppTheme {
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
         selectedItemColor: AppColors.tealDeep,
-        unselectedItemColor: Colors.black45,
+        unselectedItemColor: Color(0xFF5B6473),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
         unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        indicatorColor: AppColors.tealDeep.withValues(alpha: 0.22),
+        surfaceTintColor: Colors.transparent,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? AppColors.tealDeep : const Color(0xFF5B6473),
+            size: 24,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            fontSize: 12,
+            color: selected ? AppColors.tealDeep : const Color(0xFF5B6473),
+          );
+        }),
       ),
       tabBarTheme: const TabBarThemeData(
         indicatorColor: AppColors.tealDeep,

@@ -632,7 +632,10 @@ class _OverviewTab extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -802,9 +805,9 @@ class _StatsTab extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
       itemCount: match.stats.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final stat = match.stats[index];
         final total = (stat.home + stat.away).clamp(0.001, double.infinity);
@@ -819,14 +822,17 @@ class _StatsTab extends StatelessWidget {
           builder: (context, animatedHome, child) {
             final awayPart = (1 - animatedHome).clamp(0.0, 1.0);
             return Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: Theme.of(context).dividerColor),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
+                    color: Colors.black.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.18
+                            : 0.06),
                     blurRadius: 14,
                     offset: const Offset(0, 6),
                   ),
@@ -838,10 +844,19 @@ class _StatsTab extends StatelessWidget {
                     children: [
                       _valuePill(context, stat.homeValue, primary),
                       Expanded(
-                        child: Text(stat.title,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            stat.title,
                             textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 13)),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ),
                       _valuePill(context, stat.awayValue, secondary),
                     ],
@@ -919,19 +934,25 @@ class _StatsTab extends StatelessWidget {
   }
 
   Widget _valuePill(BuildContext context, String v, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.22),
-            color.withValues(alpha: 0.08)
-          ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 48),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.22),
+              color.withValues(alpha: 0.08)
+            ],
+          ),
+          borderRadius: BorderRadius.circular(10),
         ),
-        borderRadius: BorderRadius.circular(10),
+        child: Text(
+          v,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+        ),
       ),
-      child:
-          Text(v, style: const TextStyle(fontWeight: FontWeight.w900)),
     );
   }
 }
@@ -991,7 +1012,7 @@ class _TeamLineupCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.22),
