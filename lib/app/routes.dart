@@ -13,6 +13,7 @@ import '../screens/matches_screen.dart';
 import '../screens/player_details_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/splash_screen.dart';
+import '../screens/terms_of_use_screen.dart';
 import '../screens/standings_screen.dart';
 
 class AppRoutes {
@@ -26,6 +27,7 @@ class AppRoutes {
   static const playerDetails = '/player-details';
   static const about = '/about';
   static const privacy = '/privacy';
+  static const terms = '/terms';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -52,6 +54,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (context) => const AboutScreen());
       case privacy:
         return MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen());
+      case terms:
+        return MaterialPageRoute(builder: (context) => const TermsOfUseScreen());
       default:
         return MaterialPageRoute(builder: (context) => const HomeScreen());
     }
