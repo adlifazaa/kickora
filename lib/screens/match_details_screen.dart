@@ -9,6 +9,7 @@ import '../app/routes.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/standing_model.dart';
+import '../widgets/app_empty_state.dart';
 import '../widgets/live_badge.dart';
 import '../widgets/match/premium_football_pitch.dart';
 import '../widgets/team_logo.dart';
@@ -615,9 +616,13 @@ class _OverviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (match.events.isEmpty) {
-      return Center(
-          child: Text(
-              text.isArabic ? 'لا توجد أحداث بعد.' : 'No match events yet.'));
+      return AppEmptyState(
+        icon: Icons.timeline_rounded,
+        title: text.isArabic ? 'لا توجد أحداث بعد' : 'No events yet',
+        subtitle: text.isArabic
+            ? 'ستظهر الأحداث الكبرى هنا فور وقوعها.'
+            : 'Key moments will show up here as they happen.',
+      );
     }
 
     return ListView.builder(
@@ -800,8 +805,13 @@ class _StatsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (match.stats.isEmpty) {
-      return Center(
-          child: Text(text.isArabic ? 'لا توجد إحصائيات.' : 'No statistics.'));
+      return AppEmptyState(
+        icon: Icons.bar_chart_rounded,
+        title: text.isArabic ? 'لا توجد إحصائيات' : 'No statistics',
+        subtitle: text.isArabic
+            ? 'سوف تتوفر الإحصائيات أثناء أو بعد المباراة.'
+            : 'Statistics will be available during or after the match.',
+      );
     }
 
     return ListView.separated(
@@ -966,9 +976,13 @@ class _LineupsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (match.homeLineup == null || match.awayLineup == null) {
-      return Center(
-          child: Text(
-              text.isArabic ? 'التشكيلات غير متوفرة.' : 'Lineups not available.'));
+      return AppEmptyState(
+        icon: Icons.groups_2_outlined,
+        title: text.isArabic ? 'التشكيلات غير متوفرة' : 'Lineups not available',
+        subtitle: text.isArabic
+            ? 'تظهر التشكيلات عادةً قبل ساعة من المباراة.'
+            : 'Lineups are typically published about an hour before kick-off.',
+      );
     }
 
     return ListView(
@@ -1008,6 +1022,7 @@ class _TeamLineupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
@@ -1015,7 +1030,7 @@ class _TeamLineupCard extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -1117,10 +1132,12 @@ class _TeamLineupCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08)),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1160,6 +1177,8 @@ class _TeamLineupCard extends StatelessWidget {
 
   Widget _coachCard(BuildContext context, AppText text, String coach) {
     final primary = Theme.of(context).colorScheme.primary;
+    final surfaceTint =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.02);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1167,7 +1186,7 @@ class _TeamLineupCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             primary.withValues(alpha: 0.14),
-            Colors.white.withValues(alpha: 0.02),
+            surfaceTint,
           ],
         ),
         border: Border.all(color: primary.withValues(alpha: 0.2)),
@@ -1257,8 +1276,13 @@ class _StandingsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (standings.isEmpty) {
-      return Center(
-          child: Text(text.isArabic ? 'لا يوجد جدول.' : 'No standings.'));
+      return AppEmptyState(
+        icon: Icons.leaderboard_outlined,
+        title: text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
+        subtitle: text.isArabic
+            ? 'سيظهر الترتيب عند توفر البيانات.'
+            : 'The table will appear once data is available.',
+      );
     }
 
     return ListView.separated(

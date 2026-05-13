@@ -4,6 +4,7 @@ import '../app/app_colors.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../data/mock_data.dart';
+import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/competition_card.dart';
@@ -215,7 +216,7 @@ class _HomeHeader extends StatelessWidget {
 class _FeaturedCompetitionStrip extends StatelessWidget {
   const _FeaturedCompetitionStrip({required this.competition});
 
-  final dynamic competition;
+  final CompetitionModel competition;
 
   @override
   Widget build(BuildContext context) {

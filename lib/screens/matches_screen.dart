@@ -261,10 +261,12 @@ class _PremiumTabBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: TabBar(
         controller: controller,
+        // The indicator is always a teal/green gradient, so the label is
+        // black for selected (reads on the gradient) in both themes.
         labelColor: Colors.black,
         unselectedLabelColor: Theme.of(context).hintColor,
         indicatorSize: TabBarIndicatorSize.tab,

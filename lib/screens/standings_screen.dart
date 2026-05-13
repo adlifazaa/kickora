@@ -33,7 +33,7 @@ class StandingsScreen extends StatelessWidget {
                         .colorScheme
                         .primary
                         .withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.05),
+                    : Theme.of(context).dividerColor,
               ),
             ),
             child: Row(

@@ -262,6 +262,7 @@ class _MatchesTab extends StatelessWidget {
       onRefresh: refresh,
       child: ListView(
         padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           if (loading) ...[
             const SkeletonBox(height: 130),
@@ -269,6 +270,14 @@ class _MatchesTab extends StatelessWidget {
             const MatchCardSkeleton(),
             const SizedBox(height: 12),
             const MatchCardSkeleton(),
+          ] else if (matches.isEmpty) ...[
+            const SizedBox(height: 60),
+            AppEmptyState(
+              icon: Icons.sports_soccer_outlined,
+              title: text.noMatches,
+              subtitle: text.noMatchesSub,
+              detail: text.noMatchesEmptyDetail,
+            ),
           ] else ...[
             if (featured != null) ...[
               SectionHeader(
@@ -428,7 +437,7 @@ class _StandingsTab extends StatelessWidget {
   Widget _smallStat(BuildContext context, String label, String value,
       {Color? color}) {
     return Padding(
-      padding: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsetsDirectional.only(end: 10),
       child: Row(
         children: [
           Text('$label ',
@@ -489,6 +498,7 @@ class _TeamsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = AppText.of(context);
     if (loading) {
       return GridView.builder(
         padding: const EdgeInsets.all(16),
@@ -500,6 +510,15 @@ class _TeamsTab extends StatelessWidget {
         ),
         itemCount: 6,
         itemBuilder: (_, _) => const SkeletonBox(height: 90),
+      );
+    }
+    if (teams.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.shield_outlined,
+        title: text.isArabic ? 'لا توجد فرق' : 'No teams',
+        subtitle: text.isArabic
+            ? 'لم نعثر على فرق لهذه البطولة بعد.'
+            : 'We could not find teams for this competition yet.',
       );
     }
     return GridView.builder(
@@ -558,6 +577,15 @@ class _ScorersTab extends StatelessWidget {
         itemCount: 6,
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (_, _) => const SkeletonBox(height: 64),
+      );
+    }
+    if (scorers.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.scoreboard_outlined,
+        title: text.isArabic ? 'لا يوجد هدافون' : 'No top scorers',
+        subtitle: text.isArabic
+            ? 'سيظهر الهدافون فور توفر البيانات.'
+            : 'Top scorers will appear once data is available.',
       );
     }
     return ListView.separated(
