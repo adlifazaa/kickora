@@ -10,10 +10,17 @@ import 'team_logo.dart';
 
 /// Premium match card with gradient surface, live pulse, and animated score.
 class MatchCard extends StatelessWidget {
-  const MatchCard({super.key, required this.match, this.onTap});
+  const MatchCard({
+    super.key,
+    required this.match,
+    this.onTap,
+    /// Tighter vertical rhythm for fixed-height slots (e.g. home featured carousel).
+    this.compact = false,
+  });
 
   final MatchModel match;
   final VoidCallback? onTap;
+  final bool compact;
 
   Color _statusColor(BuildContext context, MatchStatus status) {
     switch (status) {
@@ -44,6 +51,12 @@ class MatchCard extends StatelessWidget {
         ? AppColors.liveRed.withValues(alpha: 0.06)
         : Theme.of(context).colorScheme.primary.withValues(alpha: 0.045);
 
+    final pad = compact
+        ? const EdgeInsets.fromLTRB(14, 10, 8, 10)
+        : const EdgeInsets.fromLTRB(14, 12, 8, 12);
+    final headerTeamGap = compact ? 8.0 : 10.0;
+    final teamStadiumGap = compact ? 4.0 : 6.0;
+
     return TapScale(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -53,7 +66,7 @@ class MatchCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
           child: Ink(
-            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            padding: pad,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               gradient: LinearGradient(
@@ -77,6 +90,7 @@ class MatchCard extends StatelessWidget {
               ],
             ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
@@ -136,51 +150,54 @@ class MatchCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: headerTeamGap),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: _TeamView(
                       name: match.homeTeam.name,
                       shortName: match.homeTeam.shortName,
                       teamId: match.homeTeam.id,
+                      compact: compact,
                     ),
                   ),
-                  _ScoreBlock(match: match),
+                  _ScoreBlock(match: match, compact: compact),
                   Expanded(
                     child: _TeamView(
                       name: match.awayTeam.name,
                       shortName: match.awayTeam.shortName,
                       teamId: match.awayTeam.id,
+                      compact: compact,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: teamStadiumGap),
               if (match.stadium.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.location_on_outlined,
-                          size: 12,
-                          color: Theme.of(context).hintColor),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          match.stadium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Theme.of(context).hintColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: compact ? 11 : 12,
+                      color: Theme.of(context).hintColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        match.stadium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: compact ? 10.5 : 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -192,28 +209,32 @@ class MatchCard extends StatelessWidget {
 }
 
 class _ScoreBlock extends StatelessWidget {
-  const _ScoreBlock({required this.match});
+  const _ScoreBlock({required this.match, required this.compact});
 
   final MatchModel match;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final isUpcoming = match.status == MatchStatus.upcoming;
     if (isUpcoming) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               match.timeLabel,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: compact ? 16 : 18,
+              ),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: compact ? 1 : 2),
             Text(
               'vs',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: compact ? 9 : 10,
                 color: Theme.of(context).hintColor,
                 fontWeight: FontWeight.w700,
               ),
@@ -224,22 +245,22 @@ class _ScoreBlock extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ScoreDigit(value: match.homeScore),
-          const SizedBox(width: 6),
+          _ScoreDigit(value: match.homeScore, compact: compact),
+          SizedBox(width: compact ? 5 : 6),
           Text(
             '-',
             style: TextStyle(
               color: Theme.of(context).hintColor,
-              fontSize: 18,
+              fontSize: compact ? 16 : 18,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(width: 6),
-          _ScoreDigit(value: match.awayScore),
+          SizedBox(width: compact ? 5 : 6),
+          _ScoreDigit(value: match.awayScore, compact: compact),
         ],
       ),
     );
@@ -247,9 +268,10 @@ class _ScoreBlock extends StatelessWidget {
 }
 
 class _ScoreDigit extends StatelessWidget {
-  const _ScoreDigit({required this.value});
+  const _ScoreDigit({required this.value, required this.compact});
 
   final int value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +291,9 @@ class _ScoreDigit extends StatelessWidget {
         child: Text(
           '$value',
           key: ValueKey<int>(value),
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: 26,
+            fontSize: compact ? 22 : 26,
             letterSpacing: -0.5,
           ),
         ),
@@ -281,40 +303,56 @@ class _ScoreDigit extends StatelessWidget {
 }
 
 class _TeamView extends StatelessWidget {
-  const _TeamView(
-      {required this.name, required this.shortName, required this.teamId});
+  const _TeamView({
+    required this.name,
+    required this.shortName,
+    required this.teamId,
+    required this.compact,
+  });
 
   final String name;
   final String shortName;
   final int teamId;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final isFavorite = app.isTeamFavorite(teamId);
+    final logoSize = compact ? 34.0 : 38.0;
+    final nameSize = compact ? 12.5 : 13.0;
+    final logoNameGap = compact ? 4.0 : 6.0;
+    final heartSize = compact ? 15.0 : 16.0;
+    final heartPadV = compact ? 1.0 : 2.0;
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        TeamLogo(shortName: shortName, size: 38),
-        const SizedBox(height: 6),
+        TeamLogo(shortName: shortName, size: logoSize),
+        SizedBox(height: logoNameGap),
         Text(
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-              fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: -0.2),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: nameSize,
+            letterSpacing: -0.2,
+            height: compact ? 1.1 : 1.15,
+          ),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: compact ? 1 : 2),
         InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () => app.toggleTeamFavorite(teamId),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: EdgeInsets.symmetric(horizontal: 6, vertical: heartPadV),
             child: Icon(
               isFavorite
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              size: 16,
+              size: heartSize,
               color: isFavorite ? Colors.redAccent : Theme.of(context).hintColor,
             ),
           ),

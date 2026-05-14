@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _HomeHeader(text: text),
             const SizedBox(height: 18),
             if (_loading) ...[
-              const SkeletonBox(height: 150),
+              const SkeletonBox(height: 176),
               const SizedBox(height: 14),
               const MatchCardSkeleton(),
               const SizedBox(height: 10),
@@ -292,6 +292,14 @@ class _FeaturedCompetitionStrip extends StatelessWidget {
   }
 }
 
+/// [PageView] needs a fixed extent; this tracks compact [MatchCard] layout
+/// plus a little headroom for live-badge scale and taller script metrics.
+double _featuredCarouselPageHeight(BuildContext context) {
+  final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+  const base = 178.0;
+  return (base * textScale.clamp(0.95, 1.55)).clamp(172.0, 280.0);
+}
+
 /// Horizontal PageView showing the top live matches with a subtle peek of the
 /// next card on either side — gives the home screen a real "carousel" feel.
 class _FeaturedCarousel extends StatefulWidget {
@@ -317,10 +325,11 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
   @override
   Widget build(BuildContext context) {
     final matches = widget.matches;
+    final pageHeight = _featuredCarouselPageHeight(context);
     return Column(
       children: [
         SizedBox(
-          height: 152,
+          height: pageHeight,
           child: PageView.builder(
             controller: _ctrl,
             onPageChanged: (i) => setState(() => _page = i),
@@ -330,9 +339,10 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
                 padding: EdgeInsets.symmetric(
-                    horizontal: matches.length == 1 ? 0 : 6,
-                    vertical: i == _page ? 0 : 6),
+                  horizontal: matches.length == 1 ? 0 : 6,
+                ),
                 child: MatchCard(
+                  compact: true,
                   match: matches[i],
                   onTap: () => Navigator.pushNamed(
                       context, AppRoutes.matchDetails,

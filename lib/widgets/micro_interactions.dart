@@ -111,7 +111,12 @@ class _FavoriteToggleState extends State<FavoriteToggle>
     final inactive = widget.inactiveColor ?? Theme.of(context).hintColor;
     return IconButton(
       tooltip: widget.value ? 'Remove' : 'Add',
-      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        minimumSize: const Size(36, 36),
+        padding: const EdgeInsets.all(2),
+      ),
       onPressed: _handleTap,
       icon: AnimatedBuilder(
         animation: _c,
