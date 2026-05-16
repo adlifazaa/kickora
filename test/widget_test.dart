@@ -2,9 +2,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:kickora/data/repositories/football_repository.dart';
 import 'package:kickora/services/app_controller.dart';
+import 'package:kickora/subscription/premium_subscription_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('FootballRepository uses mock data when API key is absent', () {
+    final repo = FootballRepository();
+    expect(repo.usesLiveApi, false);
+  });
+
   test('AppController loads defaults and persists notifications & favorites', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
@@ -25,5 +34,16 @@ void main() {
     await controller2.load();
     expect(controller2.notificationsEnabled, true);
     expect(controller2.isTeamFavorite(7), true);
+  });
+
+  test('Premium defaults: ads enabled, trial available', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final premium = PremiumSubscriptionService(preferences);
+    await premium.load();
+
+    expect(premium.isPremium, false);
+    expect(premium.adsEnabled, true);
+    expect(premium.trialAvailable, true);
   });
 }

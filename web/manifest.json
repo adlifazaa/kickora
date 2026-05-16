@@ -1,11 +1,11 @@
 {
-    "name": "kickora",
-    "short_name": "kickora",
+    "name": "Kickora",
+    "short_name": "Kickora",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#080A0F",
+    "theme_color": "#00D1C1",
+    "description": "Premium lightweight football live scores.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

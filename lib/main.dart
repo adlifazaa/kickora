@@ -1,4 +1,5 @@
-﻿import 'package:flutter/widgets.dart';
+﻿import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
@@ -15,6 +16,7 @@ import 'services/favorite_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   ApiDebugLog.boot();
   final preferences = await SharedPreferences.getInstance();
   final premiumSubscriptionService = PremiumSubscriptionService(preferences);
