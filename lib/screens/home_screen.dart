@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             const SizedBox(height: 10),
             if (_loading) ...[
-              const SkeletonBox(height: 176),
+              const _FeaturedMatchSlotSkeleton(),
               const SizedBox(height: 14),
               const MatchCardSkeleton(),
               const SizedBox(height: 10),
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.star_rounded,
                 ),
                 const SizedBox(height: 10),
-                _FeaturedCarousel(matches: _liveMatches),
+                _FeaturedMatchSlot(match: _liveMatches.first),
                 const SizedBox(height: 20),
                 SectionHeader(
                   title: text.liveNow,
@@ -412,99 +412,42 @@ class _FeaturedCompetitionStrip extends StatelessWidget {
   }
 }
 
-double _featuredCarouselPageHeight(BuildContext context) {
-  final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-  const base = 178.0;
-  return (base * textScale.clamp(0.95, 1.55)).clamp(172.0, 280.0);
-}
+/// Single featured live match — no PageView, transforms, or carousel peek.
+class _FeaturedMatchSlot extends StatelessWidget {
+  const _FeaturedMatchSlot({required this.match});
 
-class _FeaturedCarousel extends StatefulWidget {
-  const _FeaturedCarousel({required this.matches});
-
-  final List<MatchModel> matches;
-
-  @override
-  State<_FeaturedCarousel> createState() => _FeaturedCarouselState();
-}
-
-class _FeaturedCarouselState extends State<_FeaturedCarousel> {
-  static const _edgeInset = 2.0;
-  static const _pageGap = 8.0;
-
-  late final PageController _ctrl;
-  int _page = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    final multi = widget.matches.length > 1;
-    _ctrl = PageController(
-      viewportFraction: multi ? 0.88 : 1.0,
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  final MatchModel match;
 
   @override
   Widget build(BuildContext context) {
-    final matches = widget.matches;
-    final pageHeight = _featuredCarouselPageHeight(context);
-    final multi = matches.length > 1;
-
-    return Column(
-      children: [
-        SizedBox(
-          height: pageHeight,
-          child: PageView.builder(
-            controller: _ctrl,
-            padEnds: true,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemCount: matches.length,
-            itemBuilder: (context, i) {
-              return Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: multi ? _pageGap / 2 : _edgeInset,
-                ),
-                child: MatchCard(
-                  compact: true,
-                  match: matches[i],
-                  onTap: () => Navigator.pushNamed(
-                      context, AppRoutes.matchDetails,
-                      arguments: matches[i]),
-                ),
-              );
-            },
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: SizedBox(
+        width: double.infinity,
+        child: MatchCard(
+          match: match,
+          onTap: () => Navigator.pushNamed(
+            context,
+            AppRoutes.matchDetails,
+            arguments: match,
           ),
         ),
-        if (matches.length > 1) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(matches.length, (i) {
-              final selected = i == _page;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: selected ? 16 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              );
-            }),
-          ),
-        ],
-      ],
+      ),
+    );
+  }
+}
+
+class _FeaturedMatchSlotSkeleton extends StatelessWidget {
+  const _FeaturedMatchSlotSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24),
+      child: SizedBox(
+        width: double.infinity,
+        child: MatchCardSkeleton(),
+      ),
     );
   }
 }

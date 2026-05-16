@@ -4,6 +4,7 @@ import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../models/match_model.dart';
+import 'api_display_text.dart';
 import 'live_badge.dart';
 import 'micro_interactions.dart';
 import 'team_logo.dart';
@@ -16,11 +17,14 @@ class MatchCard extends StatelessWidget {
     this.onTap,
     /// Tighter vertical rhythm for fixed-height slots (e.g. home featured carousel).
     this.compact = false,
+    /// Home featured carousel: no [TapScale] / animated transforms that widen layout.
+    this.featuredSlot = false,
   });
 
   final MatchModel match;
   final VoidCallback? onTap;
   final bool compact;
+  final bool featuredSlot;
 
   Color _statusColor(BuildContext context, MatchStatus status) {
     switch (status) {
@@ -57,10 +61,7 @@ class MatchCard extends StatelessWidget {
     final headerTeamGap = compact ? 8.0 : 10.0;
     final teamStadiumGap = compact ? 4.0 : 6.0;
 
-    return TapScale(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Material(
+    final card = Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
@@ -89,58 +90,66 @@ class MatchCard extends StatelessWidget {
                 ),
               ],
             ),
-          child: Column(
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      match.competition.logo,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                  SizedBox(
+                    width: compact ? 22 : 24,
+                    height: compact ? 22 : 24,
+                    child: CompetitionBadge(
+                      logo: match.competition.logo,
+                      size: compact ? 22 : 24,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
+                    child: ApiDisplayText(
                       match.competition.name,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      maxLines: 1,
+                      style: (Theme.of(context).textTheme.bodySmall ??
+                              const TextStyle(fontSize: 12))
+                          .copyWith(
                             color: Theme.of(context).hintColor,
                             fontWeight: FontWeight.w600,
                           ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 4),
                   if (isLive)
-                    LiveBadge(label: text.live, dense: true)
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: featuredSlot
+                          ? _StaticLiveChip(label: text.live)
+                          : ClipRect(
+                              child: LiveBadge(label: text.live, dense: true),
+                            ),
+                    )
                   else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _statusColor(context, match.status)
-                            .withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        match.timeLabel,
-                        style: TextStyle(
-                          color: _statusColor(context, match.status),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor(context, match.status)
+                              .withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: ApiDisplayText(
+                          match.timeLabel,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: _statusColor(context, match.status),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
@@ -158,15 +167,24 @@ class MatchCard extends StatelessWidget {
                     child: _TeamView(
                       name: match.homeTeam.name,
                       shortName: match.homeTeam.shortName,
+                      logoUrl: match.homeTeam.logo,
                       teamId: match.homeTeam.id,
                       compact: compact,
                     ),
                   ),
-                  _ScoreBlock(match: match, compact: compact),
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: _ScoreBlock(
+                      match: match,
+                      compact: compact,
+                      staticDisplay: featuredSlot,
+                    ),
+                  ),
                   Expanded(
                     child: _TeamView(
                       name: match.awayTeam.name,
                       shortName: match.awayTeam.shortName,
+                      logoUrl: match.awayTeam.logo,
                       teamId: match.awayTeam.id,
                       compact: compact,
                     ),
@@ -174,9 +192,8 @@ class MatchCard extends StatelessWidget {
                 ],
               ),
               SizedBox(height: teamStadiumGap),
-              if (match.stadium.isNotEmpty)
+              if (sanitizeApiDisplayText(match.stadium).isNotEmpty)
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.location_on_outlined,
@@ -184,11 +201,10 @@ class MatchCard extends StatelessWidget {
                       color: Theme.of(context).hintColor,
                     ),
                     const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
+                    Expanded(
+                      child: ApiDisplayText(
                         match.stadium,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Theme.of(context).hintColor,
@@ -201,80 +217,175 @@ class MatchCard extends StatelessWidget {
                 ),
             ],
           ),
+          ),
         ),
         ),
-      ),
+      );
+
+    if (featuredSlot) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: card,
+      );
+    }
+
+    return TapScale(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: card,
     );
   }
 }
 
-class _ScoreBlock extends StatelessWidget {
-  const _ScoreBlock({required this.match, required this.compact});
+/// Static LIVE pill for featured carousel (no [Transform.scale]).
+class _StaticLiveChip extends StatelessWidget {
+  const _StaticLiveChip({required this.label});
 
-  final MatchModel match;
-  final bool compact;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final isUpcoming = match.status == MatchStatus.upcoming;
-    if (isUpcoming) {
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              match.timeLabel,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: compact ? 16 : 18,
-              ),
-            ),
-            SizedBox(height: compact ? 1 : 2),
-            Text(
-              'vs',
-              style: TextStyle(
-                fontSize: compact ? 9 : 10,
-                color: Theme.of(context).hintColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.liveRed, AppColors.liveGlow],
         ),
-      );
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ScoreDigit(value: match.homeScore, compact: compact),
-          SizedBox(width: compact ? 5 : 6),
-          Text(
-            '-',
-            style: TextStyle(
-              color: Theme.of(context).hintColor,
-              fontSize: compact ? 16 : 18,
-              fontWeight: FontWeight.w800,
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
             ),
           ),
-          SizedBox(width: compact ? 5 : 6),
-          _ScoreDigit(value: match.awayScore, compact: compact),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 0.6,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ScoreDigit extends StatelessWidget {
-  const _ScoreDigit({required this.value, required this.compact});
+class _ScoreBlock extends StatelessWidget {
+  const _ScoreBlock({
+    required this.match,
+    required this.compact,
+    this.staticDisplay = false,
+  });
 
-  final int value;
+  final MatchModel match;
   final bool compact;
+  final bool staticDisplay;
 
   @override
   Widget build(BuildContext context) {
+    final isUpcoming = match.status == MatchStatus.upcoming;
+    if (isUpcoming) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 12),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ApiDisplayText(
+                match.timeLabel,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: compact ? 16 : 18,
+                ),
+              ),
+              SizedBox(height: compact ? 1 : 2),
+              Text(
+                'vs',
+                style: TextStyle(
+                  fontSize: compact ? 9 : 10,
+                  color: Theme.of(context).hintColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 8),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ScoreDigit(
+              value: match.homeScore,
+              compact: compact,
+              staticDisplay: staticDisplay,
+            ),
+            SizedBox(width: compact ? 4 : 6),
+            Text(
+              '-',
+              style: TextStyle(
+                color: Theme.of(context).hintColor,
+                fontSize: compact ? 16 : 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(width: compact ? 4 : 6),
+            _ScoreDigit(
+              value: match.awayScore,
+              compact: compact,
+              staticDisplay: staticDisplay,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreDigit extends StatelessWidget {
+  const _ScoreDigit({
+    required this.value,
+    required this.compact,
+    this.staticDisplay = false,
+  });
+
+  final int value;
+  final bool compact;
+  final bool staticDisplay;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      '$value',
+      style: TextStyle(
+        fontWeight: FontWeight.w900,
+        fontSize: compact ? 22 : 26,
+        letterSpacing: -0.5,
+      ),
+    );
+
+    if (staticDisplay) return text;
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.6, end: 1),
       duration: const Duration(milliseconds: 380),
@@ -306,12 +417,14 @@ class _TeamView extends StatelessWidget {
   const _TeamView({
     required this.name,
     required this.shortName,
+    required this.logoUrl,
     required this.teamId,
     required this.compact,
   });
 
   final String name;
   final String shortName;
+  final String logoUrl;
   final int teamId;
   final bool compact;
 
@@ -325,22 +438,30 @@ class _TeamView extends StatelessWidget {
     final heartSize = compact ? 15.0 : 16.0;
     final heartPadV = compact ? 1.0 : 2.0;
 
+    final nameStyle = TextStyle(
+      fontWeight: FontWeight.w800,
+      fontSize: nameSize,
+      letterSpacing: -0.2,
+      height: compact ? 1.1 : 1.15,
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TeamLogo(shortName: shortName, size: logoSize),
+        Center(
+          child: TeamLogo(
+            shortName: teamShortCode(shortName, name),
+            imageUrl: logoUrl,
+            size: logoSize,
+          ),
+        ),
         SizedBox(height: logoNameGap),
-        Text(
+        ApiDisplayText(
           name,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: nameSize,
-            letterSpacing: -0.2,
-            height: compact ? 1.1 : 1.15,
-          ),
+          style: nameStyle,
         ),
         SizedBox(height: compact ? 1 : 2),
         InkWell(

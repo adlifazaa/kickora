@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import 'api_display_text.dart';
+import 'network_logo_image.dart';
 
-/// Deterministic gradient "crest" placeholder for a team based on its short name.
-/// Will be replaced by real logo URLs when the API is wired in.
+/// Team crest — network logo when URL is present, otherwise gradient initials.
 class TeamLogo extends StatelessWidget {
-  const TeamLogo({super.key, required this.shortName, this.size = 36});
+  const TeamLogo({
+    super.key,
+    required this.shortName,
+    this.imageUrl,
+    this.size = 36,
+  });
 
   final String shortName;
+  final String? imageUrl;
   final double size;
 
   static const List<List<Color>> _palettes = [
@@ -27,13 +34,14 @@ class TeamLogo extends StatelessWidget {
     return _palettes[code % _palettes.length];
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = _palette();
-    final initials = shortName.isEmpty
-        ? '?'
-        : shortName.substring(0, shortName.length.clamp(1, 3));
+  String get _initials {
+    final code = sanitizeApiDisplayText(shortName);
+    if (code.isEmpty) return '?';
+    return code.substring(0, code.length.clamp(1, 3));
+  }
 
+  Widget _initialsBadge() {
+    final colors = _palette();
     return Container(
       width: size,
       height: size,
@@ -60,7 +68,7 @@ class TeamLogo extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        initials,
+        _initials,
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w900,
@@ -73,6 +81,15 @@ class TeamLogo extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return NetworkLogoImage(
+      size: size,
+      imageUrl: imageUrl,
+      fallback: _initialsBadge(),
+    );
+  }
 }
 
 /// Compact horizontally-laid out crest used in lists and headers.
@@ -81,6 +98,7 @@ class TeamCrestTile extends StatelessWidget {
     super.key,
     required this.shortName,
     required this.name,
+    this.imageUrl,
     this.subtitle,
     this.trailing,
     this.onTap,
@@ -88,6 +106,7 @@ class TeamCrestTile extends StatelessWidget {
 
   final String shortName;
   final String name;
+  final String? imageUrl;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -104,7 +123,7 @@ class TeamCrestTile extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
           child: Row(
             children: [
-              TeamLogo(shortName: shortName, size: 34),
+              TeamLogo(shortName: shortName, imageUrl: imageUrl, size: 34),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -118,6 +137,8 @@ class TeamCrestTile extends StatelessWidget {
                     if (subtitle != null)
                       Text(
                         subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Theme.of(context).hintColor,
                           fontSize: 11.5,
@@ -136,15 +157,22 @@ class TeamCrestTile extends StatelessWidget {
   }
 }
 
-/// Small icon-only "competition" badge using initials/logo string.
+/// Competition badge — network logo or short initials (never raw URL text).
 class CompetitionBadge extends StatelessWidget {
   const CompetitionBadge({super.key, required this.logo, this.size = 40});
 
   final String logo;
   final double size;
 
-  @override
-  Widget build(BuildContext context) {
+  String get _initials {
+    if (logo.isEmpty) return '?';
+    if (isNetworkImageUrl(logo)) {
+      return '?';
+    }
+    return logo.length <= 3 ? logo : logo.substring(0, 3);
+  }
+
+  Widget _initialsBadge() {
     return Container(
       width: size,
       height: size,
@@ -166,7 +194,7 @@ class CompetitionBadge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        logo,
+        _initials,
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w900,
@@ -174,6 +202,15 @@ class CompetitionBadge extends StatelessWidget {
           letterSpacing: 0.4,
         ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NetworkLogoImage(
+      size: size,
+      imageUrl: logo,
+      fallback: _initialsBadge(),
     );
   }
 }
