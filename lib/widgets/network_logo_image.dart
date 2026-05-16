@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// True when [value] looks like a remote image URL (API-Football logos, etc.).
@@ -32,19 +33,21 @@ class NetworkLogoImage extends StatelessWidget {
     }
 
     final primary = Theme.of(context).colorScheme.primary;
-    Widget image = Image.network(
-      url!,
+    final pad = size * 0.12;
+
+    Widget image = CachedNetworkImage(
+      imageUrl: url!,
       width: size,
       height: size,
       fit: fit,
       filterQuality: FilterQuality.medium,
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) {
-          return SizedBox(width: size, height: size, child: child);
-        }
-        return _LoadingPlaceholder(size: size, color: primary);
-      },
-      errorBuilder: (_, _, _) => fallback,
+      placeholder: (_, _) => _LoadingPlaceholder(size: size, color: primary),
+      errorWidget: (_, _, _) => fallback,
+    );
+
+    image = Padding(
+      padding: EdgeInsets.all(pad),
+      child: image,
     );
 
     if (clipOval) {

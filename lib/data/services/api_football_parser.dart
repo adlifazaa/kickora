@@ -36,6 +36,7 @@ class ApiFootballParser {
 
     final homeTeamJson = _map(teams['home']);
     final awayTeamJson = _map(teams['away']);
+    final leagueCountry = _parseCountry(league['country']);
     final statusShort =
         _map(fixture['status'])['short']?.toString() ?? 'NS';
     final elapsed = _map(fixture['status'])['elapsed'];
@@ -47,8 +48,14 @@ class ApiFootballParser {
     return MatchModel(
       id: fixtureId,
       fixtureId: fixtureId,
-      homeTeam: _teamFromFixtureSide(homeTeamJson),
-      awayTeam: _teamFromFixtureSide(awayTeamJson),
+      homeTeam: _teamFromFixtureSide(
+        homeTeamJson,
+        leagueCountry: leagueCountry,
+      ),
+      awayTeam: _teamFromFixtureSide(
+        awayTeamJson,
+        leagueCountry: leagueCountry,
+      ),
       homeScore: homeScore,
       awayScore: awayScore,
       status: parseApiFootballStatus(statusShort),
@@ -60,7 +67,7 @@ class ApiFootballParser {
       competition: CompetitionModel(
         id: _int(league['id']),
         name: league['name']?.toString() ?? '',
-        region: league['country']?.toString() ?? '',
+        region: leagueCountry.name,
         logo: league['logo']?.toString() ?? '',
         isFeatured: false,
       ),
@@ -119,17 +126,39 @@ class ApiFootballParser {
     return int.tryParse(val.toString()) ?? 0;
   }
 
-  static TeamModel _teamFromFixtureSide(Map<String, dynamic> json) {
+  static TeamModel _teamFromFixtureSide(
+    Map<String, dynamic> json, {
+    _CountryFields leagueCountry = const _CountryFields(),
+  }) {
     final name = json['name']?.toString() ?? '';
     final code = json['code']?.toString();
+    final sideCountry = _parseCountry(json['country']);
+    final countryName = sideCountry.name.isNotEmpty
+        ? sideCountry.name
+        : leagueCountry.name;
+    final countryCode = sideCountry.code.isNotEmpty
+        ? sideCountry.code
+        : leagueCountry.code;
+    var flagUrl = json['flagUrl']?.toString() ?? '';
+    if (flagUrl.isEmpty) {
+      flagUrl = sideCountry.flagUrl.isNotEmpty
+          ? sideCountry.flagUrl
+          : leagueCountry.flagUrl;
+    }
+    if (flagUrl.isEmpty && countryCode.isNotEmpty) {
+      flagUrl = flagUrlFromCountryCode(countryCode);
+    }
+
     return TeamModel(
       id: _int(json['id']),
       name: name,
       shortName: (code != null && code.isNotEmpty)
           ? code
           : _abbrev(name),
-      logo: json['logo']?.toString() ?? '',
-      nationality: '',
+      logo: json['logoUrl']?.toString() ?? json['logo']?.toString() ?? '',
+      countryName: countryName,
+      countryCode: countryCode,
+      flagUrl: flagUrl,
     );
   }
 
@@ -465,13 +494,7 @@ class ApiFootballParser {
     final all = _map(json['all']);
     return StandingModel(
       position: _int(json['rank']),
-      team: TeamModel(
-        id: _int(teamJson['id']),
-        name: teamJson['name']?.toString() ?? '',
-        shortName: _abbrev(teamJson['name']?.toString() ?? ''),
-        logo: teamJson['logo']?.toString() ?? '',
-        nationality: '',
-      ),
+      team: _teamFromStandingJson(teamJson),
       played: _int(all['played']),
       wins: _int(all['win']),
       draws: _int(all['draw']),
@@ -489,6 +512,14 @@ class ApiFootballParser {
   static TeamModel parseTeam(Map<String, dynamic> json) {
     final team = _map(json['team']);
     final venue = _map(json['venue']);
+    final country = _parseCountry(team['country']);
+    final countryName = country.name.isNotEmpty
+        ? country.name
+        : venue['city']?.toString() ?? '';
+    var flagUrl = country.flagUrl;
+    if (flagUrl.isEmpty && country.code.isNotEmpty) {
+      flagUrl = flagUrlFromCountryCode(country.code);
+    }
     return TeamModel(
       id: _int(team['id']),
       name: team['name']?.toString() ?? '',
@@ -496,9 +527,28 @@ class ApiFootballParser {
           ? team['code'].toString()
           : _abbrev(team['name']?.toString() ?? ''),
       logo: team['logo']?.toString() ?? '',
-      nationality: team['country']?.toString() ??
-          venue['city']?.toString() ??
-          '',
+      countryName: countryName,
+      countryCode: country.code,
+      flagUrl: flagUrl,
+    );
+  }
+
+  static TeamModel _teamFromStandingJson(Map<String, dynamic> teamJson) {
+    final country = _parseCountry(teamJson['country']);
+    var flagUrl = country.flagUrl;
+    if (flagUrl.isEmpty && country.code.isNotEmpty) {
+      flagUrl = flagUrlFromCountryCode(country.code);
+    }
+    return TeamModel(
+      id: _int(teamJson['id']),
+      name: teamJson['name']?.toString() ?? '',
+      shortName: teamJson['code']?.toString().isNotEmpty == true
+          ? teamJson['code'].toString()
+          : _abbrev(teamJson['name']?.toString() ?? ''),
+      logo: teamJson['logo']?.toString() ?? '',
+      countryName: country.name,
+      countryCode: country.code,
+      flagUrl: flagUrl,
     );
   }
 
@@ -525,7 +575,10 @@ class ApiFootballParser {
       height: 0,
       position: games['position']?.toString() ?? '',
       team: team['name']?.toString() ?? '',
-      teamLogoShort: _abbrev(team['name']?.toString() ?? ''),
+      teamLogoShort: team['code']?.toString().isNotEmpty == true
+          ? team['code'].toString()
+          : _abbrev(team['name']?.toString() ?? ''),
+      teamLogoUrl: team['logo']?.toString() ?? '',
       appearances: _int(games['appearences'] ?? games['appearances']),
       goals: _int(goals['total']),
       assists: 0,
@@ -575,4 +628,39 @@ class ApiFootballParser {
     }
     return parts.map((p) => p.isNotEmpty ? p[0] : '').join().toUpperCase();
   }
+
+  static _CountryFields _parseCountry(Object? raw) {
+    if (raw is Map) {
+      final map = Map<String, dynamic>.from(raw);
+      final code = map['code']?.toString() ?? '';
+      var flag = map['flag']?.toString() ?? '';
+      if (flag.isEmpty && code.isNotEmpty) {
+        flag = flagUrlFromCountryCode(code);
+      }
+      return _CountryFields(
+        name: map['name']?.toString() ?? '',
+        code: code,
+        flagUrl: flag,
+      );
+    }
+    if (raw is String && raw.isNotEmpty) {
+      return _CountryFields(name: raw);
+    }
+    return const _CountryFields();
+  }
+
+  /// API-Football CDN flag asset from ISO country code.
+  static String flagUrlFromCountryCode(String code) {
+    final normalized = code.trim().toLowerCase();
+    if (normalized.isEmpty) return '';
+    return 'https://media.api-sports.io/flags/$normalized.svg';
+  }
+}
+
+class _CountryFields {
+  const _CountryFields({this.name = '', this.code = '', this.flagUrl = ''});
+
+  final String name;
+  final String code;
+  final String flagUrl;
 }

@@ -183,12 +183,14 @@ class _HeroHeader extends StatelessWidget {
                     Row(
                       children: [
                         TeamLogo(
-                            shortName: player.teamLogoShort.isEmpty
-                                ? (player.team.isNotEmpty
-                                    ? player.team.substring(0, 3)
-                                    : '?')
-                                : player.teamLogoShort,
-                            size: 18),
+                          shortName: player.teamLogoShort.isEmpty
+                              ? (player.team.isNotEmpty
+                                  ? player.team.substring(0, 3)
+                                  : '?')
+                              : player.teamLogoShort,
+                          imageUrl: player.teamLogoUrl,
+                          size: 18,
+                        ),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(player.team,

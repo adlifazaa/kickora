@@ -517,18 +517,8 @@ class FootballApiService {
                 'logo': m.competition.logo,
               },
               'teams': {
-                'home': {
-                  'id': m.homeTeam.id,
-                  'name': m.homeTeam.name,
-                  'code': m.homeTeam.shortName,
-                  'logo': m.homeTeam.logo,
-                },
-                'away': {
-                  'id': m.awayTeam.id,
-                  'name': m.awayTeam.name,
-                  'code': m.awayTeam.shortName,
-                  'logo': m.awayTeam.logo,
-                },
+                'home': m.homeTeam.toJson(),
+                'away': m.awayTeam.toJson(),
               },
               'goals': {'home': m.homeScore, 'away': m.awayScore},
             },

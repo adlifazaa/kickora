@@ -3,6 +3,48 @@ import 'package:kickora/data/models/match_event_model.dart';
 import 'package:kickora/data/services/api_football_parser.dart';
 
 void main() {
+  group('ApiFootballParser.parseFixture teams', () {
+    test('maps team.logo and league country flag', () {
+      final match = ApiFootballParser.parseFixture({
+        'fixture': {
+          'id': 1,
+          'date': '2026-05-16T15:00:00+00:00',
+          'status': {'short': 'NS', 'elapsed': null},
+          'venue': {'name': 'Stadium'},
+        },
+        'league': {
+          'id': 39,
+          'name': 'Premier League',
+          'country': {
+            'name': 'England',
+            'code': 'GB',
+            'flag': 'https://media.api-sports.io/flags/gb.svg',
+          },
+          'logo': 'https://media.api-sports.io/football/leagues/39.png',
+        },
+        'teams': {
+          'home': {
+            'id': 33,
+            'name': 'Manchester United',
+            'code': 'MUN',
+            'logo': 'https://media.api-sports.io/football/teams/33.png',
+          },
+          'away': {
+            'id': 34,
+            'name': 'Newcastle',
+            'logo': 'https://media.api-sports.io/football/teams/34.png',
+          },
+        },
+        'goals': {'home': null, 'away': null},
+        'score': {'fulltime': {'home': null, 'away': null}},
+      });
+
+      expect(match.homeTeam.logoUrl, contains('teams/33'));
+      expect(match.awayTeam.logoUrl, contains('teams/34'));
+      expect(match.homeTeam.flagUrl, contains('flags/gb'));
+    });
+  });
+
   group('ApiFootballParser.parseEvents', () {
     test('maps goals, cards, and substitutions with home side', () {
       final events = ApiFootballParser.parseEvents(

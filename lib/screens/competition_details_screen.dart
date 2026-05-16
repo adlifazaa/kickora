@@ -542,7 +542,7 @@ class _StandingsRow extends StatelessWidget {
             flex: 4,
             child: Row(
               children: [
-                TeamLogo(shortName: item.team.shortName, size: 22),
+                TeamLogo.fromTeam(item.team, size: 22),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(item.team.name,
@@ -760,7 +760,7 @@ class _TeamsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TeamLogo(shortName: team.shortName, size: 44),
+              TeamLogo.fromTeam(team, size: 44),
               const SizedBox(height: 8),
               Expanded(
                 child: Column(
@@ -894,10 +894,12 @@ class _ScorersTab extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   TeamLogo(
-                      shortName: player.teamLogoShort.isEmpty
-                          ? player.team.substring(0, 3)
-                          : player.teamLogoShort,
-                      size: 38),
+                    shortName: player.teamLogoShort.isEmpty
+                        ? player.team.substring(0, 3)
+                        : player.teamLogoShort,
+                    imageUrl: player.teamLogoUrl,
+                    size: 38,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

@@ -61,7 +61,7 @@ class StandingsScreen extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w900)),
                 ),
                 const SizedBox(width: 10),
-                TeamLogo(shortName: item.team.shortName, size: 30),
+                TeamLogo.fromTeam(item.team, size: 30),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(item.team.name,

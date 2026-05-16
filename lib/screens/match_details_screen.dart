@@ -587,7 +587,10 @@ class _GlowMatchHeader extends StatelessWidget {
                     child: _TeamBlock(
                       name: match.homeTeam.name,
                       shortName: match.homeTeam.shortName,
-                      logoUrl: match.homeTeam.logo,
+                      logoUrl: match.homeTeam.logoUrl.isNotEmpty
+                          ? match.homeTeam.logoUrl
+                          : match.homeTeam.logo,
+                      flagUrl: match.homeTeam.flagUrl,
                     ),
                   ),
                   Column(
@@ -645,7 +648,10 @@ class _GlowMatchHeader extends StatelessWidget {
                     child: _TeamBlock(
                       name: match.awayTeam.name,
                       shortName: match.awayTeam.shortName,
-                      logoUrl: match.awayTeam.logo,
+                      logoUrl: match.awayTeam.logoUrl.isNotEmpty
+                          ? match.awayTeam.logoUrl
+                          : match.awayTeam.logo,
+                      flagUrl: match.awayTeam.flagUrl,
                     ),
                   ),
                 ],
@@ -714,11 +720,13 @@ class _TeamBlock extends StatelessWidget {
     required this.name,
     required this.shortName,
     this.logoUrl,
+    this.flagUrl,
   });
 
   final String name;
   final String shortName;
   final String? logoUrl;
+  final String? flagUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -729,6 +737,7 @@ class _TeamBlock extends StatelessWidget {
           child: TeamLogo(
             shortName: shortName,
             imageUrl: logoUrl,
+            flagUrl: flagUrl,
             size: 58,
           ),
         ),

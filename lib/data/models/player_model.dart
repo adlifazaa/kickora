@@ -33,6 +33,7 @@ class PlayerModel {
     required this.position,
     required this.team,
     this.teamLogoShort = '',
+    this.teamLogoUrl = '',
     required this.appearances,
     this.minutesPlayed = 0,
     required this.goals,
@@ -58,6 +59,7 @@ class PlayerModel {
   final String position;
   final String team;
   final String teamLogoShort;
+  final String teamLogoUrl;
   final int appearances;
   final int minutesPlayed;
   final int goals;
@@ -84,6 +86,7 @@ class PlayerModel {
       position: (json['position'] ?? '').toString(),
       team: (json['team'] ?? '').toString(),
       teamLogoShort: (json['teamLogoShort'] ?? '').toString(),
+      teamLogoUrl: (json['teamLogoUrl'] ?? '').toString(),
       appearances: (json['appearances'] ?? 0) as int,
       minutesPlayed: (json['minutesPlayed'] ?? 0) as int,
       goals: (json['goals'] ?? 0) as int,

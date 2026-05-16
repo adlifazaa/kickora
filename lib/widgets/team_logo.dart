@@ -1,21 +1,34 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../data/models/team_model.dart';
 import 'api_display_text.dart';
 import 'network_logo_image.dart';
 
-/// Team crest — network logo when URL is present, otherwise gradient initials.
+/// Team crest — logo, then country flag, then gradient initials (never raw URLs as text).
 class TeamLogo extends StatelessWidget {
   const TeamLogo({
     super.key,
     required this.shortName,
     this.imageUrl,
+    this.flagUrl,
     this.size = 36,
   });
 
   final String shortName;
   final String? imageUrl;
+  final String? flagUrl;
   final double size;
+
+  factory TeamLogo.fromTeam(TeamModel team, {Key? key, double size = 36}) {
+    return TeamLogo(
+      key: key,
+      shortName: teamShortCode(team.shortName, team.name),
+      imageUrl: team.logoUrl.isNotEmpty ? team.logoUrl : team.logo,
+      flagUrl: team.flagUrl,
+      size: size,
+    );
+  }
 
   static const List<List<Color>> _palettes = [
     [Color(0xFF00D1C1), Color(0xFF008F86)],
@@ -36,8 +49,18 @@ class TeamLogo extends StatelessWidget {
 
   String get _initials {
     final code = sanitizeApiDisplayText(shortName);
-    if (code.isEmpty) return '?';
-    return code.substring(0, code.length.clamp(1, 3));
+    if (code.isNotEmpty) {
+      return code.substring(0, code.length.clamp(1, 3));
+    }
+    return '?';
+  }
+
+  String? get _resolvedNetworkUrl {
+    final logo = imageUrl?.trim();
+    if (isNetworkImageUrl(logo)) return logo;
+    final flag = flagUrl?.trim();
+    if (isNetworkImageUrl(flag)) return flag;
+    return null;
   }
 
   Widget _initialsBadge() {
@@ -86,7 +109,7 @@ class TeamLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return NetworkLogoImage(
       size: size,
-      imageUrl: imageUrl,
+      imageUrl: _resolvedNetworkUrl,
       fallback: _initialsBadge(),
     );
   }
@@ -99,14 +122,35 @@ class TeamCrestTile extends StatelessWidget {
     required this.shortName,
     required this.name,
     this.imageUrl,
+    this.flagUrl,
     this.subtitle,
     this.trailing,
     this.onTap,
   });
 
+  factory TeamCrestTile.fromTeam(
+    TeamModel team, {
+    Key? key,
+    String? subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return TeamCrestTile(
+      key: key,
+      shortName: team.shortName,
+      name: team.name,
+      imageUrl: team.logoUrl.isNotEmpty ? team.logoUrl : team.logo,
+      flagUrl: team.flagUrl,
+      subtitle: subtitle ?? team.countryName,
+      trailing: trailing,
+      onTap: onTap,
+    );
+  }
+
   final String shortName;
   final String name;
   final String? imageUrl;
+  final String? flagUrl;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -123,18 +167,28 @@ class TeamCrestTile extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
           child: Row(
             children: [
-              TeamLogo(shortName: shortName, imageUrl: imageUrl, size: 34),
+              TeamLogo(
+                shortName: teamShortCode(shortName, name),
+                imageUrl: imageUrl,
+                flagUrl: flagUrl,
+                size: 34,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 14)),
-                    if (subtitle != null)
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (subtitle != null &&
+                        sanitizeApiDisplayText(subtitle).isNotEmpty)
                       Text(
                         subtitle!,
                         maxLines: 1,

@@ -152,10 +152,9 @@ class _TeamTile extends StatelessWidget {
     final app = AppScope.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: TeamCrestTile(
-        shortName: team.shortName,
-        name: team.name,
-        subtitle: team.nationality,
+      child: TeamCrestTile.fromTeam(
+        team,
+        subtitle: team.countryName,
         trailing: IconButton(
           onPressed: () => app.toggleTeamFavorite(team.id),
           icon: const Icon(Icons.favorite_rounded, color: Colors.redAccent),

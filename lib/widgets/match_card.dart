@@ -3,6 +3,7 @@
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
+import '../data/models/team_model.dart';
 import '../models/match_model.dart';
 import 'api_display_text.dart';
 import 'live_badge.dart';
@@ -165,10 +166,7 @@ class MatchCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _TeamView(
-                      name: match.homeTeam.name,
-                      shortName: match.homeTeam.shortName,
-                      logoUrl: match.homeTeam.logo,
-                      teamId: match.homeTeam.id,
+                      team: match.homeTeam,
                       compact: compact,
                     ),
                   ),
@@ -182,10 +180,7 @@ class MatchCard extends StatelessWidget {
                   ),
                   Expanded(
                     child: _TeamView(
-                      name: match.awayTeam.name,
-                      shortName: match.awayTeam.shortName,
-                      logoUrl: match.awayTeam.logo,
-                      teamId: match.awayTeam.id,
+                      team: match.awayTeam,
                       compact: compact,
                     ),
                   ),
@@ -415,23 +410,17 @@ class _ScoreDigit extends StatelessWidget {
 
 class _TeamView extends StatelessWidget {
   const _TeamView({
-    required this.name,
-    required this.shortName,
-    required this.logoUrl,
-    required this.teamId,
+    required this.team,
     required this.compact,
   });
 
-  final String name;
-  final String shortName;
-  final String logoUrl;
-  final int teamId;
+  final TeamModel team;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final isFavorite = app.isTeamFavorite(teamId);
+    final isFavorite = app.isTeamFavorite(team.id);
     final logoSize = compact ? 34.0 : 38.0;
     final nameSize = compact ? 12.5 : 13.0;
     final logoNameGap = compact ? 4.0 : 6.0;
@@ -450,15 +439,11 @@ class _TeamView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Center(
-          child: TeamLogo(
-            shortName: teamShortCode(shortName, name),
-            imageUrl: logoUrl,
-            size: logoSize,
-          ),
+          child: TeamLogo.fromTeam(team, size: logoSize),
         ),
         SizedBox(height: logoNameGap),
         ApiDisplayText(
-          name,
+          team.name,
           maxLines: 1,
           textAlign: TextAlign.center,
           style: nameStyle,
@@ -466,7 +451,7 @@ class _TeamView extends StatelessWidget {
         SizedBox(height: compact ? 1 : 2),
         InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => app.toggleTeamFavorite(teamId),
+          onTap: () => app.toggleTeamFavorite(team.id),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 6, vertical: heartPadV),
             child: Icon(
