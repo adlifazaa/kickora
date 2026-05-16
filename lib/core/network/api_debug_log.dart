@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../constants/api_constants.dart';
+import 'api_request_coordinator.dart';
 
 /// Safe API logging for local testing. Never logs API keys or auth headers.
 class ApiDebugLog {
@@ -12,6 +13,7 @@ class ApiDebugLog {
     if (!kDebugMode) return;
     debugPrint(
       '[Kickora] apiKeyPresent=${ApiConstants.hasApiKey} '
+      'apiDevMode=${ApiConstants.apiDevMode} '
       'dataSource=${ApiConstants.hasApiKey ? "api" : "mock"}',
     );
     debugPrint('[Kickora] baseUrl=${ApiConstants.baseUrl}');
@@ -22,23 +24,36 @@ class ApiDebugLog {
     }
   }
 
-  static void request(String method, Uri uri) {
+  static void request(String method, Uri uri, {required int requestId}) {
     if (!kDebugMode) return;
     final path = uri.path.isEmpty ? '/' : uri.path;
     final query = uri.query.isEmpty ? '' : '?${_redactQuery(uri.query)}';
-    debugPrint('[Kickora] → $method $path$query');
+    final total = ApiRequestCoordinator.instance.requestCount;
+    debugPrint(
+      '[Kickora] request#$requestId (total=$total) → $method $path$query',
+    );
   }
 
   static void response({
+    required int requestId,
     required int statusCode,
     required String path,
     int? results,
     String? errorCode,
+    String dataSource = 'api',
   }) {
     if (!kDebugMode) return;
     final count = results != null ? ' resultCount=$results' : '';
     final err = errorCode != null ? ' error=$errorCode' : '';
-    debugPrint('[Kickora] ← HTTP $statusCode $path$count$err');
+    debugPrint(
+      '[Kickora] request#$requestId ← HTTP $statusCode $path '
+      'dataSource=$dataSource$count$err',
+    );
+  }
+
+  static void deduped(String dedupeKey) {
+    if (!kDebugMode) return;
+    debugPrint('[Kickora] deduped in-flight $dedupeKey');
   }
 
   static void retry(String path, int attempt, String reason) {

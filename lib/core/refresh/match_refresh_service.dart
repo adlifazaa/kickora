@@ -117,7 +117,7 @@ class MatchRefreshService extends ChangeNotifier with WidgetsBindingObserver {
     final existing = _inFlight[category];
     if (existing != null) return existing;
 
-    final task = _runRefresh(category, reason: reason);
+    final task = _runRefresh(category, force: force, reason: reason);
     _inFlight[category] = task;
     try {
       await task;
@@ -141,29 +141,33 @@ class MatchRefreshService extends ChangeNotifier with WidgetsBindingObserver {
     return DateTime.now().difference(last) >= _config.minGapBetweenSameCategory;
   }
 
-  Future<void> _runRefresh(MatchRefreshCategory category, {required String reason}) async {
+  Future<void> _runRefresh(
+    MatchRefreshCategory category, {
+    required bool force,
+    required String reason,
+  }) async {
     final date = _selectedDate;
     try {
       switch (category) {
         case MatchRefreshCategory.live:
           await _repository.getLiveMatches(
             date: date,
-            forceRefresh: true,
+            forceRefresh: force,
           );
         case MatchRefreshCategory.upcoming:
           await _repository.getUpcomingMatches(
             date: date,
-            forceRefresh: true,
+            forceRefresh: force,
           );
         case MatchRefreshCategory.finished:
           await _repository.getFinishedMatches(
             date: date,
-            forceRefresh: true,
+            forceRefresh: force,
           );
         case MatchRefreshCategory.all:
           await _repository.getMatches(
             date: date,
-            forceRefresh: true,
+            forceRefresh: force,
           );
       }
       _lastCompleted[category] = DateTime.now();
@@ -181,6 +185,12 @@ class MatchRefreshService extends ChangeNotifier with WidgetsBindingObserver {
 
   void _scheduleAll() {
     _cancelAllTimers();
+    if (!_config.enableBackgroundTimers) {
+      if (kDebugMode) {
+        debugPrint('[Kickora Refresh] background timers disabled');
+      }
+      return;
+    }
     for (final category in MatchRefreshCategory.values) {
       _timers[category] = Timer.periodic(
         _config.intervalFor(category),

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'core/cache/cache_manager.dart';
+import 'core/constants/api_dev_mode.dart';
 import 'core/network/api_debug_log.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/services/football_api_service.dart';
@@ -37,7 +38,10 @@ Future<void> main() async {
     api: footballApi,
     cache: cache,
   );
-  final matchRefreshService = MatchRefreshService(footballRepository);
+  final matchRefreshService = MatchRefreshService(
+    footballRepository,
+    config: ApiDevMode.refreshConfig(),
+  );
   final controller = AppController(
     preferences,
     footballRepository: footballRepository,

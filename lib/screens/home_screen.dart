@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load({bool silent = false, bool forceRefresh = false}) async {
     if (!silent && mounted) {
       setState(() => _loading = true);
     } else if (mounted) {
@@ -71,12 +71,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final repo = AppScope.footballRepositoryOf(context);
-    final force = silent;
     final today = DateTime.now();
     String? loadError;
 
     var liveMatches = <MatchModel>[];
-    final liveState = await repo.getLiveMatches(forceRefresh: force);
+    final liveState = await repo.getLiveMatches(forceRefresh: forceRefresh);
     if (liveState.hasError) {
       liveMatches = [];
     } else {
@@ -84,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     var todayMatches = <MatchModel>[];
-    final allState = await repo.getMatches(date: today, forceRefresh: force);
+    final allState = await repo.getMatches(date: today, forceRefresh: forceRefresh);
     if (allState.hasError) {
       todayMatches = [];
     } else {
@@ -93,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
           all.where((m) => m.status != MatchStatus.finished).toList();
     }
 
-    final compState = await repo.getCompetitions();
+    final compState = await repo.getCompetitions(forceRefresh: forceRefresh);
     List<CompetitionModel> competitions;
     if (compState.hasError) {
       competitions = [];
@@ -138,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _onRefresh() async {
     final refresh = AppScope.matchRefreshServiceOf(context);
     await refresh.refreshAll(force: true);
-    await _load(silent: true);
+    await _load(silent: true, forceRefresh: true);
   }
 
   DateTime? get _displayLastUpdated =>

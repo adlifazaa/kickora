@@ -32,6 +32,8 @@ class ApiException implements Exception {
 
   bool get isNotConfigured => code == 'not_configured';
 
+  bool get isRateLimited => code == 'rate_limit';
+
   @override
   String toString() {
     final buffer = StringBuffer('ApiException: $message');

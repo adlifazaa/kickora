@@ -52,7 +52,7 @@ class _MatchesScreenState extends State<MatchesScreen>
 
   void _onAutoRefresh() => _load(silent: true);
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load({bool silent = false, bool forceRefresh = false}) async {
     if (!silent && mounted) {
       setState(() => _loading = true);
     } else if (mounted) {
@@ -62,11 +62,19 @@ class _MatchesScreenState extends State<MatchesScreen>
     final repo = AppScope.footballRepositoryOf(context);
     final refresh = AppScope.matchRefreshServiceOf(context);
     refresh.setSelectedDate(_selectedDate);
-    final force = silent;
     final results = await Future.wait([
-      repo.getLiveMatches(date: _selectedDate, forceRefresh: force),
-      repo.getUpcomingMatches(date: _selectedDate, forceRefresh: force),
-      repo.getFinishedMatches(date: _selectedDate, forceRefresh: force),
+      repo.getLiveMatches(
+        date: _selectedDate,
+        forceRefresh: forceRefresh,
+      ),
+      repo.getUpcomingMatches(
+        date: _selectedDate,
+        forceRefresh: forceRefresh,
+      ),
+      repo.getFinishedMatches(
+        date: _selectedDate,
+        forceRefresh: forceRefresh,
+      ),
     ]);
 
     var live = results[0].hasError ? <MatchModel>[] : (results[0].data ?? []);
@@ -108,7 +116,7 @@ class _MatchesScreenState extends State<MatchesScreen>
     final refresh = AppScope.matchRefreshServiceOf(context);
     refresh.setSelectedDate(_selectedDate);
     await refresh.refreshAll(force: true);
-    await _load(silent: true);
+    await _load(silent: true, forceRefresh: true);
   }
 
   List<MatchModel> _matchesForTab(int index) {

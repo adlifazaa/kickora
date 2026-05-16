@@ -39,9 +39,9 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCompetitions() async {
+  Future<void> _loadCompetitions({bool forceRefresh = false}) async {
     final repo = AppScope.footballRepositoryOf(context);
-    final state = await repo.getCompetitions();
+    final state = await repo.getCompetitions(forceRefresh: forceRefresh);
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -200,7 +200,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
       return AsyncContentView(
         loading: false,
         isEmpty: true,
-        onRetry: _loadCompetitions,
+        onRetry: () => _loadCompetitions(forceRefresh: true),
         emptyIcon: Icons.cloud_off_rounded,
         emptyTitle: text.isArabic
             ? 'تعذر تحميل البطولات'

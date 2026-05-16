@@ -5,6 +5,9 @@
 ///
 /// Optional request logs (debug builds only, never prints the key):
 /// `flutter run --dart-define=KICKORA_API_KEY=... --dart-define=KICKORA_API_DEBUG=true`
+///
+/// Low-request dev profile:
+/// `flutter run --dart-define=KICKORA_API_KEY=... --dart-define=KICKORA_API_DEV_MODE=true`
 class ApiConstants {
   ApiConstants._();
 
@@ -23,11 +26,18 @@ class ApiConstants {
     defaultValue: false,
   );
 
+  static const bool apiDevMode = bool.fromEnvironment(
+    'KICKORA_API_DEV_MODE',
+    defaultValue: false,
+  );
+
   static const Duration connectTimeout = Duration(seconds: 12);
   static const Duration receiveTimeout = Duration(seconds: 20);
 
   /// Minimum gap between outbound requests (free tier ≈ 10 req/min).
-  static const Duration requestThrottleInterval = Duration(milliseconds: 650);
+  static Duration get requestThrottleInterval => apiDevMode
+      ? const Duration(milliseconds: 1500)
+      : const Duration(milliseconds: 650);
 
   static const int maxRetries = 3;
   static const Duration retryBaseDelay = Duration(milliseconds: 400);

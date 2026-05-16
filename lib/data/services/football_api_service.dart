@@ -1,4 +1,5 @@
 import '../../core/cache/cache_manager.dart';
+import '../../core/constants/api_cache_policy.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
@@ -87,7 +88,7 @@ class FootballApiService {
     await _writeMatchCache(
       cacheKey,
       matches,
-      ttl: const Duration(minutes: 1),
+      ttl: ApiCachePolicy.liveMatches,
     );
     return matches;
   }
@@ -153,10 +154,10 @@ class FootballApiService {
     }
 
     final ttl = switch (status) {
-      MatchStatus.live => const Duration(minutes: 1),
-      MatchStatus.upcoming => const Duration(minutes: 5),
-      MatchStatus.finished => const Duration(minutes: 15),
-      null => const Duration(minutes: 3),
+      MatchStatus.live => ApiCachePolicy.liveMatches,
+      MatchStatus.upcoming => ApiCachePolicy.fixturesUpcoming,
+      MatchStatus.finished => ApiCachePolicy.fixturesFinished,
+      null => ApiCachePolicy.fixturesByDate,
     };
     await _writeMatchCache(cacheKey, matches, ttl: ttl);
     return matches;
@@ -180,12 +181,17 @@ class FootballApiService {
     }
   }
 
-  Future<MatchModel?> fetchMatchById(int id) async {
+  Future<MatchModel?> fetchMatchById(
+    int id, {
+    bool skipCache = false,
+  }) async {
     if (!isLive) throw const ApiException.notConfigured();
 
     final cacheKey = 'cache_fixture_$id';
-    final cached = _readMatchCache(cacheKey);
-    if (cached != null && cached.isNotEmpty) return cached.first;
+    if (!skipCache) {
+      final cached = _readMatchCache(cacheKey);
+      if (cached != null && cached.isNotEmpty) return cached.first;
+    }
 
     final response = await _client.get(
       ApiConstants.fixtures,
@@ -193,7 +199,11 @@ class FootballApiService {
     );
     final list = ApiFootballParser.parseFixtures(response);
     if (list.isNotEmpty) {
-      await _writeMatchCache(cacheKey, list);
+      await _writeMatchCache(
+        cacheKey,
+        list,
+        ttl: ApiCachePolicy.matchDetails,
+      );
     }
     return list.isEmpty ? null : list.first;
   }
@@ -225,7 +235,7 @@ class FootballApiService {
     await _cache?.setJsonList(
       cacheKey,
       events.map(_eventToJson).toList(),
-      ttl: const Duration(minutes: 2),
+      ttl: ApiCachePolicy.matchDetails,
     );
     return events;
   }
@@ -265,7 +275,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: const Duration(minutes: 2),
+      ttl: ApiCachePolicy.matchDetails,
     );
     return stats;
   }
@@ -319,7 +329,7 @@ class FootballApiService {
     await _cache?.setJsonList(
       cacheKey,
       leagues.map((c) => c.toJson()).toList(),
-      ttl: const Duration(hours: 6),
+      ttl: ApiCachePolicy.competitions,
     );
     return leagues;
   }
@@ -359,7 +369,7 @@ class FootballApiService {
     await _cache?.setJsonList(
       cacheKey,
       teams.map((t) => t.toJson()).toList(),
-      ttl: const Duration(hours: 6),
+      ttl: ApiCachePolicy.teams,
     );
     return teams;
   }
@@ -400,7 +410,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: const Duration(minutes: 30),
+      ttl: ApiCachePolicy.standings,
     );
     return standings;
   }

@@ -5,6 +5,7 @@ import 'dart:io';
 import '../constants/api_constants.dart';
 import '../errors/api_exception.dart';
 import 'api_debug_log.dart';
+import 'api_request_coordinator.dart';
 import 'request_throttler.dart';
 
 /// HTTP client for API-Football with throttling, retries, and timeouts.
@@ -37,6 +38,17 @@ class ApiClient {
       throw const ApiException.notConfigured();
     }
 
+    final dedupeKey = _dedupeKey(path, queryParameters);
+    return ApiRequestCoordinator.instance.run(
+      dedupeKey,
+      () => _getWithRetry(path, queryParameters: queryParameters),
+    );
+  }
+
+  Future<Map<String, dynamic>> _getWithRetry(
+    String path, {
+    Map<String, String>? queryParameters,
+  }) async {
     var attempt = 0;
     while (true) {
       attempt++;
@@ -56,8 +68,9 @@ class ApiClient {
     String path, {
     Map<String, String>? queryParameters,
   }) async {
+    final requestId = ApiRequestCoordinator.instance.nextRequestId();
     final uri = _buildUri(path, queryParameters);
-    ApiDebugLog.request('GET', uri);
+    ApiDebugLog.request('GET', uri, requestId: requestId);
     final client = HttpClient();
     client.connectionTimeout = connectTimeout;
 
@@ -73,9 +86,11 @@ class ApiClient {
 
       if (response.statusCode == 429) {
         ApiDebugLog.response(
+          requestId: requestId,
           statusCode: 429,
           path: path,
           errorCode: 'rate_limit',
+          dataSource: 'error',
         );
         throw const ApiException(
           'Rate limit exceeded.',
@@ -86,9 +101,11 @@ class ApiClient {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         ApiDebugLog.response(
+          requestId: requestId,
           statusCode: response.statusCode,
           path: path,
           errorCode: 'http_error',
+          dataSource: 'error',
         );
         throw ApiException(
           'Request failed',
@@ -101,10 +118,13 @@ class ApiClient {
         throw const ApiException.parse('Expected JSON object response.');
       }
 
+      final count = _resultCount(decoded);
       ApiDebugLog.response(
+        requestId: requestId,
         statusCode: response.statusCode,
         path: path,
-        results: _resultCount(decoded),
+        results: count,
+        dataSource: count == 0 ? 'empty' : 'api',
       );
       return decoded;
     } on ApiException catch (e) {
@@ -131,6 +151,14 @@ class ApiClient {
     } finally {
       client.close(force: true);
     }
+  }
+
+  static String _dedupeKey(String path, Map<String, String>? query) {
+    if (query == null || query.isEmpty) return 'GET:$path';
+    final entries = query.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final qs = entries.map((e) => '${e.key}=${e.value}').join('&');
+    return 'GET:$path?$qs';
   }
 
   int? _resultCount(Map<String, dynamic> decoded) {

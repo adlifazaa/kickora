@@ -8,6 +8,7 @@ class MatchRefreshConfig {
     this.finishedInterval = const Duration(minutes: 12),
     this.allMatchesInterval = const Duration(minutes: 2),
     this.minGapBetweenSameCategory = const Duration(seconds: 25),
+    this.enableBackgroundTimers = true,
   });
 
   /// Live scores: 30–60s target (default 45s).
@@ -24,6 +25,9 @@ class MatchRefreshConfig {
 
   /// Prevents duplicate back-to-back calls for the same category.
   final Duration minGapBetweenSameCategory;
+
+  /// When false, only manual pull-to-refresh triggers network refresh.
+  final bool enableBackgroundTimers;
 
   Duration intervalFor(MatchRefreshCategory category) {
     switch (category) {

@@ -1,8 +1,10 @@
 import '../../core/cache/cache_manager.dart';
+import '../../core/constants/api_cache_policy.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_debug_log.dart';
 import '../../core/state/data_state.dart';
 import '../mock_data.dart';
+import 'repository_memory_cache.dart';
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
 import '../models/lineup_model.dart';
@@ -22,6 +24,7 @@ class FootballRepository {
 
   final FootballApiService _api;
   final CacheManager? _cache;
+  final RepositoryMemoryCache _memory = RepositoryMemoryCache();
 
   bool get usesLiveApi => _api.isLive;
 
@@ -32,13 +35,18 @@ class FootballRepository {
     int? competitionId,
     bool forceRefresh = false,
   }) async {
-    if (forceRefresh) {
+    final memKey = _matchMemKey('live', date: date, competitionId: competitionId);
+    if (!forceRefresh) {
+      final hit = _readMemory<List<MatchModel>>(memKey, ApiCachePolicy.liveMatches);
+      if (hit != null) return hit;
+    } else {
+      _memory.remove(memKey);
       await _api.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
     }
-    return _loadMatches(
+    final result = await _loadMatches(
       operation: 'getLiveMatches',
       cacheKey: 'cache_live_matches',
       fetch: () => _api.fetchLiveMatches(
@@ -51,6 +59,8 @@ class FootballRepository {
           .toList(),
       filterCompetition: competitionId,
     );
+    _storeMemory(memKey, result, forceRefresh);
+    return result;
   }
 
   Future<DataState<List<MatchModel>>> getUpcomingMatches({
@@ -58,13 +68,20 @@ class FootballRepository {
     int? competitionId,
     bool forceRefresh = false,
   }) async {
-    if (forceRefresh) {
+    final memKey =
+        _matchMemKey('upcoming', date: date, competitionId: competitionId);
+    if (!forceRefresh) {
+      final hit =
+          _readMemory<List<MatchModel>>(memKey, ApiCachePolicy.fixturesUpcoming);
+      if (hit != null) return hit;
+    } else {
+      _memory.remove(memKey);
       await _api.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
     }
-    return _loadMatches(
+    final result = await _loadMatches(
       operation: 'getUpcomingMatches',
       cacheKey: 'cache_upcoming_matches',
       fetch: () => _api.fetchUpcomingMatches(
@@ -77,6 +94,8 @@ class FootballRepository {
           .toList(),
       filterCompetition: competitionId,
     );
+    _storeMemory(memKey, result, forceRefresh);
+    return result;
   }
 
   Future<DataState<List<MatchModel>>> getFinishedMatches({
@@ -84,13 +103,20 @@ class FootballRepository {
     int? competitionId,
     bool forceRefresh = false,
   }) async {
-    if (forceRefresh) {
+    final memKey =
+        _matchMemKey('finished', date: date, competitionId: competitionId);
+    if (!forceRefresh) {
+      final hit =
+          _readMemory<List<MatchModel>>(memKey, ApiCachePolicy.fixturesFinished);
+      if (hit != null) return hit;
+    } else {
+      _memory.remove(memKey);
       await _api.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
     }
-    return _loadMatches(
+    final result = await _loadMatches(
       operation: 'getFinishedMatches',
       cacheKey: 'cache_finished_matches',
       fetch: () => _api.fetchFinishedMatches(
@@ -103,6 +129,8 @@ class FootballRepository {
           .toList(),
       filterCompetition: competitionId,
     );
+    _storeMemory(memKey, result, forceRefresh);
+    return result;
   }
 
   Future<DataState<List<MatchModel>>> getMatches({
@@ -110,13 +138,19 @@ class FootballRepository {
     int? competitionId,
     bool forceRefresh = false,
   }) async {
-    if (forceRefresh) {
+    final memKey = _matchMemKey('all', date: date, competitionId: competitionId);
+    if (!forceRefresh) {
+      final hit =
+          _readMemory<List<MatchModel>>(memKey, ApiCachePolicy.fixturesByDate);
+      if (hit != null) return hit;
+    } else {
+      _memory.remove(memKey);
       await _api.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
     }
-    return _loadMatches(
+    final result = await _loadMatches(
       operation: 'getMatches',
       cacheKey: 'cache_all_matches',
       fetch: () => _api.fetchMatches(
@@ -127,6 +161,8 @@ class FootballRepository {
       mock: () => MockData.matches(),
       filterCompetition: competitionId,
     );
+    _storeMemory(memKey, result, forceRefresh);
+    return result;
   }
 
   Future<DataState<MatchModel?>> getMatchById(
@@ -227,29 +263,42 @@ class FootballRepository {
   Future<DataState<List<StandingModel>>> getStandings({
     int? leagueId,
     bool allowMockFallback = true,
+    bool forceRefresh = false,
   }) async {
     if (!_api.isLive) {
       return DataState.success(MockData.standings, fromMock: true);
     }
+    final memKey = 'mem_standings_$leagueId';
+    if (!forceRefresh) {
+      final hit =
+          _readMemory<List<StandingModel>>(memKey, ApiCachePolicy.standings);
+      if (hit != null) return hit;
+    } else {
+      _memory.remove(memKey);
+    }
     try {
       final data = await _api.fetchStandings(leagueId: leagueId);
-      return DataState.success(data, fromMock: false);
+      final result = DataState.success(data, fromMock: false);
+      _storeMemory(memKey, result, forceRefresh);
+      return result;
     } on ApiException catch (e) {
       if (e.isNotConfigured || allowMockFallback) {
         return DataState.success(MockData.standings, fromMock: true);
       }
-      return const DataState.success([], fromMock: false);
-    } catch (_) {
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
       if (allowMockFallback) {
         return DataState.success(MockData.standings, fromMock: true);
       }
-      return const DataState.success([], fromMock: false);
+      return DataState.failure(e.toString());
     }
   }
 
   // --- Competitions / teams / standings / players ---
 
-  Future<DataState<List<CompetitionModel>>> getCompetitions() async {
+  Future<DataState<List<CompetitionModel>>> getCompetitions({
+    bool forceRefresh = false,
+  }) async {
     const operation = 'getCompetitions';
     if (!_api.isLive) {
       final list = MockData.competitions;
@@ -260,6 +309,16 @@ class FootballRepository {
       );
       return DataState.success(list, fromMock: true);
     }
+    const memKey = 'mem_competitions';
+    if (!forceRefresh) {
+      final hit = _readMemory<List<CompetitionModel>>(
+        memKey,
+        ApiCachePolicy.competitions,
+      );
+      if (hit != null) return hit;
+    } else {
+      _memory.remove(memKey);
+    }
     try {
       final data = await _api.fetchCompetitions();
       await _cache?.setJson('cache_competitions', {'ok': true});
@@ -269,14 +328,16 @@ class FootballRepository {
         source: source,
         count: data.length,
       );
-      return DataState.success(data, fromMock: false);
+      final result = DataState.success(data, fromMock: false);
+      _storeMemory(memKey, result, forceRefresh);
+      return result;
     } on ApiException catch (e) {
       ApiDebugLog.dataSource(
         operation: operation,
         source: 'error',
         message: 'status=${e.statusCode} ${e.code ?? e.message}',
       );
-      return DataState.failure(e.message);
+      return DataState.failure(_friendlyError(e));
     } catch (e) {
       ApiDebugLog.dataSource(
         operation: operation,
@@ -299,11 +360,25 @@ class FootballRepository {
     }
   }
 
-  Future<DataState<List<TeamModel>>> getCompetitionTeams(int competitionId) async {
-    return _loadSimple(
+  Future<DataState<List<TeamModel>>> getCompetitionTeams(
+    int competitionId, {
+    bool forceRefresh = false,
+  }) async {
+    final memKey = 'mem_teams_$competitionId';
+    if (!forceRefresh && _api.isLive) {
+      final hit = _readMemory<List<TeamModel>>(memKey, ApiCachePolicy.teams);
+      if (hit != null) return hit;
+    } else if (forceRefresh) {
+      _memory.remove(memKey);
+    }
+    final result = await _loadSimple(
       fetch: () => _api.fetchTeams(competitionId: competitionId),
       mock: () => MockData.competitionTeams(competitionId),
     );
+    if (!result.hasError) {
+      _storeMemory(memKey, result, forceRefresh);
+    }
+    return result;
   }
 
   Future<DataState<List<PlayerModel>>> getTopScorers(int competitionId) async {
@@ -361,7 +436,7 @@ class FootballRepository {
         source: 'error',
         message: 'status=${e.statusCode} ${e.code ?? e.message}',
       );
-      return DataState.failure(e.message);
+      return DataState.failure(_friendlyError(e));
     } catch (e) {
       ApiDebugLog.dataSource(
         operation: operation,
@@ -371,6 +446,36 @@ class FootballRepository {
       return DataState.failure(e.toString());
     }
   }
+
+  DataState<T>? _readMemory<T>(String key, Duration ttl) {
+    final cached = _memory.get<DataState<T>>(key, ttl);
+    if (cached == null) return null;
+    ApiDebugLog.dataSource(
+      operation: key,
+      source: 'memory',
+      count: cached.data is List ? (cached.data as List).length : null,
+    );
+    return cached.copyWith(fromCache: true);
+  }
+
+  void _storeMemory<T>(String key, DataState<T> state, bool forceRefresh) {
+    if (forceRefresh || state.hasError) return;
+    _memory.put(key, state);
+  }
+
+  String _matchMemKey(
+    String kind, {
+    DateTime? date,
+    int? competitionId,
+  }) {
+    final d = date != null
+        ? '${date.year}-${date.month}-${date.day}'
+        : 'any';
+    return 'mem_${kind}_${competitionId ?? 'all'}_$d';
+  }
+
+  String _friendlyError(ApiException e) =>
+      e.isRateLimited ? ApiCachePolicy.rateLimitMessageEn : e.message;
 
   int _resolvedFixtureId(int? fixtureId, int matchId) {
     if (fixtureId != null && fixtureId > 0) return fixtureId;
@@ -398,6 +503,9 @@ class FootballRepository {
     } on ApiException catch (e) {
       if (e.isNotConfigured || allowMock) {
         return DataState.success(mockValue(), fromMock: true);
+      }
+      if (e.isRateLimited) {
+        return DataState.failure(_friendlyError(e));
       }
       return DataState.success(emptyValue(), fromMock: false);
     } catch (_) {

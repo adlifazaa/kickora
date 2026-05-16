@@ -4,9 +4,8 @@ import '../constants/api_constants.dart';
 
 /// Serializes HTTP calls so we stay within API-Football rate limits.
 class RequestThrottler {
-  RequestThrottler({
-    this.minInterval = ApiConstants.requestThrottleInterval,
-  });
+  RequestThrottler({Duration? minInterval})
+      : minInterval = minInterval ?? ApiConstants.requestThrottleInterval;
 
   final Duration minInterval;
   DateTime? _lastRequestAt;
