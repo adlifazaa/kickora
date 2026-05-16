@@ -65,9 +65,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                  blurRadius: isDark ? 16 : 18,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.08),
+                  blurRadius: isDark ? 12 : 18,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
@@ -112,6 +112,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final primary = theme.colorScheme.primary;
     // Pull the unselected color from the active theme so it reads correctly
     // in BOTH light and dark mode (was hardcoded white60 → invisible on white
@@ -131,15 +132,15 @@ class _NavItem extends StatelessWidget {
           gradient: selected
               ? LinearGradient(
                   colors: [
-                    primary.withValues(alpha: 0.22),
-                    primary.withValues(alpha: 0.08),
+                    primary.withValues(alpha: isDark ? 0.16 : 0.20),
+                    primary.withValues(alpha: isDark ? 0.06 : 0.08),
                   ],
                 )
               : null,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
-                ? primary.withValues(alpha: 0.45)
+                ? primary.withValues(alpha: isDark ? 0.28 : 0.38)
                 : Colors.transparent,
           ),
         ),

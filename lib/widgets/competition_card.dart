@@ -2,6 +2,7 @@
 
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
+import '../app/app_text.dart';
 import '../models/competition_model.dart';
 import 'team_logo.dart';
 
@@ -14,9 +15,18 @@ class CompetitionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
+    final text = AppText.of(context);
     final isFav = app.isCompetitionFavorite(competition.id);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final base = Theme.of(context).cardTheme.color ?? AppColors.darkCard;
+    const logoSize = 46.0;
+
+    final teamsLabel = text.isArabic
+        ? '${competition.teamCount} فريق'
+        : '${competition.teamCount} Teams';
+    final matchesLabel = text.isArabic
+        ? '${competition.matchesToday} مباراة اليوم'
+        : '${competition.matchesToday} Matches Today';
 
     return Material(
       color: Colors.transparent,
@@ -24,7 +34,7 @@ class CompetitionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Ink(
-          width: 160,
+          width: 168,
           padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -57,7 +67,7 @@ class CompetitionCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CompetitionBadge(logo: competition.logo, size: 40),
+                  CompetitionBadge(logo: competition.logo, size: logoSize),
                   const Spacer(),
                   InkWell(
                     onTap: () =>
@@ -78,7 +88,7 @@ class CompetitionCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 competition.name,
                 maxLines: 1,
@@ -89,29 +99,34 @@ class CompetitionCard extends StatelessWidget {
                   letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Icon(
-                    Icons.public_rounded,
-                    size: 12,
+              if (competition.teamCount > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  teamsLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
                     color: Theme.of(context).hintColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
                   ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      competition.region,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).hintColor,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                ),
+              ],
+              if (competition.matchesToday > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  matchesLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.9),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
                   ),
-                ],
-              ),
+                ),
+              ],
               if (competition.isFeatured) ...[
                 const SizedBox(height: 8),
                 Container(
@@ -123,9 +138,9 @@ class CompetitionCard extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'FEATURED',
-                    style: TextStyle(
+                  child: Text(
+                    text.isArabic ? 'مميزة' : 'FEATURED',
+                    style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
                       color: Colors.black,

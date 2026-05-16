@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -14,16 +15,21 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
+    with TickerProviderStateMixin {
+  late final AnimationController _intro = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1400),
+    duration: const Duration(milliseconds: 900),
   )..forward();
+
+  late final AnimationController _ball = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 680),
+  )..repeat(reverse: true);
 
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(milliseconds: 2200), () {
+    Timer(const Duration(milliseconds: 1350), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(AppRoutes.mainNavigation);
     });
@@ -31,13 +37,20 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _intro.dispose();
+    _ball.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
+    final logoAnim = CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic);
+    final fadeAnim = CurvedAnimation(
+      parent: _intro,
+      curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
+    );
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -56,84 +69,135 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
           Center(
-            child: FadeTransition(
-              opacity:
-                  CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.85, end: 1).animate(
-                    CurvedAnimation(
-                        parent: _controller, curve: Curves.easeOutBack)),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 108,
-                      height: 108,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [AppColors.teal, AppColors.neonGreen],
-                        ),
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.teal.withValues(alpha: 0.55),
-                            blurRadius: 36,
-                            spreadRadius: 4,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_intro, _ball]),
+              builder: (context, _) {
+                final bounce = Curves.easeInOut.transform(_ball.value);
+                final ballOffset = -18 - (bounce * 22);
+                final ballScale = 0.92 + (bounce * 0.08);
+
+                return FadeTransition(
+                  opacity: fadeAnim,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Transform.scale(
+                            scale: Tween<double>(begin: 0.82, end: 1)
+                                .evaluate(logoAnim),
+                            child: Container(
+                              width: 108,
+                              height: 108,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppColors.teal,
+                                    AppColors.neonGreen,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.teal
+                                        .withValues(alpha: 0.38),
+                                    blurRadius: 28,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.sports_soccer_rounded,
+                                color: Colors.black,
+                                size: 56,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: ballOffset,
+                            right: -6,
+                            child: Transform.scale(
+                              scale: ballScale,
+                              child: Transform.rotate(
+                                angle: bounce * math.pi * 0.15,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.92),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.25),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.sports_soccer,
+                                    size: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.sports_soccer_rounded,
-                          color: Colors.black, size: 56),
-                    ),
-                    const SizedBox(height: 22),
-                    Text(
-                      'Kickora',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
+                      const SizedBox(height: 22),
+                      Opacity(
+                        opacity: logoAnim.value.clamp(0.0, 1.0),
+                        child: Text(
+                          'Kickora',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Opacity(
+                        opacity: (logoAnim.value * 0.9).clamp(0.0, 1.0),
+                        child: Text(
+                          text.appTagline,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Theme.of(context).hintColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      text.appTagline,
-                      style: TextStyle(
-                        color: Theme.of(context).hintColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width: 120,
-                      child: LinearProgressIndicator(
-                        minHeight: 4,
-                        backgroundColor:
-                            Colors.white.withValues(alpha: 0.07),
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(AppColors.teal),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           Positioned(
             bottom: 28,
             left: 0,
             right: 0,
-            child: Center(
-              child: Text(
-                '${text.isArabic ? 'إصدار' : 'Version'} 1.0.0',
-                style: TextStyle(
+            child: FadeTransition(
+              opacity: fadeAnim,
+              child: Center(
+                child: Text(
+                  '${text.isArabic ? 'إصدار' : 'Version'} 1.0.0',
+                  style: TextStyle(
                     color: Theme.of(context).hintColor,
                     fontWeight: FontWeight.w700,
-                    fontSize: 11),
+                    fontSize: 11,
+                  ),
+                ),
               ),
             ),
           ),

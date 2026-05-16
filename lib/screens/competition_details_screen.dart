@@ -10,8 +10,8 @@ import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../models/standing_model.dart';
 import '../models/team_model.dart';
-import '../widgets/ad_placeholder.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/skeleton_box.dart';
@@ -255,6 +255,27 @@ class _CompetitionHeader extends StatelessWidget {
 }
 
 
+List<Widget> _matchesWithSpotlights(
+    BuildContext context, List<MatchModel> matches) {
+  return insertFeedSpotlights(
+    interval: 4,
+    items: [
+      for (final match in matches)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: MatchCard(
+            match: match,
+            onTap: () => Navigator.pushNamed(
+              context,
+              AppRoutes.matchDetails,
+              arguments: match,
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
 class _MatchesTab extends StatelessWidget {
   const _MatchesTab({
     required this.loading,
@@ -312,18 +333,7 @@ class _MatchesTab extends StatelessWidget {
               icon: Icons.sports_soccer_rounded,
             ),
             const SizedBox(height: 10),
-            ...matches.map(
-              (match) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: MatchCard(
-                  match: match,
-                  onTap: () => Navigator.pushNamed(
-                      context, AppRoutes.matchDetails, arguments: match),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const NativeAdPlaceholder(),
+            ..._matchesWithSpotlights(context, matches),
           ],
         ],
       ),

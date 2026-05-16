@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../app/app_contact.dart';
 import '../app/app_text.dart';
 
 /// "About Kickora" — explains what Kickora is, who it is for, and which
@@ -170,17 +171,15 @@ class AboutScreen extends StatelessWidget {
                     context,
                     icon: Icons.email_outlined,
                     title: text.isArabic ? 'البريد الإلكتروني' : 'Email',
-                    subtitle: 'hello@kickora.live',
-                    onTap: () => _snack(context, 'Email'),
+                    subtitle: AppContact.email,
+                    onTap: () => _snack(context, AppContact.email),
                   ),
                   _linkTile(
                     context,
                     icon: Icons.support_agent_rounded,
                     title: text.isArabic ? 'الدعم الفني' : 'Support',
-                    subtitle: text.isArabic
-                        ? 'تواصل مع فريق Kickora'
-                        : 'Reach the Kickora team',
-                    onTap: () => _snack(context, 'Support'),
+                    subtitle: AppContact.email,
+                    onTap: () => _snack(context, AppContact.email),
                   ),
                   _linkTile(
                     context,

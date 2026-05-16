@@ -16,11 +16,11 @@ class MockData {
   ];
 
   static const competitions = [
-    CompetitionModel(id: 1, name: 'World Cup 2026', region: 'International', logo: 'WC', isFeatured: true),
-    CompetitionModel(id: 2, name: 'Premier League', region: 'England', logo: 'PL'),
-    CompetitionModel(id: 3, name: 'La Liga', region: 'Spain', logo: 'LL'),
-    CompetitionModel(id: 4, name: 'Serie A', region: 'Italy', logo: 'SA'),
-    CompetitionModel(id: 5, name: 'Bundesliga', region: 'Germany', logo: 'BL'),
+    CompetitionModel(id: 1, name: 'World Cup 2026', region: 'International', logo: 'WC', isFeatured: true, teamCount: 48, matchesToday: 12),
+    CompetitionModel(id: 2, name: 'Premier League', region: 'England', logo: 'PL', teamCount: 20, matchesToday: 8),
+    CompetitionModel(id: 3, name: 'La Liga', region: 'Spain', logo: 'LL', teamCount: 20, matchesToday: 6),
+    CompetitionModel(id: 4, name: 'Serie A', region: 'Italy', logo: 'SA', teamCount: 20, matchesToday: 5),
+    CompetitionModel(id: 5, name: 'Bundesliga', region: 'Germany', logo: 'BL', teamCount: 18, matchesToday: 4),
   ];
 
   static const standings = [

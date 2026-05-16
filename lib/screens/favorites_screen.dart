@@ -7,6 +7,7 @@ import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/team_model.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/team_logo.dart';
@@ -82,16 +83,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 icon: Icons.sports_soccer_rounded,
               ),
               const SizedBox(height: 10),
-              ...matches.map(
-                (match) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: MatchCard(
-                    match: match,
-                    onTap: () => Navigator.pushNamed(
-                        context, AppRoutes.matchDetails,
-                        arguments: match),
-                  ),
-                ),
+              ...insertFeedSpotlights(
+                interval: 4,
+                items: [
+                  for (final match in matches)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: MatchCard(
+                        match: match,
+                        onTap: () => Navigator.pushNamed(
+                            context, AppRoutes.matchDetails,
+                            arguments: match),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
             ],

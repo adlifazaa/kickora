@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../app/app_contact.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
@@ -104,6 +105,16 @@ class SettingsScreen extends StatelessWidget {
                 iconColor: Theme.of(context).hintColor,
                 title: text.appVersion,
                 subtitle: 'v1.0.0 · Kickora',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.mail_outline_rounded,
+                iconColor: AppColors.teal,
+                title: text.contactUs,
+                subtitle: AppContact.email,
                 onTap: () => Navigator.pushNamed(context, AppRoutes.about),
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: Theme.of(context).hintColor),

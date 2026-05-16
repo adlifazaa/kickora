@@ -8,6 +8,7 @@ import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/competition_card.dart';
+import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
 import '../widgets/micro_interactions.dart';
 import '../widgets/section_header.dart';
@@ -88,19 +89,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.pushNamed(context, AppRoutes.matches),
                 ),
                 const SizedBox(height: 10),
-                for (var i = 0; i < liveMatches.length; i++)
-                  _StaggeredItem(
-                    index: i,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: MatchCard(
-                        match: liveMatches[i],
-                        onTap: () => Navigator.pushNamed(
-                            context, AppRoutes.matchDetails,
-                            arguments: liveMatches[i]),
+                ...insertFeedSpotlights(
+                  skipFirst: 0,
+                  interval: 4,
+                  items: [
+                    for (var i = 0; i < liveMatches.length; i++)
+                      _StaggeredItem(
+                        index: i,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: MatchCard(
+                            match: liveMatches[i],
+                            onTap: () => Navigator.pushNamed(
+                                context, AppRoutes.matchDetails,
+                                arguments: liveMatches[i]),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
+                ),
               ],
               const SizedBox(height: 4),
               SectionHeader(
@@ -110,19 +117,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icons.today_rounded,
               ),
               const SizedBox(height: 10),
-              for (var i = 0; i < todayMatches.length; i++)
-                _StaggeredItem(
-                  index: i,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: MatchCard(
-                      match: todayMatches[i],
-                      onTap: () => Navigator.pushNamed(
-                          context, AppRoutes.matchDetails,
-                          arguments: todayMatches[i]),
+              ...insertFeedSpotlights(
+                interval: 4,
+                items: [
+                  for (var i = 0; i < todayMatches.length; i++)
+                    _StaggeredItem(
+                      index: i,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: MatchCard(
+                          match: todayMatches[i],
+                          onTap: () => Navigator.pushNamed(
+                              context, AppRoutes.matchDetails,
+                              arguments: todayMatches[i]),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                ],
+              ),
             ],
             const SizedBox(height: 6),
             _FeaturedCompetitionStrip(competition: featuredCompetition),
@@ -136,9 +148,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 158,
+              height: 178,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
                 itemCount: MockData.competitions.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(width: 10),
@@ -153,10 +166,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 18),
-            const NativeAdPlaceholder(),
-            const SizedBox(height: 12),
-            const AdPlaceholder(label: 'Home feed ad slot'),
+            const SizedBox(height: 20),
+            const ContentSpotlightPlaceholder(
+              variant: ContentSpotlightVariant.featuredContent,
+            ),
           ],
         ),
       ),
@@ -312,9 +325,20 @@ class _FeaturedCarousel extends StatefulWidget {
 }
 
 class _FeaturedCarouselState extends State<_FeaturedCarousel> {
-  late final PageController _ctrl =
-      PageController(viewportFraction: widget.matches.length == 1 ? 1 : 0.94);
+  static const _edgeInset = 2.0;
+  static const _pageGap = 8.0;
+
+  late final PageController _ctrl;
   int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final multi = widget.matches.length > 1;
+    _ctrl = PageController(
+      viewportFraction: multi ? 0.88 : 1.0,
+    );
+  }
 
   @override
   void dispose() {
@@ -326,20 +350,21 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
   Widget build(BuildContext context) {
     final matches = widget.matches;
     final pageHeight = _featuredCarouselPageHeight(context);
+    final multi = matches.length > 1;
+
     return Column(
       children: [
         SizedBox(
           height: pageHeight,
           child: PageView.builder(
             controller: _ctrl,
+            padEnds: true,
             onPageChanged: (i) => setState(() => _page = i),
             itemCount: matches.length,
             itemBuilder: (context, i) {
-              return AnimatedPadding(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
+              return Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: matches.length == 1 ? 0 : 6,
+                  horizontal: multi ? _pageGap / 2 : _edgeInset,
                 ),
                 child: MatchCard(
                   compact: true,

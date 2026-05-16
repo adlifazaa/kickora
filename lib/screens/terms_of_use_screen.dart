@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../app/app_contact.dart';
 import '../app/app_text.dart';
 
 /// Standalone Terms of Use — legal/usage terms, distinct from [PrivacyPolicyScreen].
@@ -245,8 +246,7 @@ class _ContactBlock extends StatelessWidget {
               : 'For legal questions or licensing requests:',
         ),
         const SizedBox(height: 8),
-        _row(context, Icons.email_outlined, 'legal@kickora.live'),
-        _row(context, Icons.alternate_email_rounded, 'support@kickora.live'),
+        _row(context, Icons.email_outlined, AppContact.email),
       ],
     );
   }

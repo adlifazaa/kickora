@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../app/app_contact.dart';
 import '../app/app_text.dart';
 
 /// A dedicated, app-store-friendly Privacy Policy. Intentionally separate
@@ -248,8 +249,7 @@ class _ContactBlock extends StatelessWidget {
               : 'If you have any privacy questions or a data-related request, contact us:',
         ),
         const SizedBox(height: 8),
-        _row(context, Icons.email_outlined, 'hello@kickora.live'),
-        _row(context, Icons.alternate_email_rounded, 'privacy@kickora.live'),
+        _row(context, Icons.email_outlined, AppContact.email),
       ],
     );
   }

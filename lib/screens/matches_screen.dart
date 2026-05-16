@@ -7,6 +7,7 @@ import '../data/mock_data.dart';
 import '../models/match_model.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/app_error_placeholder.dart';
+import '../widgets/ad_placeholder.dart';
 import '../widgets/match_card.dart';
 import '../widgets/skeleton_box.dart';
 
@@ -168,6 +169,12 @@ class _MatchesScreenState extends State<MatchesScreen>
       grouped.putIfAbsent(match.competition.name, () => []).add(match);
     }
     final widgets = <Widget>[];
+    var matchIndex = 0;
+    const variants = [
+      ContentSpotlightVariant.matchInsights,
+      ContentSpotlightVariant.matchSpotlight,
+      ContentSpotlightVariant.matchPartner,
+    ];
     grouped.forEach((competition, list) {
       widgets.add(
         Padding(
@@ -200,14 +207,27 @@ class _MatchesScreenState extends State<MatchesScreen>
           ),
         ),
       );
-      widgets.addAll(list.map((match) => Padding(
+      for (final match in list) {
+        matchIndex++;
+        widgets.add(
+          Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: MatchCard(
-                match: match,
-                onTap: () => Navigator.pushNamed(
-                    context, AppRoutes.matchDetails,
-                    arguments: match)),
-          )));
+              match: match,
+              onTap: () => Navigator.pushNamed(
+                  context, AppRoutes.matchDetails, arguments: match),
+            ),
+          ),
+        );
+        if (matchIndex % 4 == 0) {
+          widgets.addAll([
+            ContentSpotlightPlaceholder(
+              variant: variants[(matchIndex ~/ 4 - 1) % variants.length],
+            ),
+            const SizedBox(height: 10),
+          ]);
+        }
+      }
       widgets.add(const SizedBox(height: 6));
     });
     return widgets;
