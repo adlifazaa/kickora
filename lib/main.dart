@@ -7,6 +7,7 @@ import 'core/network/api_debug_log.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/services/football_api_service.dart';
 import 'ads/ad_service.dart';
+import 'core/refresh/match_refresh_service.dart';
 import 'notifications/services/kickora_notification_service.dart';
 import 'services/app_controller.dart';
 import 'services/favorite_manager.dart';
@@ -29,11 +30,13 @@ Future<void> main() async {
     api: footballApi,
     cache: cache,
   );
+  final matchRefreshService = MatchRefreshService(footballRepository);
   final controller = AppController(
     preferences,
     footballRepository: footballRepository,
     notificationService: notificationService,
     favoriteManager: favoriteManager,
+    matchRefreshService: matchRefreshService,
   );
   await controller.load();
   runApp(KickoraApp(controller: controller));

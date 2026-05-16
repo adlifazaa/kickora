@@ -62,6 +62,15 @@ class CacheManager {
     await _prefs.remove('$key$_tsSuffix');
   }
 
+  /// Removes all keys starting with [prefix] (e.g. `cache_live`).
+  Future<void> removeByPrefix(String prefix) async {
+    for (final key in _prefs.getKeys()) {
+      if (key.startsWith(prefix)) {
+        await remove(key);
+      }
+    }
+  }
+
   Future<void> clearAll() async {
     final keys = _prefs.getKeys().where(
       (k) => k.startsWith('cache_') || k.endsWith(_tsSuffix),

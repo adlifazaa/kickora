@@ -44,12 +44,15 @@ class FootballApiService {
   Future<List<MatchModel>> fetchLiveMatches({
     DateTime? date,
     int? competitionId,
+    bool skipCache = false,
   }) async {
     if (!isLive) throw const ApiException.notConfigured();
 
     final cacheKey = _cacheKey('live', date: date, league: competitionId);
-    final cached = _readMatchCache(cacheKey);
-    if (cached != null) return cached;
+    if (!skipCache) {
+      final cached = _readMatchCache(cacheKey);
+      if (cached != null) return cached;
+    }
 
     final response = await _client.get(
       ApiConstants.fixtures,
@@ -69,37 +72,47 @@ class FootballApiService {
         date: date,
         competitionId: competitionId,
         status: MatchStatus.live,
+        skipCache: skipCache,
       );
     }
 
-    await _writeMatchCache(cacheKey, matches);
+    await _writeMatchCache(
+      cacheKey,
+      matches,
+      ttl: const Duration(minutes: 1),
+    );
     return matches;
   }
 
   Future<List<MatchModel>> fetchUpcomingMatches({
     DateTime? date,
     int? competitionId,
+    bool skipCache = false,
   }) =>
       fetchMatches(
         date: date ?? DateTime.now(),
         competitionId: competitionId,
         status: MatchStatus.upcoming,
+        skipCache: skipCache,
       );
 
   Future<List<MatchModel>> fetchFinishedMatches({
     DateTime? date,
     int? competitionId,
+    bool skipCache = false,
   }) =>
       fetchMatches(
         date: date ?? DateTime.now(),
         competitionId: competitionId,
         status: MatchStatus.finished,
+        skipCache: skipCache,
       );
 
   Future<List<MatchModel>> fetchMatches({
     DateTime? date,
     int? competitionId,
     MatchStatus? status,
+    bool skipCache = false,
   }) async {
     if (!isLive) throw const ApiException.notConfigured();
 
@@ -108,9 +121,11 @@ class FootballApiService {
       date: date,
       league: competitionId,
     );
-    final cached = _readMatchCache(cacheKey);
-    if (cached != null) {
-      return status == null ? cached : _filterStatus(cached, status);
+    if (!skipCache) {
+      final cached = _readMatchCache(cacheKey);
+      if (cached != null) {
+        return status == null ? cached : _filterStatus(cached, status);
+      }
     }
 
     final query = <String, String>{
@@ -129,8 +144,32 @@ class FootballApiService {
       matches = _filterStatus(matches, status);
     }
 
-    await _writeMatchCache(cacheKey, matches);
+    final ttl = switch (status) {
+      MatchStatus.live => const Duration(minutes: 1),
+      MatchStatus.upcoming => const Duration(minutes: 5),
+      MatchStatus.finished => const Duration(minutes: 15),
+      null => const Duration(minutes: 3),
+    };
+    await _writeMatchCache(cacheKey, matches, ttl: ttl);
     return matches;
+  }
+
+  /// Clears in-memory/disk fixture caches before a forced refresh.
+  Future<void> invalidateMatchCaches({
+    DateTime? date,
+    int? competitionId,
+  }) async {
+    if (_cache == null) return;
+    final prefixes = <String>[
+      _cacheKey('live', date: date, league: competitionId),
+      _cacheKey('fixtures_live', date: date, league: competitionId),
+      _cacheKey('fixtures_upcoming', date: date, league: competitionId),
+      _cacheKey('fixtures_finished', date: date, league: competitionId),
+      _cacheKey('fixtures_all', date: date, league: competitionId),
+    ];
+    for (final key in prefixes) {
+      await _cache.remove(key);
+    }
   }
 
   Future<MatchModel?> fetchMatchById(int id) async {
@@ -429,7 +468,11 @@ class FootballApiService {
         .toList();
   }
 
-  Future<void> _writeMatchCache(String key, List<MatchModel> matches) async {
+  Future<void> _writeMatchCache(
+    String key,
+    List<MatchModel> matches, {
+    Duration ttl = const Duration(minutes: 3),
+  }) async {
     await _cache?.setJsonList(
       key,
       matches
@@ -465,7 +508,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: const Duration(minutes: 3),
+      ttl: ttl,
     );
   }
 

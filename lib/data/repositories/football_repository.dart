@@ -29,61 +29,100 @@ class FootballRepository {
   Future<DataState<List<MatchModel>>> getLiveMatches({
     DateTime? date,
     int? competitionId,
-  }) =>
-      _loadMatches(
-        cacheKey: 'cache_live_matches',
-        fetch: () => _api.fetchLiveMatches(
-          date: date,
-          competitionId: competitionId,
-        ),
-        mock: () => MockData.matches()
-            .where((m) => m.status == MatchStatus.live)
-            .toList(),
-        filterCompetition: competitionId,
+    bool forceRefresh = false,
+  }) async {
+    if (forceRefresh) {
+      await _api.invalidateMatchCaches(
+        date: date,
+        competitionId: competitionId,
       );
+    }
+    return _loadMatches(
+      cacheKey: 'cache_live_matches',
+      fetch: () => _api.fetchLiveMatches(
+        date: date,
+        competitionId: competitionId,
+        skipCache: forceRefresh,
+      ),
+      mock: () => MockData.matches()
+          .where((m) => m.status == MatchStatus.live)
+          .toList(),
+      filterCompetition: competitionId,
+    );
+  }
 
   Future<DataState<List<MatchModel>>> getUpcomingMatches({
     DateTime? date,
     int? competitionId,
-  }) =>
-      _loadMatches(
-        cacheKey: 'cache_upcoming_matches',
-        fetch: () => _api.fetchUpcomingMatches(
-          date: date,
-          competitionId: competitionId,
-        ),
-        mock: () => MockData.matches()
-            .where((m) => m.status == MatchStatus.upcoming)
-            .toList(),
-        filterCompetition: competitionId,
+    bool forceRefresh = false,
+  }) async {
+    if (forceRefresh) {
+      await _api.invalidateMatchCaches(
+        date: date,
+        competitionId: competitionId,
       );
+    }
+    return _loadMatches(
+      cacheKey: 'cache_upcoming_matches',
+      fetch: () => _api.fetchUpcomingMatches(
+        date: date,
+        competitionId: competitionId,
+        skipCache: forceRefresh,
+      ),
+      mock: () => MockData.matches()
+          .where((m) => m.status == MatchStatus.upcoming)
+          .toList(),
+      filterCompetition: competitionId,
+    );
+  }
 
   Future<DataState<List<MatchModel>>> getFinishedMatches({
     DateTime? date,
     int? competitionId,
-  }) =>
-      _loadMatches(
-        cacheKey: 'cache_finished_matches',
-        fetch: () => _api.fetchFinishedMatches(
-          date: date,
-          competitionId: competitionId,
-        ),
-        mock: () => MockData.matches()
-            .where((m) => m.status == MatchStatus.finished)
-            .toList(),
-        filterCompetition: competitionId,
+    bool forceRefresh = false,
+  }) async {
+    if (forceRefresh) {
+      await _api.invalidateMatchCaches(
+        date: date,
+        competitionId: competitionId,
       );
+    }
+    return _loadMatches(
+      cacheKey: 'cache_finished_matches',
+      fetch: () => _api.fetchFinishedMatches(
+        date: date,
+        competitionId: competitionId,
+        skipCache: forceRefresh,
+      ),
+      mock: () => MockData.matches()
+          .where((m) => m.status == MatchStatus.finished)
+          .toList(),
+      filterCompetition: competitionId,
+    );
+  }
 
   Future<DataState<List<MatchModel>>> getMatches({
     DateTime? date,
     int? competitionId,
-  }) =>
-      _loadMatches(
-        cacheKey: 'cache_all_matches',
-        fetch: () => _api.fetchMatches(date: date, competitionId: competitionId),
-        mock: () => MockData.matches(),
-        filterCompetition: competitionId,
+    bool forceRefresh = false,
+  }) async {
+    if (forceRefresh) {
+      await _api.invalidateMatchCaches(
+        date: date,
+        competitionId: competitionId,
       );
+    }
+    return _loadMatches(
+      cacheKey: 'cache_all_matches',
+      fetch: () => _api.fetchMatches(
+        date: date,
+        competitionId: competitionId,
+        skipCache: forceRefresh,
+      ),
+      mock: () => MockData.matches(),
+      filterCompetition: competitionId,
+    );
+  }
 
   Future<DataState<MatchModel?>> getMatchById(int id) async {
     try {

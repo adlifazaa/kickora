@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/refresh/match_refresh_service.dart';
 import '../data/repositories/football_repository.dart';
 import '../notifications/services/kickora_notification_service.dart';
 import 'favorite_manager.dart';
@@ -11,6 +12,7 @@ class AppController extends ChangeNotifier {
     FootballRepository? footballRepository,
     KickoraNotificationService? notificationService,
     FavoriteManager? favoriteManager,
+    MatchRefreshService? matchRefreshService,
   })  : footballRepository = footballRepository ?? FootballRepository(),
         notificationService = notificationService ??
             KickoraNotificationService.createMock(_preferences),
@@ -19,6 +21,10 @@ class AppController extends ChangeNotifier {
               _preferences,
               notificationService: notificationService ??
                   KickoraNotificationService.createMock(_preferences),
+            ),
+        matchRefreshService = matchRefreshService ??
+            MatchRefreshService(
+              footballRepository ?? FootballRepository(),
             ) {
     this.favoriteManager.addListener(notifyListeners);
   }
@@ -26,6 +32,7 @@ class AppController extends ChangeNotifier {
   final FootballRepository footballRepository;
   final KickoraNotificationService notificationService;
   final FavoriteManager favoriteManager;
+  final MatchRefreshService matchRefreshService;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
@@ -65,6 +72,7 @@ class AppController extends ChangeNotifier {
     _notificationsEnabled = _preferences.getBool(_notificationsKey) ?? false;
     _recentSearches =
         _preferences.getStringList(_recentSearchesKey) ?? const <String>[];
+    await matchRefreshService.start();
     notifyListeners();
   }
 

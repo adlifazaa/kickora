@@ -2,6 +2,8 @@
 
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
+import '../core/refresh/match_refresh_category.dart';
+import '../core/refresh/match_refresh_service.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../data/mock_data.dart';
@@ -30,19 +32,40 @@ class _HomeScreenState extends State<HomeScreen> {
   List<MatchModel> _todayMatches = [];
   List<CompetitionModel> _competitions = [];
   CompetitionModel? _featuredCompetition;
+  MatchRefreshService? _refresh;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refresh = AppScope.matchRefreshServiceOf(context);
+      _refresh!.addListener(_onAutoRefresh);
+      _load();
+    });
   }
 
-  Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+  @override
+  void dispose() {
+    _refresh?.removeListener(_onAutoRefresh);
+    super.dispose();
+  }
+
+  void _onAutoRefresh() {
+    final category = _refresh?.lastRefreshCategory;
+    if (category == null ||
+        category == MatchRefreshCategory.live ||
+        category == MatchRefreshCategory.all) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _loading = true);
 
     final repo = AppScope.footballRepositoryOf(context);
-    final liveState = await repo.getLiveMatches();
-    final allState = await repo.getMatches();
+    final force = silent;
+    final liveState = await repo.getLiveMatches(forceRefresh: force);
+    final allState = await repo.getMatches(forceRefresh: force);
     final compState = await repo.getCompetitions();
 
     final all = allState.data ?? [];
@@ -68,7 +91,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _onRefresh() => _load();
+  Future<void> _onRefresh() async {
+    final refresh = AppScope.matchRefreshServiceOf(context);
+    await refresh.refreshAll(force: true);
+    await _load(silent: true);
+  }
 
   @override
   Widget build(BuildContext context) {

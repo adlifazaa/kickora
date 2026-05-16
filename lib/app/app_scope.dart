@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../core/refresh/match_refresh_service.dart';
 import '../data/repositories/football_repository.dart';
 import '../services/app_controller.dart';
 
@@ -20,4 +21,7 @@ class AppScope extends InheritedNotifier<AppController> {
 
   static FootballRepository footballRepositoryOf(BuildContext context) =>
       of(context).footballRepository;
+
+  static MatchRefreshService matchRefreshServiceOf(BuildContext context) =>
+      of(context).matchRefreshService;
 }

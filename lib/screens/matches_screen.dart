@@ -2,6 +2,7 @@
 
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
+import '../core/refresh/match_refresh_service.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../models/match_model.dart';
@@ -25,22 +26,39 @@ class _MatchesScreenState extends State<MatchesScreen>
   List<MatchModel> _live = [];
   List<MatchModel> _upcoming = [];
   List<MatchModel> _finished = [];
+  MatchRefreshService? _refresh;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refresh = AppScope.matchRefreshServiceOf(context);
+      _refresh!.addListener(_onAutoRefresh);
+      _load();
+    });
   }
 
-  Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+  @override
+  void dispose() {
+    _refresh?.removeListener(_onAutoRefresh);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _onAutoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _loading = true);
 
     final repo = AppScope.footballRepositoryOf(context);
+    final refresh = AppScope.matchRefreshServiceOf(context);
+    refresh.setSelectedDate(_selectedDate);
+    final force = silent;
     final results = await Future.wait([
-      repo.getLiveMatches(date: _selectedDate),
-      repo.getUpcomingMatches(date: _selectedDate),
-      repo.getFinishedMatches(date: _selectedDate),
+      repo.getLiveMatches(date: _selectedDate, forceRefresh: force),
+      repo.getUpcomingMatches(date: _selectedDate, forceRefresh: force),
+      repo.getFinishedMatches(date: _selectedDate, forceRefresh: force),
     ]);
 
     if (mounted) {
@@ -53,13 +71,12 @@ class _MatchesScreenState extends State<MatchesScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Future<void> _onRefresh() async {
+    final refresh = AppScope.matchRefreshServiceOf(context);
+    refresh.setSelectedDate(_selectedDate);
+    await refresh.refreshAll(force: true);
+    await _load(silent: true);
   }
-
-  Future<void> _onRefresh() => _load();
 
   List<MatchModel> _matchesForTab(int index) {
     switch (index) {
