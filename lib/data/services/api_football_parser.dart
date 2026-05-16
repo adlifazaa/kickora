@@ -1,5 +1,6 @@
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
+import '../../core/lineup/formation_lineup_layout.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
@@ -359,10 +360,14 @@ class ApiFootballParser {
       substitutePlayers.add(_lineupPlayer(player));
     }
 
+    final lines = _buildLinesFromStartXi(startXi, formation);
     return LineupModel(
       formation: formation,
       coach: coach,
-      lines: _buildLinesFromStartXi(startXi, formation),
+      lines: FormationLineupLayout.resolveLines(
+        lines: lines,
+        formation: formation,
+      ),
       substitutes: substitutePlayers,
       formationDetail: FormationModel.fromName(formation),
     );
@@ -396,18 +401,21 @@ class ApiFootballParser {
   ) {
     final rows = <int, List<({int col, PlayerModel player})>>{};
 
+    var usedGrid = false;
     for (final slot in startXi) {
       final playerMap = _map(slot['player']);
-      final grid = playerMap['grid']?.toString() ?? '';
+      final grid = playerMap['grid']?.toString().trim() ?? '';
+      if (!_isValidGridValue(grid)) continue;
+      usedGrid = true;
       final parts = grid.split(':');
-      final row = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? 0) : 0;
-      final col = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      final row = int.tryParse(parts[0]) ?? 0;
+      final col = int.tryParse(parts[1]) ?? 0;
       rows
           .putIfAbsent(row, () => [])
           .add((col: col, player: _lineupPlayer(playerMap)));
     }
 
-    if (rows.isNotEmpty) {
+    if (usedGrid && rows.length >= 2) {
       final sortedRows = rows.keys.toList()..sort();
       return sortedRows.map((r) {
         final line = rows[r]!..sort((a, b) => a.col.compareTo(b.col));
@@ -418,36 +426,16 @@ class ApiFootballParser {
     final starters = startXi
         .map((s) => _lineupPlayer(_map(s['player'])))
         .toList();
-    return _splitByFormation(starters, formation);
+    return FormationLineupLayout.splitByFormation(starters, formation);
   }
 
-  static List<List<PlayerModel>> _splitByFormation(
-    List<PlayerModel> starters,
-    String formation,
-  ) {
-    if (starters.isEmpty) return const [];
-
-    final parts = formation
-        .split('-')
-        .map((e) => int.tryParse(e.trim()) ?? 0)
-        .where((n) => n > 0)
-        .toList();
-
-    if (parts.isEmpty) return [starters];
-
-    final lines = <List<PlayerModel>>[];
-    var index = 0;
-    for (final count in parts) {
-      final line = <PlayerModel>[];
-      for (var c = 0; c < count && index < starters.length; c++) {
-        line.add(starters[index++]);
-      }
-      if (line.isNotEmpty) lines.add(line);
-    }
-    if (index < starters.length) {
-      lines.add(starters.sublist(index));
-    }
-    return lines;
+  static bool _isValidGridValue(String grid) {
+    if (grid.isEmpty || !grid.contains(':')) return false;
+    final parts = grid.split(':');
+    if (parts.length < 2) return false;
+    final row = int.tryParse(parts[0].trim());
+    final col = int.tryParse(parts[1].trim());
+    return row != null && col != null && row > 0 && col > 0;
   }
 
   // --- Leagues / competitions ---

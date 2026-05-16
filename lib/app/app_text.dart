@@ -128,6 +128,14 @@ class AppText {
   String get terms => _isArabic ? 'شروط الاستخدام' : 'Terms of use';
   String get contactUs => _isArabic ? 'تواصل معنا' : 'Contact us';
   String get all => _isArabic ? 'عرض الكل' : 'See all';
+  String get liveMatchesSeeAllTitle =>
+      _isArabic ? 'المباريات المباشرة' : 'Live matches';
+  String get liveMatchesSearchHint => _isArabic
+      ? 'ابحث عن فريق أو بطولة…'
+      : 'Search team or competition…';
+  String get liveMatchesSearchEmpty => _isArabic
+      ? 'لا توجد نتائج لهذا البحث'
+      : 'No matches match your search';
   String get live => _isArabic ? 'مباشر' : 'LIVE';
   String get upcoming => _isArabic ? 'قادمة' : 'Upcoming';
   String get finished => _isArabic ? 'منتهية' : 'Finished';

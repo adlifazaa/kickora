@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_scope.dart';
+import '../../app/app_text.dart';
 import '../../app/routes.dart';
 import '../../core/player/player_photo_resolver.dart';
 import '../../models/lineup_model.dart';
@@ -27,52 +28,67 @@ class DualTeamLineupPitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 0.58,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          final dotSize = (width * 0.11).clamp(30.0, 44.0);
-          final nodeWidth = dotSize + 6;
+    final home = homeLineup?.forPitchDisplay();
+    final away = awayLineup?.forPitchDisplay();
+    final hasHome = home?.hasPitchPlayers ?? false;
+    final hasAway = away?.hasPitchPlayers ?? false;
 
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const _PitchSurface(),
-                CustomPaint(painter: _PitchMarkingsPainter()),
-                const IgnorePointer(child: _PitchVignette()),
-                if (awayLineup != null && awayLineup!.lines.isNotEmpty)
-                  ..._teamPlayers(
-                    context: context,
-                    lineup: awayLineup!,
-                    width: width,
-                    height: height,
-                    dotSize: dotSize,
-                    nodeWidth: nodeWidth,
-                    half: PitchHalf.top,
-                    jerseyTop: _awayJerseyTop,
-                    jerseyBottom: _awayJerseyBottom,
-                  ),
-                if (homeLineup != null && homeLineup!.lines.isNotEmpty)
-                  ..._teamPlayers(
-                    context: context,
-                    lineup: homeLineup!,
-                    width: width,
-                    height: height,
-                    dotSize: dotSize,
-                    nodeWidth: nodeWidth,
-                    half: PitchHalf.bottom,
-                    jerseyTop: _homeJerseyTop,
-                    jerseyBottom: _homeJerseyBottom,
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = (width / 0.58).clamp(340.0, 520.0);
+
+        return SizedBox(
+          width: width,
+          height: height,
+          child: LayoutBuilder(
+            builder: (context, pitchConstraints) {
+              final pitchW = pitchConstraints.maxWidth;
+              final pitchH = pitchConstraints.maxHeight;
+              final dotSize = (pitchW * 0.105).clamp(28.0, 42.0);
+              final nodeWidth = dotSize + 8;
+
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const _PitchSurface(),
+                    CustomPaint(painter: _PitchMarkingsPainter()),
+                    const IgnorePointer(child: _PitchVignette()),
+                    if (!hasHome && !hasAway)
+                      const _PitchAwaitingPlayers(),
+                    if (hasAway)
+                      ..._teamPlayers(
+                        context: context,
+                        lineup: away!,
+                        width: pitchW,
+                        height: pitchH,
+                        dotSize: dotSize,
+                        nodeWidth: nodeWidth,
+                        half: PitchHalf.top,
+                        jerseyTop: _awayJerseyTop,
+                        jerseyBottom: _awayJerseyBottom,
+                      ),
+                    if (hasHome)
+                      ..._teamPlayers(
+                        context: context,
+                        lineup: home!,
+                        width: pitchW,
+                        height: pitchH,
+                        dotSize: dotSize,
+                        nodeWidth: nodeWidth,
+                        half: PitchHalf.bottom,
+                        jerseyTop: _homeJerseyTop,
+                        jerseyBottom: _homeJerseyBottom,
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -93,7 +109,7 @@ class DualTeamLineupPitch extends StatelessWidget {
       pitchWidth: width,
       pitchHeight: height,
       nodeWidth: nodeWidth,
-      nodeHeight: dotSize + 22,
+      nodeHeight: dotSize + 20,
     );
 
     return layout.map((slot) {
@@ -101,7 +117,7 @@ class DualTeamLineupPitch extends StatelessWidget {
         left: slot.left.clamp(2, width - nodeWidth - 2),
         top: slot.top.clamp(2, height - slot.nodeHeight - 2),
         child: Hero(
-          tag: 'player-avatar-${slot.player.id}',
+          tag: 'player-avatar-${slot.player.id}-${half.name}',
           child: Material(
             color: Colors.transparent,
             child: _PlayerPitchNode(
@@ -110,12 +126,38 @@ class DualTeamLineupPitch extends StatelessWidget {
               jerseyTop: jerseyTop,
               jerseyBottom: jerseyBottom,
               avatarSize: dotSize,
-              maxLabelWidth: nodeWidth,
+              maxLabelWidth: nodeWidth + 12,
             ),
           ),
         ),
       );
     }).toList();
+  }
+}
+
+class _PitchAwaitingPlayers extends StatelessWidget {
+  const _PitchAwaitingPlayers();
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Text(
+          text.isArabic
+              ? 'التشكيلة الأساسية ستظهر قريباً'
+              : 'Starting XI will appear here soon',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.88),
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            height: 1.35,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -174,7 +216,7 @@ class PitchPlayerLayout {
     final bounds = _halfBounds(half);
     final horizontalPad = pitchWidth * 0.06;
 
-    final rows = lineup.lines;
+    final rows = lineup.pitchLines;
     if (rows.isEmpty) return const [];
 
     final out = <PitchSlot>[];

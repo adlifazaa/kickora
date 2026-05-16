@@ -116,8 +116,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     var base = _match;
     var events = _isApiFixture ? const <MatchEventModel>[] : _match.events;
     var stats = _isApiFixture ? const <MatchStatisticModel>[] : _match.stats;
-    LineupModel? homeLineup = _isApiFixture ? null : _match.homeLineup;
-    LineupModel? awayLineup = _isApiFixture ? null : _match.awayLineup;
+    LineupModel? homeLineup = _match.homeLineup;
+    LineupModel? awayLineup = _match.awayLineup;
     var standings =
         _isApiFixture ? const <StandingModel>[] : _match.standings;
 
@@ -194,8 +194,12 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       if (_acceptRepositoryResult(lineupsState)) {
         final data = lineupsState.data;
         if (data != null) {
-          if (data.home != null) homeLineup = data.home;
-          if (data.away != null) awayLineup = data.away;
+          if (data.home != null) {
+            homeLineup = data.home;
+          }
+          if (data.away != null) {
+            awayLineup = data.away;
+          }
         }
       }
     } catch (e) {
@@ -1378,9 +1382,6 @@ class _FormStrip extends StatelessWidget {
   }
 }
 
-bool _hasPitchLineup(LineupModel? lineup) =>
-    lineup != null && lineup.lines.isNotEmpty;
-
 bool _lineupHasContent(LineupModel? lineup) {
   if (lineup == null) return false;
   return lineup.lines.isNotEmpty ||
@@ -1398,9 +1399,6 @@ class _LineupsTab extends StatelessWidget {
     final text = AppText.of(context);
     final showHome = _lineupHasContent(match.homeLineup);
     final showAway = _lineupHasContent(match.awayLineup);
-    final showPitch = _hasPitchLineup(match.homeLineup) ||
-        _hasPitchLineup(match.awayLineup);
-
     if (!showHome && !showAway) {
       return AsyncContentView(
         loading: false,
@@ -1448,13 +1446,11 @@ class _LineupsTab extends StatelessWidget {
                 homeFormation: match.homeLineup?.formation,
                 awayFormation: match.awayLineup?.formation,
               ),
-              if (showPitch) ...[
-                const SizedBox(height: 12),
-                DualTeamLineupPitch(
-                  homeLineup: match.homeLineup,
-                  awayLineup: match.awayLineup,
-                ),
-              ],
+              const SizedBox(height: 12),
+              DualTeamLineupPitch(
+                homeLineup: match.homeLineup,
+                awayLineup: match.awayLineup,
+              ),
             ],
           ),
         ),

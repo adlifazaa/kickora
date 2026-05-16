@@ -9,6 +9,7 @@ import '../screens/competitions_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../screens/match_details_screen.dart';
+import '../screens/live_matches_screen.dart';
 import '../screens/matches_screen.dart';
 import '../screens/player_details_screen.dart';
 import '../screens/privacy_policy_screen.dart';
@@ -22,6 +23,7 @@ class AppRoutes {
   static const splash = '/';
   static const mainNavigation = '/main';
   static const matches = '/matches';
+  static const liveMatches = '/live-matches';
   static const matchDetails = '/match-details';
   static const competitions = '/competitions';
   static const standings = '/standings';
@@ -48,6 +50,14 @@ class AppRoutes {
         return PremiumPageRoute(
             settings: settings,
             builder: (context) => const MatchesScreen());
+      case liveMatches:
+        final seed = settings.arguments;
+        return PremiumPageRoute(
+          settings: settings,
+          builder: (context) => LiveMatchesScreen(
+            seedMatches: seed is List<MatchModel> ? seed : null,
+          ),
+        );
       case matchDetails:
         final match = settings.arguments as MatchModel;
         return PremiumPageRoute(

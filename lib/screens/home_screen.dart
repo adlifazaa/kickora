@@ -198,8 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   subtitle: text.matchesCountLabel(_liveMatches.length),
                   icon: Icons.flash_on_rounded,
                   actionText: text.all,
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.matches),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.liveMatches,
+                    arguments: _liveMatches,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ...insertFeedSpotlights(
