@@ -1,9 +1,9 @@
-﻿import '../models/competition_model.dart';
-import '../models/lineup_model.dart';
-import '../models/match_model.dart';
-import '../models/player_model.dart';
-import '../models/standing_model.dart';
-import '../models/team_model.dart';
+﻿import 'models/competition_model.dart';
+import 'models/lineup_model.dart';
+import 'models/match_model.dart';
+import 'models/player_model.dart';
+import 'models/standing_model.dart';
+import 'models/team_model.dart';
 
 class MockData {
   static const teams = [

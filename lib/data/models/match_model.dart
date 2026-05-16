@@ -1,0 +1,102 @@
+import 'competition_model.dart';
+import 'lineup_model.dart';
+import 'match_event_model.dart';
+import 'match_statistic_model.dart';
+import 'standing_model.dart';
+import 'team_model.dart';
+
+export 'match_event_model.dart';
+export 'match_statistic_model.dart';
+
+enum MatchStatus { live, upcoming, finished }
+
+MatchStatus parseMatchStatus(String raw) {
+  switch (raw.toLowerCase()) {
+    case 'live':
+    case 'in_play':
+    case 'inplay':
+    case '1h':
+    case '2h':
+    case 'ht':
+      return MatchStatus.live;
+    case 'finished':
+    case 'ft':
+    case 'aet':
+    case 'pen':
+      return MatchStatus.finished;
+    default:
+      return MatchStatus.upcoming;
+  }
+}
+
+class MatchModel {
+  const MatchModel({
+    required this.id,
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.homeScore,
+    required this.awayScore,
+    required this.status,
+    required this.timeLabel,
+    required this.competition,
+    required this.date,
+    this.stadium = '',
+    this.events = const [],
+    this.stats = const [],
+    this.homeLineup,
+    this.awayLineup,
+    this.standings = const [],
+    this.momentumHome = 0.52,
+    this.liveCommentary = const [],
+  });
+
+  final int id;
+  final TeamModel homeTeam;
+  final TeamModel awayTeam;
+  final int homeScore;
+  final int awayScore;
+  final MatchStatus status;
+  final String timeLabel;
+  final CompetitionModel competition;
+  final DateTime date;
+  final String stadium;
+  final List<MatchEventModel> events;
+  final List<MatchStatisticModel> stats;
+  final LineupModel? homeLineup;
+  final LineupModel? awayLineup;
+  final List<StandingModel> standings;
+  final double momentumHome;
+  final List<String> liveCommentary;
+
+  factory MatchModel.fromJson(Map<String, dynamic> json) {
+    final homeTeam =
+        TeamModel.fromJson(json['homeTeam'] as Map<String, dynamic>? ?? {});
+    final awayTeam =
+        TeamModel.fromJson(json['awayTeam'] as Map<String, dynamic>? ?? {});
+    final competition = CompetitionModel.fromJson(
+      json['competition'] as Map<String, dynamic>? ?? {},
+    );
+    final eventsJson = json['events'] as List? ?? const [];
+    final statsJson = json['stats'] as List? ?? const [];
+
+    return MatchModel(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      homeTeam: homeTeam,
+      awayTeam: awayTeam,
+      homeScore: (json['homeScore'] ?? 0) as int,
+      awayScore: (json['awayScore'] ?? 0) as int,
+      status: parseMatchStatus(json['status']?.toString() ?? ''),
+      timeLabel: (json['timeLabel'] ?? '').toString(),
+      competition: competition,
+      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      stadium: (json['stadium'] ?? '').toString(),
+      momentumHome: ((json['momentumHome'] ?? 0.5) as num).toDouble(),
+      events: eventsJson
+          .map((e) => MatchEventModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      stats: statsJson
+          .map((e) => MatchStatisticModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}

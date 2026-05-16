@@ -1,56 +1,68 @@
+export '../data/repositories/app_repositories.dart';
+export '../data/repositories/football_repository.dart';
+
+import '../data/repositories/football_repository.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../models/standing_model.dart';
 import '../models/team_model.dart';
-import 'football_api_service.dart';
 
-/// Repositories sit between the API service and the UI. Caching, retries, and
-/// future offline support belongs here. UI code should depend on these instead
-/// of [FootballApiService] directly.
-abstract class _BaseRepository {
-  _BaseRepository(this.api);
-  final FootballApiService api;
+/// Legacy split repositories — delegate to [FootballRepository].
+class MatchRepository {
+  MatchRepository(this._football);
+
+  final FootballRepository _football;
+
+  Future<List<MatchModel>> getMatches({DateTime? date, int? competitionId}) async {
+    final state = await _football.getMatches(date: date, competitionId: competitionId);
+    return state.data ?? [];
+  }
+
+  Future<MatchModel?> getById(int id) async {
+    final state = await _football.getMatchById(id);
+    return state.data;
+  }
 }
 
-class MatchRepository extends _BaseRepository {
-  MatchRepository(super.api);
+class CompetitionRepository {
+  CompetitionRepository(this._football);
 
-  Future<List<MatchModel>> getMatches({DateTime? date, int? competitionId}) =>
-      api.fetchMatches(date: date, competitionId: competitionId);
+  final FootballRepository _football;
 
-  Future<MatchModel?> getById(int id) => api.fetchMatchById(id);
+  Future<List<CompetitionModel>> getAll() async {
+    final state = await _football.getCompetitions();
+    return state.data ?? [];
+  }
+
+  Future<CompetitionModel?> getById(int id) async {
+    final state = await _football.getCompetitionById(id);
+    return state.data;
+  }
+
+  Future<List<TeamModel>> getTeams(int competitionId) async {
+    final state = await _football.getCompetitionTeams(competitionId);
+    return state.data ?? [];
+  }
+
+  Future<List<PlayerModel>> getTopScorers(int competitionId) async {
+    final state = await _football.getTopScorers(competitionId);
+    return state.data ?? [];
+  }
+
+  Future<List<StandingModel>> getStandings({int? leagueId}) async {
+    final state = await _football.getStandings(leagueId: leagueId);
+    return state.data ?? [];
+  }
 }
 
-class CompetitionRepository extends _BaseRepository {
-  CompetitionRepository(super.api);
+class PlayerRepository {
+  PlayerRepository(this._football);
 
-  Future<List<CompetitionModel>> getAll() => api.fetchCompetitions();
-  Future<CompetitionModel?> getById(int id) => api.fetchCompetitionById(id);
-  Future<List<TeamModel>> getTeams(int competitionId) =>
-      api.fetchCompetitionTeams(competitionId);
-  Future<List<PlayerModel>> getTopScorers(int competitionId) =>
-      api.fetchTopScorers(competitionId);
-  Future<List<StandingModel>> getStandings({int? leagueId}) =>
-      api.fetchStandings(leagueId: leagueId);
-}
+  final FootballRepository _football;
 
-class PlayerRepository extends _BaseRepository {
-  PlayerRepository(super.api);
-
-  Future<PlayerModel?> getById(int id) => api.fetchPlayerById(id);
-}
-
-/// Bundles all repositories into a single dependency-injection-friendly object.
-class AppRepositories {
-  AppRepositories({FootballApiService? api})
-      : api = api ?? FootballApiService(),
-        matches = MatchRepository(api ?? FootballApiService()),
-        competitions = CompetitionRepository(api ?? FootballApiService()),
-        players = PlayerRepository(api ?? FootballApiService());
-
-  final FootballApiService api;
-  final MatchRepository matches;
-  final CompetitionRepository competitions;
-  final PlayerRepository players;
+  Future<PlayerModel?> getById(int id) async {
+    final state = await _football.getPlayerById(id);
+    return state.data;
+  }
 }

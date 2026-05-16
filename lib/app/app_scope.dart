@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../data/repositories/football_repository.dart';
 import '../services/app_controller.dart';
 
 class AppScope extends InheritedNotifier<AppController> {
@@ -16,4 +17,7 @@ class AppScope extends InheritedNotifier<AppController> {
     }
     return scope.notifier!;
   }
+
+  static FootballRepository footballRepositoryOf(BuildContext context) =>
+      of(context).footballRepository;
 }

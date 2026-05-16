@@ -1,0 +1,9 @@
+export 'competition_model.dart';
+export 'formation_model.dart';
+export 'lineup_model.dart';
+export 'match_event_model.dart';
+export 'match_model.dart';
+export 'match_statistic_model.dart';
+export 'player_model.dart';
+export 'standing_model.dart';
+export 'team_model.dart';

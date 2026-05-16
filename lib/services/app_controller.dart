@@ -1,8 +1,15 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/repositories/football_repository.dart';
+
 class AppController extends ChangeNotifier {
-  AppController(this._preferences);
+  AppController(
+    this._preferences, {
+    FootballRepository? footballRepository,
+  }) : footballRepository = footballRepository ?? FootballRepository();
+
+  final FootballRepository footballRepository;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
