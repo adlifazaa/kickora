@@ -235,7 +235,7 @@ class _CompetitionHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        text.isArabic ? 'مميزة' : 'FEATURED',
+                        text.featuredBadge,
                         style: const TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w900,

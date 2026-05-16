@@ -15,7 +15,7 @@ class AboutScreen extends StatelessWidget {
 
   void _snack(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label · coming soon')),
+      SnackBar(content: Text(label)),
     );
   }
 
@@ -33,7 +33,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 18),
             Center(
               child: Text(
-                'Kickora',
+                text.appName,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.5,
@@ -42,9 +42,7 @@ class AboutScreen extends StatelessWidget {
             ),
             Center(
               child: Text(
-                text.isArabic
-                    ? 'صُمم لعشاق كرة القدم'
-                    : 'Built for football fans',
+                text.aboutTagline,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).hintColor,
                       fontWeight: FontWeight.w700,
@@ -148,22 +146,6 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             _Section(
-              title: text.isArabic ? 'تابعنا' : 'Follow us',
-              child: Row(
-                children: [
-                  _socialButton(context, Icons.public_rounded, 'Website',
-                      () => _snack(context, 'Website')),
-                  const SizedBox(width: 10),
-                  _socialButton(context, Icons.tag_rounded, 'Twitter / X',
-                      () => _snack(context, 'Twitter')),
-                  const SizedBox(width: 10),
-                  _socialButton(context, Icons.camera_alt_outlined, 'Instagram',
-                      () => _snack(context, 'Instagram')),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            _Section(
               title: text.contactUs,
               child: Column(
                 children: [
@@ -181,23 +163,14 @@ class AboutScreen extends StatelessWidget {
                     subtitle: AppContact.email,
                     onTap: () => _snack(context, AppContact.email),
                   ),
-                  _linkTile(
-                    context,
-                    icon: Icons.star_border_rounded,
-                    title: text.isArabic ? 'قيّم التطبيق' : 'Rate the app',
-                    subtitle:
-                        text.isArabic ? 'متجر التطبيقات' : 'App store rating',
-                    onTap: () => _snack(context, 'Rate'),
-                  ),
                 ],
               ),
             ),
             const SizedBox(height: 22),
             Center(
               child: Text(
-                text.isArabic
-                    ? '© 2025 Kickora · صُنع بشغف ⚽'
-                    : '© 2025 Kickora · Made with passion ⚽',
+                text.aboutFooter,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Theme.of(context).hintColor,
                   fontSize: 12,
@@ -268,36 +241,6 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _socialButton(BuildContext context, IconData icon, String label,
-      VoidCallback onTap) {
-    return Expanded(
-      child: Material(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child: Column(
-              children: [
-                Icon(icon, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 11.5, fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

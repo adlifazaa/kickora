@@ -73,8 +73,42 @@ class AppText {
   String get notificationsPrefsBody => _isArabic
       ? 'تنبيهات الأهداف والجولات (وضع تجريبي محلي فقط).'
       : 'Goals & kick-off alerts (local preference only for now).';
-  String get pushNotificationsComingSoon =>
-      _isArabic ? 'الإشعارات الفورية قريبًا.' : 'Push notifications coming soon.';
+  String get pushNotificationsComingSoon => _isArabic
+      ? 'الإشعارات الذكية للمباريات قريبًا'
+      : 'Smart match notifications coming soon';
+
+  String get featuredBadge => _isArabic ? 'مميزة' : 'FEATURED';
+
+  String get competitionsSubtitle => _isArabic
+      ? 'اكتشف أهم البطولات حول العالم'
+      : 'Discover top leagues around the world';
+
+  String get homeFeaturedLiveSubtitle =>
+      _isArabic ? 'أبرز ما يحدث الآن' : 'The top live action';
+
+  String matchesCountLabel(int count) =>
+      _isArabic ? '$count مباراة' : '$count matches';
+
+  String competitionTeamsCount(int count) =>
+      _isArabic ? '$count فريق' : '$count Teams';
+
+  String competitionMatchesToday(int count) => _isArabic
+      ? '$count مباراة اليوم'
+      : '$count Matches Today';
+
+  String get featuredCompetitionTitle =>
+      _isArabic ? 'بطولة مميزة' : 'Featured competition';
+
+  String get aboutTagline =>
+      _isArabic ? 'صُمم لعشاق كرة القدم' : 'Built for football fans';
+
+  String get aboutFooter => _isArabic
+      ? '© Kickora 2026 · بدعم من Sugarkeys Apps'
+      : '© Kickora 2026 · Powered by Sugarkeys Apps';
+
+  String get categoryAll => _isArabic ? 'الكل' : 'All';
+
+  String get categoryFavorites => _isArabic ? 'المفضلة' : 'Favorites';
   String get matchDetails => _isArabic ? 'تفاصيل المباراة' : 'Match details';
 
   String get overview => _isArabic ? 'نظرة عامة' : 'Overview';

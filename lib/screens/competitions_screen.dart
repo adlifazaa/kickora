@@ -86,9 +86,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
                             letterSpacing: -0.4)),
                 const SizedBox(height: 2),
                 Text(
-                  text.isArabic
-                      ? 'اكتشف أهم البطولات حول العالم'
-                      : 'Discover top leagues around the world',
+                  text.competitionsSubtitle,
                   style: TextStyle(
                       color: Theme.of(context).hintColor,
                       fontSize: 12.5,
@@ -120,12 +118,12 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
                 _CategoryChip(
-                  label: text.isArabic ? 'الكل' : 'All',
+                  label: text.categoryAll,
                   selected: _category == 'all',
                   onTap: () => setState(() => _category = 'all'),
                 ),
                 _CategoryChip(
-                  label: text.isArabic ? 'المفضلة' : 'Favorites',
+                  label: text.categoryFavorites,
                   icon: Icons.bookmark_rounded,
                   selected: _category == 'favorites',
                   onTap: () => setState(() => _category = 'favorites'),
@@ -223,7 +221,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.0),
+            childAspectRatio: 0.74),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final competition = items[index];
@@ -241,6 +239,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
                 );
               },
               child: CompetitionCard(
+                dense: true,
                 competition: competition,
                 onTap: () => Navigator.pushNamed(
                     context, AppRoutes.competitionDetails,

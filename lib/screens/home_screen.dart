@@ -71,9 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (liveMatches.isNotEmpty) ...[
                 SectionHeader(
                   title: text.featuredMatch,
-                  subtitle: text.isArabic
-                      ? 'أبرز ما يحدث الآن'
-                      : 'The top live action',
+                  subtitle: text.homeFeaturedLiveSubtitle,
                   icon: Icons.star_rounded,
                 ),
                 const SizedBox(height: 10),
@@ -82,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SectionHeader(
                   title: text.liveNow,
                   subtitle:
-                      '${liveMatches.length} ${text.isArabic ? 'مباراة' : 'matches'}',
+                      text.matchesCountLabel(liveMatches.length),
                   icon: Icons.flash_on_rounded,
                   actionText: text.all,
                   onTap: () =>
@@ -113,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SectionHeader(
                 title: text.todayMatches,
                 subtitle:
-                    '${todayMatches.length} ${text.isArabic ? 'مباراة' : 'matches'}',
+                    text.matchesCountLabel(todayMatches.length),
                 icon: Icons.today_rounded,
               ),
               const SizedBox(height: 10),
@@ -148,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 178,
+              height: 172,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -277,9 +275,7 @@ class _FeaturedCompetitionStrip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        text.isArabic
-                            ? 'بطولة مميزة'
-                            : 'Featured competition',
+                        text.featuredCompetitionTitle,
                         style: TextStyle(
                             color: Theme.of(context).hintColor,
                             fontSize: 11.5,
