@@ -10,6 +10,7 @@ import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../widgets/banner_placeholder.dart';
+import '../widgets/live_update_indicator.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/competition_card.dart';
 import '../widgets/feed_spotlight.dart';
@@ -33,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<CompetitionModel> _competitions = [];
   CompetitionModel? _featuredCompetition;
   MatchRefreshService? _refresh;
+  DateTime? _lastUpdated;
+  bool _refreshing = false;
 
   @override
   void initState() {
@@ -60,7 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _load({bool silent = false}) async {
-    if (!silent && mounted) setState(() => _loading = true);
+    if (!silent && mounted) {
+      setState(() => _loading = true);
+    } else if (mounted) {
+      setState(() => _refreshing = true);
+    }
 
     final repo = AppScope.footballRepositoryOf(context);
     final force = silent;
@@ -82,6 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {
         _loading = false;
+        _refreshing = false;
+        _lastUpdated = DateTime.now();
         _liveMatches = liveState.data ?? [];
         _todayMatches =
             all.where((m) => m.status != MatchStatus.finished).toList();
@@ -97,6 +106,9 @@ class _HomeScreenState extends State<HomeScreen> {
     await _load(silent: true);
   }
 
+  DateTime? get _displayLastUpdated =>
+      _lastUpdated ?? _refresh?.lastRefreshedAt;
+
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
@@ -111,7 +123,12 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             _HomeHeader(text: text),
-            const SizedBox(height: 18),
+            if (!_loading)
+              LiveUpdateIndicator(
+                lastUpdated: _displayLastUpdated,
+                refreshing: _refreshing || (_refresh?.isRefreshing ?? false),
+              ),
+            const SizedBox(height: 10),
             if (_loading) ...[
               const SkeletonBox(height: 176),
               const SizedBox(height: 14),

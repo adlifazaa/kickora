@@ -33,6 +33,16 @@ class MatchRefreshService extends ChangeNotifier with WidgetsBindingObserver {
   bool get isPaused => _paused;
   bool get isRunning => _started && !_paused;
 
+  /// Most recent successful background refresh across categories.
+  DateTime? get lastRefreshedAt {
+    if (_lastCompleted.isEmpty) return null;
+    return _lastCompleted.values.reduce(
+      (a, b) => a.isAfter(b) ? a : b,
+    );
+  }
+
+  bool get isRefreshing => _inFlight.isNotEmpty;
+
   /// Optional date context from Matches tab.
   void setSelectedDate(DateTime? date) {
     _selectedDate = date;

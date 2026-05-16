@@ -5,12 +5,16 @@ import 'package:flutter/material.dart';
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
+import '../core/refresh/match_refresh_category.dart';
+import '../core/refresh/match_refresh_service.dart';
 import '../app/routes.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/standing_model.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/live_badge.dart';
+import '../widgets/live_update_indicator.dart';
+import '../widgets/match_timeline.dart';
 import '../widgets/skeleton_box.dart';
 import '../widgets/match/premium_football_pitch.dart';
 import '../widgets/team_logo.dart';
@@ -33,6 +37,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   int _commentaryIndex = 0;
   late MatchModel _match;
   bool _loadingDetails = true;
+  bool _refreshingDetails = false;
+  DateTime? _lastUpdated;
+  MatchRefreshService? _refresh;
 
   MatchModel get m => _match;
 
@@ -47,7 +54,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     );
     _displayMinute = _parseMinute(m);
     _startLiveTimers();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDetails());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refresh = AppScope.matchRefreshServiceOf(context);
+      _refresh!.addListener(_onAutoRefresh);
+      _loadDetails();
+    });
+  }
+
+  void _onAutoRefresh() {
+    if (m.status == MatchStatus.live) {
+      _loadDetails(silent: true);
+    }
   }
 
   void _startLiveTimers() {
@@ -68,8 +85,12 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     }
   }
 
-  Future<void> _loadDetails() async {
-    if (mounted) setState(() => _loadingDetails = true);
+  Future<void> _loadDetails({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() => _loadingDetails = true);
+    } else if (mounted) {
+      setState(() => _refreshingDetails = true);
+    }
 
     final repo = AppScope.footballRepositoryOf(context);
     final id = _match.id;
@@ -98,6 +119,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     if (!mounted) return;
     setState(() {
       _loadingDetails = false;
+      _refreshingDetails = false;
+      _lastUpdated = DateTime.now();
       _match = base.copyWith(
         events: (events != null && events.isNotEmpty) ? events : base.events,
         stats: (stats != null && stats.isNotEmpty) ? stats : base.stats,
@@ -129,10 +152,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
 
   @override
   void dispose() {
+    _refresh?.removeListener(_onAutoRefresh);
     _minuteTimer?.cancel();
     _commentaryTimer?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _onPullRefresh() async {
+    final refresh = AppScope.matchRefreshServiceOf(context);
+    await refresh.refresh(MatchRefreshCategory.live, force: true);
+    await _loadDetails(silent: true);
   }
 
   int _parseMinute(MatchModel match) {
@@ -207,6 +237,13 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
               homeShort: m.homeTeam.shortName,
               awayShort: m.awayTeam.shortName,
             ),
+          if (!_loadingDetails)
+            LiveUpdateIndicator(
+              lastUpdated: _lastUpdated ?? _refresh?.lastRefreshedAt,
+              refreshing:
+                  _refreshingDetails || (_refresh?.isRefreshing ?? false),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+            ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -214,23 +251,23 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
               children: [
                 _MatchDetailTabShell(
                   loading: _loadingDetails,
-                  onRetry: _loadDetails,
-                  child: _OverviewTab(match: m),
+                  onRetry: _onPullRefresh,
+                  child: MatchTimeline(match: m),
                 ),
                 _MatchDetailTabShell(
                   loading: _loadingDetails,
-                  onRetry: _loadDetails,
+                  onRetry: _onPullRefresh,
                   child: _StatsTab(match: m),
                 ),
                 _MatchDetailTabShell(
                   loading: _loadingDetails,
-                  onRetry: _loadDetails,
+                  onRetry: _onPullRefresh,
                   skeleton: const _LineupsTabSkeleton(),
                   child: _LineupsTab(match: m),
                 ),
                 _MatchDetailTabShell(
                   loading: _loadingDetails,
-                  onRetry: _loadDetails,
+                  onRetry: _onPullRefresh,
                   child: _StandingsTab(standings: m.standings),
                 ),
               ],
@@ -713,237 +750,6 @@ class _LiveFeelStrip extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _OverviewTab extends StatelessWidget {
-  const _OverviewTab({required this.match});
-
-  final MatchModel match;
-
-  IconData _icon(MatchEventType type) {
-    switch (type) {
-      case MatchEventType.goal:
-        return Icons.sports_soccer_rounded;
-      case MatchEventType.ownGoal:
-        return Icons.sports_soccer_rounded;
-      case MatchEventType.penalty:
-        return Icons.adjust_rounded;
-      case MatchEventType.yellowCard:
-        return Icons.square_rounded;
-      case MatchEventType.redCard:
-        return Icons.crop_square_rounded;
-      case MatchEventType.substitution:
-        return Icons.swap_horiz_rounded;
-      case MatchEventType.varDecision:
-        return Icons.ondemand_video_rounded;
-    }
-  }
-
-  Color _color(MatchEventType type) {
-    switch (type) {
-      case MatchEventType.goal:
-        return AppColors.goalGreen;
-      case MatchEventType.ownGoal:
-        return AppColors.ownGoalOrange;
-      case MatchEventType.penalty:
-        return AppColors.penaltyTeal;
-      case MatchEventType.yellowCard:
-        return AppColors.cardYellow;
-      case MatchEventType.redCard:
-        return AppColors.cardRed;
-      case MatchEventType.substitution:
-        return AppColors.subBlue;
-      case MatchEventType.varDecision:
-        return AppColors.varPurple;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final text = AppText.of(context);
-    if (match.events.isEmpty) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        emptyIcon: Icons.timeline_rounded,
-        emptyTitle: text.isArabic ? 'لا توجد أحداث بعد' : 'No events yet',
-        emptySubtitle: text.isArabic
-            ? 'ستظهر الأحداث الكبرى هنا فور وقوعها.'
-            : 'Key moments will show up here as they happen.',
-        child: const SizedBox.shrink(),
-      );
-    }
-
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-      itemCount: match.events.length + 1,
-      itemBuilder: (context, index) {
-        if (index == match.events.length) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  text.isArabic ? 'بداية المباراة' : 'Kick-off',
-                  style: TextStyle(
-                      color: Theme.of(context).hintColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11),
-                ),
-              ),
-            ),
-          );
-        }
-        final event = match.events[index];
-        final align = event.isHome ? Alignment.centerRight : Alignment.centerLeft;
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
-          duration: Duration(milliseconds: 320 + (index * 45)),
-          curve: Curves.easeOutCubic,
-          builder: (context, t, child) {
-            return Opacity(
-              opacity: t,
-              child: Transform.translate(
-                offset:
-                    Offset(event.isHome ? (1 - t) * 28 : -(1 - t) * 28, 0),
-                child: child,
-              ),
-            );
-          },
-          child: Align(
-            alignment: align,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.86),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).cardTheme.color ?? AppColors.darkCard,
-                      Color.alphaBlend(
-                        _color(event.type).withValues(alpha: 0.08),
-                        Theme.of(context).cardTheme.color ?? AppColors.darkCard,
-                      ),
-                    ],
-                  ),
-                  border: Border.all(
-                      color: _color(event.type).withValues(alpha: 0.45)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _color(event.type).withValues(alpha: 0.15),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (event.isHome) _minuteChip(context, event.minute),
-                    if (event.isHome) const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: _color(event.type).withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(_icon(event.type),
-                          color: _color(event.type), size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _eventTitle(text, event),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 13.5),
-                          ),
-                          if (event.assistName != null &&
-                              event.assistName!.isNotEmpty)
-                            Text(
-                              text.isArabic
-                                  ? 'تمريرة حاسمة: ${event.assistName}'
-                                  : 'Assist: ${event.assistName}',
-                              style: TextStyle(
-                                  color: Theme.of(context).hintColor,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          if (event.description.isNotEmpty)
-                            Text(event.description,
-                                style: TextStyle(
-                                    color: Theme.of(context).hintColor,
-                                    fontSize: 11.5)),
-                        ],
-                      ),
-                    ),
-                    if (!event.isHome) const SizedBox(width: 8),
-                    if (!event.isHome) _minuteChip(context, event.minute),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _minuteChip(BuildContext context, String minute) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.28),
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(minute,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11.5)),
-    );
-  }
-
-  String _eventTitle(AppText text, MatchEvent e) {
-    final suffix = e.playerName;
-    switch (e.type) {
-      case MatchEventType.goal:
-        return text.isArabic ? 'هدف — $suffix' : 'Goal — $suffix';
-      case MatchEventType.ownGoal:
-        return text.isArabic ? 'هدف ذاتي — $suffix' : 'Own goal — $suffix';
-      case MatchEventType.penalty:
-        return text.isArabic ? 'ركلة جزاء — $suffix' : 'Penalty — $suffix';
-      case MatchEventType.yellowCard:
-        return text.isArabic
-            ? 'بطاقة صفراء — $suffix'
-            : 'Yellow card — $suffix';
-      case MatchEventType.redCard:
-        return text.isArabic
-            ? 'بطاقة حمراء — $suffix'
-            : 'Red card — $suffix';
-      case MatchEventType.substitution:
-        return text.isArabic ? 'تبديل — $suffix' : 'Substitution — $suffix';
-      case MatchEventType.varDecision:
-        return text.isArabic ? 'قرار VAR — $suffix' : 'VAR — $suffix';
-    }
   }
 }
 

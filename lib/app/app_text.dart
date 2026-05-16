@@ -133,6 +133,69 @@ class AppText {
   String get finished => _isArabic ? 'منتهية' : 'Finished';
   String get pullRefreshHint => _isArabic ? 'اسحب للتحديث' : 'Pull to refresh';
 
+  String get refreshingLabel =>
+      _isArabic ? 'جاري التحديث…' : 'Refreshing…';
+
+  String updatedLabel(DateTime? at) {
+    if (at == null) {
+      return _isArabic ? 'اسحب للتحديث' : pullRefreshHint;
+    }
+    final diff = DateTime.now().difference(at);
+    if (diff.inSeconds < 45) {
+      return _isArabic ? 'تم التحديث للتو' : 'Updated just now';
+    }
+    if (diff.inMinutes < 60) {
+      final m = diff.inMinutes;
+      return _isArabic
+          ? 'آخر تحديث منذ $m د'
+          : 'Updated $m min ago';
+    }
+    final h = diff.inHours;
+    return _isArabic ? 'آخر تحديث منذ $h س' : 'Updated $h h ago';
+  }
+
+  String get timelineEmptyTitle =>
+      _isArabic ? 'لا توجد أحداث بعد' : 'No events yet';
+
+  String get timelineEmptySubtitle => _isArabic
+      ? 'ستظهر الأهداف والبطاقات والتبديلات هنا.'
+      : 'Goals, cards, and substitutions will appear here.';
+
+  String get timelineKickOff => _isArabic ? 'بداية المباراة' : 'Kick-off';
+
+  String get timelineHalftime => _isArabic ? 'استراحة' : 'Halftime';
+
+  String get timelineFulltime => _isArabic ? 'نهاية المباراة' : 'Full time';
+
+  String timelineGoal(String player) =>
+      _isArabic ? 'هدف — $player' : 'Goal — $player';
+
+  String timelineOwnGoal(String player) =>
+      _isArabic ? 'هدف ذاتي — $player' : 'Own goal — $player';
+
+  String timelinePenalty(String player) =>
+      _isArabic ? 'ركلة جزاء — $player' : 'Penalty — $player';
+
+  String timelineYellowCard(String player) =>
+      _isArabic ? 'بطاقة صفراء — $player' : 'Yellow card — $player';
+
+  String timelineRedCard(String player) =>
+      _isArabic ? 'بطاقة حمراء — $player' : 'Red card — $player';
+
+  String timelineSubstitutionIn(String player) =>
+      _isArabic ? 'دخول — $player' : 'Sub on — $player';
+
+  String timelineSubstitution({required String playerIn, required String playerOut}) =>
+      _isArabic
+          ? '$playerIn بدلاً من $playerOut'
+          : '$playerIn replaces $playerOut';
+
+  String timelineAssist(String name) =>
+      _isArabic ? 'تمريرة حاسمة: $name' : 'Assist: $name';
+
+  String timelineVar(String label) =>
+      _isArabic ? 'قرار VAR — $label' : 'VAR — $label';
+
   String get retry => _isArabic ? 'إعادة المحاولة' : 'Retry';
   String get errorTitle => _isArabic ? 'حدث خطأ' : 'Something went wrong';
   String get errorSub => _isArabic

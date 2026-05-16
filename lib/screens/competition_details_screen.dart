@@ -15,6 +15,7 @@ import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/skeleton_box.dart';
+import '../widgets/live_update_indicator.dart';
 import '../widgets/team_logo.dart';
 
 class CompetitionDetailsScreen extends StatefulWidget {
@@ -29,6 +30,8 @@ class CompetitionDetailsScreen extends StatefulWidget {
 
 class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
   bool _loading = true;
+  bool _refreshing = false;
+  DateTime? _lastUpdated;
   List<MatchModel> _matches = [];
   List<StandingModel> _standings = [];
   List<TeamModel> _teams = [];
@@ -40,8 +43,12 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+  Future<void> _load({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() => _loading = true);
+    } else if (mounted) {
+      setState(() => _refreshing = true);
+    }
 
     final repo = AppScope.footballRepositoryOf(context);
     final cid = widget.competition.id;
@@ -53,6 +60,8 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
     if (mounted) {
       setState(() {
         _loading = false;
+        _refreshing = false;
+        _lastUpdated = DateTime.now();
         _matches = matchState.data ?? [];
         _standings = standingsState.data ?? [];
         _teams = teamsState.data ?? [];
@@ -60,6 +69,8 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
       });
     }
   }
+
+  Future<void> _onRefresh() => _load(silent: true);
 
   @override
   Widget build(BuildContext context) {
@@ -153,20 +164,30 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
             children: [
               _MatchesTab(
                 loading: _loading,
+                refreshing: _refreshing,
+                lastUpdated: _lastUpdated,
                 featured: featured,
                 matches: matches,
-                refresh: () async {
-                  setState(() => _loading = true);
-                  await _load();
-                },
+                refresh: _onRefresh,
               ),
               _StandingsTab(
                 loading: _loading,
                 standings: _standings,
                 onRetry: _load,
+                onRefresh: _onRefresh,
               ),
-              _TeamsTab(loading: _loading, teams: teams, onRetry: _load),
-              _ScorersTab(loading: _loading, scorers: scorers, onRetry: _load),
+              _TeamsTab(
+                loading: _loading,
+                teams: teams,
+                onRetry: _load,
+                onRefresh: _onRefresh,
+              ),
+              _ScorersTab(
+                loading: _loading,
+                scorers: scorers,
+                onRetry: _load,
+                onRefresh: _onRefresh,
+              ),
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -301,12 +322,16 @@ List<Widget> _matchesWithSpotlights(
 class _MatchesTab extends StatelessWidget {
   const _MatchesTab({
     required this.loading,
+    required this.refreshing,
+    required this.lastUpdated,
     required this.featured,
     required this.matches,
     required this.refresh,
   });
 
   final bool loading;
+  final bool refreshing;
+  final DateTime? lastUpdated;
   final MatchModel? featured;
   final List<MatchModel> matches;
   final Future<void> Function() refresh;
@@ -316,10 +341,17 @@ class _MatchesTab extends StatelessWidget {
     final text = AppText.of(context);
     return RefreshIndicator(
       onRefresh: refresh,
+      color: Theme.of(context).colorScheme.primary,
       child: ListView(
         padding: const EdgeInsets.all(16),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          if (!loading)
+            LiveUpdateIndicator(
+              lastUpdated: lastUpdated,
+              refreshing: refreshing,
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+            ),
           if (loading) ...[
             const SkeletonBox(height: 130),
             const SizedBox(height: 12),
@@ -371,11 +403,13 @@ class _StandingsTab extends StatelessWidget {
     required this.loading,
     required this.standings,
     required this.onRetry,
+    required this.onRefresh,
   });
 
   final bool loading;
   final List<StandingModel> standings;
   final VoidCallback onRetry;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -390,34 +424,52 @@ class _StandingsTab extends StatelessWidget {
     }
 
     if (standings.isEmpty) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        onRetry: onRetry,
-        emptyIcon: Icons.leaderboard_outlined,
-        emptyTitle: text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
-        emptySubtitle: text.isArabic
-            ? 'سيظهر الترتيب عند توفر البيانات.'
-            : 'The table will appear once data is available.',
-        child: const SizedBox.shrink(),
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.35,
+              child: AsyncContentView(
+                loading: false,
+                isEmpty: true,
+                onRetry: onRetry,
+                emptyIcon: Icons.leaderboard_outlined,
+                emptyTitle:
+                    text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
+                emptySubtitle: text.isArabic
+                    ? 'سيظهر الترتيب عند توفر البيانات.'
+                    : 'The table will appear once data is available.',
+                child: const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: standings.length + 2,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, i) {
-        if (i == 0) return const _StandingsLegend();
-        if (i == 1) return const _StandingsTableHeader();
-        final idx = i - 2;
-        final item = standings[idx];
-        return _StandingsRow(
-          item: item,
-          isUcl: idx < 4,
-          isRel: idx >= standings.length - 1,
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: standings.length + 2,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (context, i) {
+          if (i == 0) return const _StandingsLegend();
+          if (i == 1) return const _StandingsTableHeader();
+          final idx = i - 2;
+          final item = standings[idx];
+          return _StandingsRow(
+            item: item,
+            isUcl: idx < 4,
+            isRel: idx >= standings.length - 1,
+          );
+        },
+      ),
     );
   }
 }
@@ -633,10 +685,12 @@ class _TeamsTab extends StatelessWidget {
     required this.loading,
     required this.teams,
     required this.onRetry,
+    required this.onRefresh,
   });
   final bool loading;
   final List<TeamModel> teams;
   final VoidCallback onRetry;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -656,20 +710,36 @@ class _TeamsTab extends StatelessWidget {
       );
     }
     if (teams.isEmpty) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        onRetry: onRetry,
-        emptyIcon: Icons.shield_outlined,
-        emptyTitle: text.isArabic ? 'لا توجد فرق' : 'No teams',
-        emptySubtitle: text.isArabic
-            ? 'لم نعثر على فرق لهذه البطولة بعد.'
-            : 'We could not find teams for this competition yet.',
-        child: const SizedBox.shrink(),
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.35,
+              child: AsyncContentView(
+                loading: false,
+                isEmpty: true,
+                onRetry: onRetry,
+                emptyIcon: Icons.shield_outlined,
+                emptyTitle: text.isArabic ? 'لا توجد فرق' : 'No teams',
+                emptySubtitle: text.isArabic
+                    ? 'لم نعثر على فرق لهذه البطولة بعد.'
+                    : 'We could not find teams for this competition yet.',
+                child: const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
       );
     }
-    return GridView.builder(
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: GridView.builder(
       padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
@@ -723,6 +793,7 @@ class _TeamsTab extends StatelessWidget {
           ),
         );
       },
+    ),
     );
   }
 }
@@ -732,10 +803,12 @@ class _ScorersTab extends StatelessWidget {
     required this.loading,
     required this.scorers,
     required this.onRetry,
+    required this.onRefresh,
   });
   final bool loading;
   final List<PlayerModel> scorers;
   final VoidCallback onRetry;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -749,19 +822,36 @@ class _ScorersTab extends StatelessWidget {
       );
     }
     if (scorers.isEmpty) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        onRetry: onRetry,
-        emptyIcon: Icons.scoreboard_outlined,
-        emptyTitle: text.isArabic ? 'لا يوجد هدافون' : 'No top scorers',
-        emptySubtitle: text.isArabic
-            ? 'سيظهر الهدافون فور توفر البيانات.'
-            : 'Top scorers will appear once data is available.',
-        child: const SizedBox.shrink(),
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.35,
+              child: AsyncContentView(
+                loading: false,
+                isEmpty: true,
+                onRetry: onRetry,
+                emptyIcon: Icons.scoreboard_outlined,
+                emptyTitle:
+                    text.isArabic ? 'لا يوجد هدافون' : 'No top scorers',
+                emptySubtitle: text.isArabic
+                    ? 'سيظهر الهدافون فور توفر البيانات.'
+                    : 'Top scorers will appear once data is available.',
+                child: const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
       );
     }
-    return ListView.separated(
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: scorers.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -852,6 +942,7 @@ class _ScorersTab extends StatelessWidget {
           ),
         );
       },
+    ),
     );
   }
 }

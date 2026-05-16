@@ -9,6 +9,7 @@ import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/native_ad_placeholder.dart';
 import '../widgets/async_content_view.dart';
+import '../widgets/live_update_indicator.dart';
 import '../widgets/match_card.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -27,6 +28,8 @@ class _MatchesScreenState extends State<MatchesScreen>
   List<MatchModel> _upcoming = [];
   List<MatchModel> _finished = [];
   MatchRefreshService? _refresh;
+  DateTime? _lastUpdated;
+  bool _refreshing = false;
 
   @override
   void initState() {
@@ -49,7 +52,11 @@ class _MatchesScreenState extends State<MatchesScreen>
   void _onAutoRefresh() => _load(silent: true);
 
   Future<void> _load({bool silent = false}) async {
-    if (!silent && mounted) setState(() => _loading = true);
+    if (!silent && mounted) {
+      setState(() => _loading = true);
+    } else if (mounted) {
+      setState(() => _refreshing = true);
+    }
 
     final repo = AppScope.footballRepositoryOf(context);
     final refresh = AppScope.matchRefreshServiceOf(context);
@@ -64,12 +71,17 @@ class _MatchesScreenState extends State<MatchesScreen>
     if (mounted) {
       setState(() {
         _loading = false;
+        _refreshing = false;
+        _lastUpdated = DateTime.now();
         _live = results[0].data ?? [];
         _upcoming = results[1].data ?? [];
         _finished = results[2].data ?? [];
       });
     }
   }
+
+  DateTime? get _displayLastUpdated =>
+      _lastUpdated ?? _refresh?.lastRefreshedAt;
 
   Future<void> _onRefresh() async {
     final refresh = AppScope.matchRefreshServiceOf(context);
@@ -141,6 +153,12 @@ class _MatchesScreenState extends State<MatchesScreen>
             controller: _tabController,
             tabs: [text.live, text.upcoming, text.finished],
           ),
+          if (!_loading)
+            LiveUpdateIndicator(
+              lastUpdated: _displayLastUpdated,
+              refreshing: _refreshing || (_refresh?.isRefreshing ?? false),
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+            ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
