@@ -621,6 +621,13 @@ class _StandingsLegend extends StatelessWidget {
   }
 }
 
+/// Taller cells on narrow screens so logo + name + region fit (no overflow).
+double _teamsGridAspectRatio(BuildContext context) {
+  final cellWidth = (MediaQuery.sizeOf(context).width - 42) / 2;
+  const minContentHeight = 118.0;
+  return (cellWidth / minContentHeight).clamp(1.08, 1.38);
+}
+
 class _TeamsTab extends StatelessWidget {
   const _TeamsTab({
     required this.loading,
@@ -634,14 +641,15 @@ class _TeamsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
+    final aspectRatio = _teamsGridAspectRatio(context);
     if (loading) {
       return GridView.builder(
         padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 1.5,
+          childAspectRatio: aspectRatio,
         ),
         itemCount: 6,
         itemBuilder: (_, _) => const SkeletonBox(height: 90),
@@ -662,11 +670,11 @@ class _TeamsTab extends StatelessWidget {
     }
     return GridView.builder(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 1.5,
+        childAspectRatio: aspectRatio,
       ),
       itemCount: teams.length,
       itemBuilder: (context, i) {
@@ -679,21 +687,38 @@ class _TeamsTab extends StatelessWidget {
             border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TeamLogo(shortName: team.shortName, size: 44),
-              const SizedBox(height: 10),
-              Text(team.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 14)),
-              Text(team.nationality,
-                  style: TextStyle(
-                      color: Theme.of(context).hintColor,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      team.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      team.nationality,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).hintColor,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );

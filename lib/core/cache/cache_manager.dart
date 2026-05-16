@@ -16,6 +16,19 @@ class CacheManager {
     Duration ttl = const Duration(minutes: 5),
   }) async {
     await _prefs.setString(key, jsonEncode(value));
+    await _setExpiry(key, ttl);
+  }
+
+  Future<void> setJsonList(
+    String key,
+    List<dynamic> value, {
+    Duration ttl = const Duration(minutes: 5),
+  }) async {
+    await _prefs.setString(key, jsonEncode(value));
+    await _setExpiry(key, ttl);
+  }
+
+  Future<void> _setExpiry(String key, Duration ttl) async {
     await _prefs.setInt(
       '$key$_tsSuffix',
       DateTime.now().add(ttl).millisecondsSinceEpoch,
