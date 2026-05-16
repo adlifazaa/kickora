@@ -21,14 +21,25 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   Future<void> _refresh() async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (mounted) setState(() {});
+    await AppScope.of(context).favoriteManager.load();
   }
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final text = AppText.of(context);
+
+    if (app.favoritesLoading) {
+      return const SafeArea(
+        child: Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.6),
+          ),
+        ),
+      );
+    }
 
     final teams =
         MockData.teams.where((team) => app.favoriteTeamIds.contains(team.id)).toList();
@@ -63,7 +74,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
 
     return SafeArea(
-      child: RefreshIndicator(
+      child: ListenableBuilder(
+        listenable: app,
+        builder: (context, _) => RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -122,6 +135,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

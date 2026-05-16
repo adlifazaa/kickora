@@ -88,7 +88,7 @@ class KickoraNotificationService {
     }
 
     await _prefs.setBool(enabledPreferenceKey, true);
-    await _syncFavoriteTeamTopics(favoriteTeamIds);
+    await syncFavoriteTeams(favoriteTeamIds);
     return true;
   }
 
@@ -100,15 +100,48 @@ class KickoraNotificationService {
     }
   }
 
+  static const String _subscribedTeamsKey = 'fcm_subscribed_team_ids';
+  static const String _subscribedMatchesKey = 'fcm_subscribed_match_ids';
+
   Future<void> syncFavoriteTeams(Set<int> teamIds) async {
     if (!isEnabled) return;
-    await _syncFavoriteTeamTopics(teamIds);
+    await _syncTopicSet(
+      preferenceKey: _subscribedTeamsKey,
+      desiredIds: teamIds,
+      topicFor: NotificationTopics.favoriteTeam,
+    );
   }
 
-  Future<void> _syncFavoriteTeamTopics(Set<int> teamIds) async {
-    for (final id in teamIds) {
-      await _firebase.subscribeToTopic(NotificationTopics.favoriteTeam(id));
+  Future<void> syncFavoriteMatches(Set<int> matchIds) async {
+    if (!isEnabled) return;
+    await _syncTopicSet(
+      preferenceKey: _subscribedMatchesKey,
+      desiredIds: matchIds,
+      topicFor: NotificationTopics.favoriteMatch,
+    );
+  }
+
+  Future<void> _syncTopicSet({
+    required String preferenceKey,
+    required Set<int> desiredIds,
+    required String Function(int id) topicFor,
+  }) async {
+    final previous = _readIdSet(preferenceKey);
+    for (final id in previous.difference(desiredIds)) {
+      await _firebase.unsubscribeFromTopic(topicFor(id));
     }
+    for (final id in desiredIds.difference(previous)) {
+      await _firebase.subscribeToTopic(topicFor(id));
+    }
+    await _prefs.setStringList(
+      preferenceKey,
+      desiredIds.map((e) => '$e').toList(),
+    );
+  }
+
+  Set<int> _readIdSet(String key) {
+    final raw = _prefs.getStringList(key) ?? <String>[];
+    return raw.map(int.tryParse).whereType<int>().toSet();
   }
 
   Future<void> showLocal(KickoraNotification notification) async {

@@ -8,6 +8,7 @@ import 'data/repositories/football_repository.dart';
 import 'data/services/football_api_service.dart';
 import 'notifications/services/kickora_notification_service.dart';
 import 'services/app_controller.dart';
+import 'services/favorite_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,10 @@ Future<void> main() async {
   final notificationService =
       KickoraNotificationService.createMock(preferences);
   await notificationService.initialize();
+  final favoriteManager = FavoriteManager(
+    preferences,
+    notificationService: notificationService,
+  );
   final cache = CacheManager(preferences);
   final footballApi = FootballApiService(cache: cache);
   final footballRepository = FootballRepository(
@@ -26,6 +31,7 @@ Future<void> main() async {
     preferences,
     footballRepository: footballRepository,
     notificationService: notificationService,
+    favoriteManager: favoriteManager,
   );
   await controller.load();
   runApp(KickoraApp(controller: controller));

@@ -3,24 +3,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/football_repository.dart';
 import '../notifications/services/kickora_notification_service.dart';
+import 'favorite_manager.dart';
 
 class AppController extends ChangeNotifier {
   AppController(
     this._preferences, {
     FootballRepository? footballRepository,
     KickoraNotificationService? notificationService,
+    FavoriteManager? favoriteManager,
   })  : footballRepository = footballRepository ?? FootballRepository(),
         notificationService = notificationService ??
-            KickoraNotificationService.createMock(_preferences);
+            KickoraNotificationService.createMock(_preferences),
+        favoriteManager = favoriteManager ??
+            FavoriteManager(
+              _preferences,
+              notificationService: notificationService ??
+                  KickoraNotificationService.createMock(_preferences),
+            ) {
+    this.favoriteManager.addListener(notifyListeners);
+  }
 
   final FootballRepository footballRepository;
   final KickoraNotificationService notificationService;
+  final FavoriteManager favoriteManager;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
-  static const String _favTeamsKey = 'favorite_teams';
-  static const String _favCompetitionsKey = 'favorite_competitions';
-  static const String _favMatchesKey = 'favorite_matches';
   static const String _notificationsKey = 'notifications_enabled';
   static const String _recentSearchesKey = 'recent_searches';
   static const int _maxRecentSearches = 8;
@@ -29,9 +37,6 @@ class AppController extends ChangeNotifier {
 
   ThemeMode _themeMode = ThemeMode.dark;
   Locale _locale = const Locale('ar');
-  Set<int> _favoriteTeamIds = <int>{};
-  Set<int> _favoriteCompetitionIds = <int>{};
-  Set<int> _favoriteMatchIds = <int>{};
   bool _notificationsEnabled = false;
   List<String> _recentSearches = const <String>[];
 
@@ -39,29 +44,30 @@ class AppController extends ChangeNotifier {
   Locale get locale => _locale;
   bool get isArabic => _locale.languageCode == 'ar';
 
-  Set<int> get favoriteTeamIds => _favoriteTeamIds;
-  Set<int> get favoriteCompetitionIds => _favoriteCompetitionIds;
-  Set<int> get favoriteMatchIds => _favoriteMatchIds;
+  bool get favoritesLoading => favoriteManager.isLoading;
+  Set<int> get favoriteTeamIds => favoriteManager.teamIds;
+  Set<int> get favoriteCompetitionIds => favoriteManager.competitionIds;
+  Set<int> get favoriteMatchIds => favoriteManager.matchIds;
+
   bool get notificationsEnabled => _notificationsEnabled;
   List<String> get recentSearches => List.unmodifiable(_recentSearches);
 
   Future<void> load() async {
     final themeValue = _preferences.getString(_themeKey) ?? ThemeMode.dark.name;
-    _themeMode = themeValue == ThemeMode.light.name ? ThemeMode.light : ThemeMode.dark;
+    _themeMode =
+        themeValue == ThemeMode.light.name ? ThemeMode.light : ThemeMode.dark;
 
     final languageCode = _preferences.getString(_languageKey) ?? 'ar';
     _locale = Locale(languageCode);
 
-    _favoriteTeamIds = _readSet(_favTeamsKey);
-    _favoriteCompetitionIds = _readSet(_favCompetitionsKey);
-    _favoriteMatchIds = _readSet(_favMatchesKey);
+    await favoriteManager.load();
+
     _notificationsEnabled = _preferences.getBool(_notificationsKey) ?? false;
     _recentSearches =
         _preferences.getStringList(_recentSearchesKey) ?? const <String>[];
     notifyListeners();
   }
 
-  /// Adds [query] to the front of the recent searches list (dedup, capped).
   Future<void> addRecentSearch(String query) async {
     final q = query.trim();
     if (q.isEmpty) return;
@@ -94,7 +100,7 @@ class AppController extends ChangeNotifier {
   Future<void> setNotificationsEnabled(bool enabled) async {
     if (enabled) {
       final granted = await notificationService.enable(
-        favoriteTeamIds: _favoriteTeamIds,
+        favoriteTeamIds: favoriteManager.teamIds,
       );
       _notificationsEnabled = granted;
     } else {
@@ -102,6 +108,7 @@ class AppController extends ChangeNotifier {
       _notificationsEnabled = false;
     }
     await _preferences.setBool(_notificationsKey, _notificationsEnabled);
+    await favoriteManager.onNotificationsEnabledChanged(_notificationsEnabled);
     notifyListeners();
   }
 
@@ -117,34 +124,35 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleTeamFavorite(int id) => _toggleSet(id, _favoriteTeamIds, _favTeamsKey);
-  Future<void> toggleCompetitionFavorite(int id) => _toggleSet(id, _favoriteCompetitionIds, _favCompetitionsKey);
-  Future<void> toggleMatchFavorite(int id) => _toggleSet(id, _favoriteMatchIds, _favMatchesKey);
+  Future<void> toggleTeamFavorite(int id) => favoriteManager.toggleTeam(id);
 
-  bool isTeamFavorite(int id) => _favoriteTeamIds.contains(id);
-  bool isCompetitionFavorite(int id) => _favoriteCompetitionIds.contains(id);
-  bool isMatchFavorite(int id) => _favoriteMatchIds.contains(id);
+  Future<void> toggleCompetitionFavorite(int id) =>
+      favoriteManager.toggleCompetition(id);
 
-  Set<int> _readSet(String key) {
-    final values = _preferences.getStringList(key) ?? <String>[];
-    final out = <int>{};
-    for (final s in values) {
-      final v = int.tryParse(s);
-      if (v != null) out.add(v);
-    }
-    return out;
-  }
+  Future<void> toggleMatchFavorite(int id) => favoriteManager.toggleMatch(id);
 
-  Future<void> _toggleSet(int id, Set<int> source, String key) async {
-    if (source.contains(id)) {
-      source.remove(id);
-    } else {
-      source.add(id);
-    }
-    await _preferences.setStringList(key, source.map((item) => '$item').toList());
-    if (key == _favTeamsKey && _notificationsEnabled) {
-      await notificationService.syncFavoriteTeams(_favoriteTeamIds);
-    }
-    notifyListeners();
+  Future<void> addTeamFavorite(int id) => favoriteManager.addTeam(id);
+
+  Future<void> removeTeamFavorite(int id) => favoriteManager.removeTeam(id);
+
+  Future<void> addCompetitionFavorite(int id) =>
+      favoriteManager.addCompetition(id);
+
+  Future<void> removeCompetitionFavorite(int id) =>
+      favoriteManager.removeCompetition(id);
+
+  Future<void> addMatchFavorite(int id) => favoriteManager.addMatch(id);
+
+  Future<void> removeMatchFavorite(int id) => favoriteManager.removeMatch(id);
+
+  bool isTeamFavorite(int id) => favoriteManager.isTeamFavorite(id);
+  bool isCompetitionFavorite(int id) =>
+      favoriteManager.isCompetitionFavorite(id);
+  bool isMatchFavorite(int id) => favoriteManager.isMatchFavorite(id);
+
+  @override
+  void dispose() {
+    favoriteManager.removeListener(notifyListeners);
+    super.dispose();
   }
 }
