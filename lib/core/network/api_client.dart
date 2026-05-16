@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../constants/api_constants.dart';
 import '../errors/api_exception.dart';
+import 'api_debug_log.dart';
 import 'request_throttler.dart';
 
 /// HTTP client for API-Football with throttling, retries, and timeouts.
@@ -45,6 +46,7 @@ class ApiClient {
         );
       } on ApiException catch (e) {
         if (!_shouldRetry(e, attempt)) rethrow;
+        ApiDebugLog.retry(path, attempt, e.code ?? 'unknown');
         await Future<void>.delayed(_retryDelay(attempt));
       }
     }
@@ -55,6 +57,7 @@ class ApiClient {
     Map<String, String>? queryParameters,
   }) async {
     final uri = _buildUri(path, queryParameters);
+    ApiDebugLog.request('GET', uri);
     final client = HttpClient();
     client.connectionTimeout = connectTimeout;
 
@@ -69,6 +72,11 @@ class ApiClient {
       _throwIfApiFootballErrors(decoded, response.statusCode);
 
       if (response.statusCode == 429) {
+        ApiDebugLog.response(
+          statusCode: 429,
+          path: path,
+          errorCode: 'rate_limit',
+        );
         throw const ApiException(
           'Rate limit exceeded.',
           statusCode: 429,
@@ -77,6 +85,11 @@ class ApiClient {
       }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        ApiDebugLog.response(
+          statusCode: response.statusCode,
+          path: path,
+          errorCode: 'http_error',
+        );
         throw ApiException(
           'Request failed',
           statusCode: response.statusCode,
@@ -87,25 +100,46 @@ class ApiClient {
       if (decoded is! Map<String, dynamic>) {
         throw const ApiException.parse('Expected JSON object response.');
       }
+
+      ApiDebugLog.response(
+        statusCode: response.statusCode,
+        path: path,
+        results: _resultCount(decoded),
+      );
       return decoded;
-    } on ApiException {
+    } on ApiException catch (e) {
+      ApiDebugLog.failure(path, e.code ?? 'api');
       rethrow;
     } on SocketException catch (e) {
+      ApiDebugLog.failure(path, 'network');
       throw ApiException.network(e.message);
     } on HttpException catch (e) {
+      ApiDebugLog.failure(path, 'network');
       throw ApiException.network(e.message);
     } on FormatException catch (e) {
+      ApiDebugLog.failure(path, 'parse');
       throw ApiException.parse(e.message);
     } on TimeoutException catch (_) {
+      ApiDebugLog.failure(path, 'timeout');
       throw const ApiException(
         'Request timed out.',
         code: 'timeout',
       );
     } catch (e) {
+      ApiDebugLog.failure(path, 'network');
       throw ApiException.network(e.toString());
     } finally {
       client.close(force: true);
     }
+  }
+
+  int? _resultCount(Map<String, dynamic> decoded) {
+    final results = decoded['results'];
+    if (results is int) return results;
+    if (results is num) return results.toInt();
+    final response = decoded['response'];
+    if (response is List) return response.length;
+    return null;
   }
 
   Object? _decodeBody(String body) {

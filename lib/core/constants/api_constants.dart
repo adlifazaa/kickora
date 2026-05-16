@@ -1,16 +1,26 @@
 /// API-Football (api-sports.io v3) configuration.
 ///
-/// Provide your key at build/run time:
+/// Run with your key (never commit the key to source control):
 /// `flutter run --dart-define=KICKORA_API_KEY=your_api_sports_key`
+///
+/// Optional request logs (debug builds only, never prints the key):
+/// `flutter run --dart-define=KICKORA_API_KEY=... --dart-define=KICKORA_API_DEBUG=true`
 class ApiConstants {
   ApiConstants._();
 
-  /// API-Football v3 base URL.
+  /// Official API-Football v3 host — all routes are relative to this base.
   static const String baseUrl = 'https://v3.football.api-sports.io';
 
+  /// Injected at compile time; empty → repository uses mock data.
   static const String apiKey = String.fromEnvironment(
     'KICKORA_API_KEY',
     defaultValue: '',
+  );
+
+  /// When true (and [kDebugMode]), [ApiDebugLog] prints request status only.
+  static const bool enableDebugLogs = bool.fromEnvironment(
+    'KICKORA_API_DEBUG',
+    defaultValue: false,
   );
 
   static const Duration connectTimeout = Duration(seconds: 12);
@@ -22,17 +32,27 @@ class ApiConstants {
   static const int maxRetries = 3;
   static const Duration retryBaseDelay = Duration(milliseconds: 400);
 
+  /// Required by API-Football — see https://www.api-football.com/documentation-v3
   static const String headerApiKey = 'x-apisports-key';
 
-  // --- API-Football paths ---
+  // --- API-Football v3 routes (used by [FootballApiService]) ---
+  // GET /fixtures?live=all | ?date= | ?league=&season= | ?id=
   static const String fixtures = '/fixtures';
+  // GET /fixtures/events?fixture=
   static const String fixtureEvents = '/fixtures/events';
+  // GET /fixtures/statistics?fixture=
   static const String fixtureStatistics = '/fixtures/statistics';
+  // GET /fixtures/lineups?fixture=
   static const String fixtureLineups = '/fixtures/lineups';
+  // GET /leagues?current=true | ?id=&season=
   static const String leagues = '/leagues';
+  // GET /standings?league=&season=
   static const String standings = '/standings';
+  // GET /teams?league=&season=
   static const String teams = '/teams';
+  // GET /players/topscorers?league=&season=
   static const String playersTopScorers = '/players/topscorers';
+  // GET /players?id=&season=
   static const String players = '/players';
 
   // Backward-compatible aliases used by legacy imports.

@@ -2,14 +2,19 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/football_repository.dart';
+import '../notifications/services/kickora_notification_service.dart';
 
 class AppController extends ChangeNotifier {
   AppController(
     this._preferences, {
     FootballRepository? footballRepository,
-  }) : footballRepository = footballRepository ?? FootballRepository();
+    KickoraNotificationService? notificationService,
+  })  : footballRepository = footballRepository ?? FootballRepository(),
+        notificationService = notificationService ??
+            KickoraNotificationService.createMock(_preferences);
 
   final FootballRepository footballRepository;
+  final KickoraNotificationService notificationService;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
@@ -86,10 +91,17 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Persists preference only; no OS push registration yet.
   Future<void> setNotificationsEnabled(bool enabled) async {
-    _notificationsEnabled = enabled;
-    await _preferences.setBool(_notificationsKey, enabled);
+    if (enabled) {
+      final granted = await notificationService.enable(
+        favoriteTeamIds: _favoriteTeamIds,
+      );
+      _notificationsEnabled = granted;
+    } else {
+      await notificationService.disable();
+      _notificationsEnabled = false;
+    }
+    await _preferences.setBool(_notificationsKey, _notificationsEnabled);
     notifyListeners();
   }
 
@@ -130,6 +142,9 @@ class AppController extends ChangeNotifier {
       source.add(id);
     }
     await _preferences.setStringList(key, source.map((item) => '$item').toList());
+    if (key == _favTeamsKey && _notificationsEnabled) {
+      await notificationService.syncFavoriteTeams(_favoriteTeamIds);
+    }
     notifyListeners();
   }
 }
