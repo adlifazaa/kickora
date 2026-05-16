@@ -141,6 +141,7 @@ class AppTheme {
       iconTheme: const IconThemeData(color: Colors.white70, size: 22),
       progressIndicatorTheme:
           const ProgressIndicatorThemeData(color: AppColors.teal),
+      switchTheme: _switchTheme(dark: true),
     );
   }
 
@@ -248,6 +249,52 @@ class AppTheme {
         thickness: 0.7,
         space: 16,
       ),
+      switchTheme: _switchTheme(dark: false),
+    );
+  }
+
+  /// Premium switches with strong on/off contrast (especially on light cards).
+  static SwitchThemeData _switchTheme({required bool dark}) {
+    final activeTrack = dark ? AppColors.teal : AppColors.tealDeep;
+    final inactiveTrack =
+        dark ? const Color(0xFF2A3344) : const Color(0xFFC8D1DC);
+    final inactiveOutline =
+        dark ? const Color(0xFF4A5568) : const Color(0xFF8B97A8);
+    final inactiveThumb =
+        dark ? const Color(0xFF9AA8BC) : const Color(0xFF4E5D6E);
+
+    return SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return dark ? Colors.white38 : const Color(0xFFB8C2CE);
+        }
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return inactiveThumb;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return dark ? const Color(0xFF1E2633) : const Color(0xFFE8EDF3);
+        }
+        if (states.contains(WidgetState.selected)) {
+          return activeTrack;
+        }
+        return inactiveTrack;
+      }),
+      trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.transparent;
+        }
+        return inactiveOutline;
+      }),
+      trackOutlineWidth: WidgetStateProperty.all(1.2),
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return activeTrack.withValues(alpha: 0.18);
+        }
+        return inactiveOutline.withValues(alpha: 0.12);
+      }),
     );
   }
 

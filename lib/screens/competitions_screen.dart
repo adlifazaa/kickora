@@ -221,7 +221,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.74),
+            childAspectRatio: 0.93),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final competition = items[index];

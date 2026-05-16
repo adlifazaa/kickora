@@ -50,7 +50,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: text.isArabic
                     ? 'دعم كامل لاتجاه RTL'
                     : 'Full RTL & LTR support',
-                trailing: Switch.adaptive(
+                trailing: _KickoraSwitch(
                   value: app.isArabic,
                   onChanged: (v) => app.setLocale(Locale(v ? 'ar' : 'en')),
                 ),
@@ -63,7 +63,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: text.isArabic
                     ? 'مظهر ملعب ليلي فاخر'
                     : 'Premium night stadium look',
-                trailing: Switch.adaptive(
+                trailing: _KickoraSwitch(
                   value: app.themeMode == ThemeMode.dark,
                   onChanged: (v) =>
                       app.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
@@ -77,7 +77,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle:
                     '${text.notificationsPrefsBody}\n${text.pushNotificationsComingSoon}',
                 subtitleMaxLines: 4,
-                trailing: Switch.adaptive(
+                trailing: _KickoraSwitch(
                   value: app.notificationsEnabled,
                   onChanged: (v) => app.setNotificationsEnabled(v),
                 ),
@@ -152,6 +152,26 @@ class SettingsScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Settings row switch — uses [ThemeData.switchTheme] for premium contrast.
+class _KickoraSwitch extends StatelessWidget {
+  const _KickoraSwitch({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Switch.adaptive(
+      value: value,
+      onChanged: onChanged,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }
