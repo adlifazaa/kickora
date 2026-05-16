@@ -6,6 +6,7 @@ import 'core/cache/cache_manager.dart';
 import 'core/network/api_debug_log.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/services/football_api_service.dart';
+import 'ads/ad_service.dart';
 import 'notifications/services/kickora_notification_service.dart';
 import 'services/app_controller.dart';
 import 'services/favorite_manager.dart';
@@ -13,6 +14,7 @@ import 'services/favorite_manager.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiDebugLog.boot();
+  await AdService.instance.initialize();
   final preferences = await SharedPreferences.getInstance();
   final notificationService =
       KickoraNotificationService.createMock(preferences);

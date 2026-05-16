@@ -6,6 +6,7 @@ import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
+import '../widgets/native_ad_placeholder.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/match_card.dart';
 
@@ -211,8 +212,9 @@ class _MatchesScreenState extends State<MatchesScreen>
         );
         if (matchIndex % 4 == 0) {
           widgets.addAll([
-            ContentSpotlightPlaceholder(
+            NativeAdPlaceholder(
               variant: variants[(matchIndex ~/ 4 - 1) % variants.length],
+              feedItemIndex: matchIndex,
             ),
             const SizedBox(height: 10),
           ]);

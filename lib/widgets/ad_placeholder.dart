@@ -204,9 +204,6 @@ class ContentSpotlightPlaceholder extends StatelessWidget {
   }
 }
 
-/// @deprecated Use [ContentSpotlightPlaceholder] — kept for gradual migration.
-typedef NativeAdPlaceholder = ContentSpotlightPlaceholder;
-
 /// Visual marker for a future interstitial slot (dev reference only).
 class InterstitialAdMarker extends StatelessWidget {
   const InterstitialAdMarker({super.key, this.label = 'Match Insights'});

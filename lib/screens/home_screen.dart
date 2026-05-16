@@ -7,7 +7,7 @@ import '../app/routes.dart';
 import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
-import '../widgets/ad_placeholder.dart';
+import '../widgets/banner_placeholder.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/competition_card.dart';
 import '../widgets/feed_spotlight.dart';
@@ -232,9 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             const SizedBox(height: 20),
-            const ContentSpotlightPlaceholder(
-              variant: ContentSpotlightVariant.featuredContent,
-            ),
+            const BannerPlaceholder(),
           ],
         ),
       ),

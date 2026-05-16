@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../ads/ad_placement.dart';
 import 'ad_placeholder.dart';
+import 'native_ad_placeholder.dart';
 
-/// Inserts premium content placeholders every [interval] feed items (3–5).
+/// Inserts premium native placeholders every [interval] feed items (3–5).
 /// Skips the first [skipFirst] items so nothing sits under hero/featured blocks.
 List<Widget> insertFeedSpotlights({
   required List<Widget> items,
   int interval = 4,
   int skipFirst = 0,
+  AdPlacement placement = AdPlacement.feedNative,
   List<ContentSpotlightVariant> variants = const [
     ContentSpotlightVariant.matchSpotlight,
     ContentSpotlightVariant.matchInsights,
@@ -27,7 +30,13 @@ List<Widget> insertFeedSpotlights({
       final variant = variants[variantIndex % variants.length];
       variantIndex++;
       out.add(const SizedBox(height: 14));
-      out.add(ContentSpotlightPlaceholder(variant: variant));
+      out.add(
+        NativeAdPlaceholder(
+          placement: placement,
+          variant: variant,
+          feedItemIndex: itemNumber,
+        ),
+      );
       out.add(const SizedBox(height: 14));
     }
   }
