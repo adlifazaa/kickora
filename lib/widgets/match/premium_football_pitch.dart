@@ -1,15 +1,125 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
-import '../../app/routes.dart';
 import '../../app/app_scope.dart';
+import '../../app/routes.dart';
 import '../../core/player/player_photo_resolver.dart';
 import '../../models/lineup_model.dart';
 import '../../models/player_model.dart';
 import '../player_avatar.dart';
+import '../team_logo.dart';
 
-/// Premium football pitch with realistic gradient turf, mowed stripes,
-/// regulation markings, vignette lighting, and tappable jersey-style dots.
+/// Full green pitch with home (bottom) and away (top) formations.
+class DualTeamLineupPitch extends StatelessWidget {
+  const DualTeamLineupPitch({
+    super.key,
+    this.homeLineup,
+    this.awayLineup,
+  });
+
+  final LineupModel? homeLineup;
+  final LineupModel? awayLineup;
+
+  static const Color _homeJerseyTop = Color(0xFFFAFAFA);
+  static const Color _homeJerseyBottom = Color(0xFFD7DDE8);
+  static const Color _awayJerseyTop = Color(0xFF2B3D52);
+  static const Color _awayJerseyBottom = Color(0xFF15202B);
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 0.58,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+          final dotSize = (width * 0.11).clamp(30.0, 44.0);
+          final nodeWidth = dotSize + 6;
+
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const _PitchSurface(),
+                CustomPaint(painter: _PitchMarkingsPainter()),
+                const IgnorePointer(child: _PitchVignette()),
+                if (awayLineup != null && awayLineup!.lines.isNotEmpty)
+                  ..._teamPlayers(
+                    context: context,
+                    lineup: awayLineup!,
+                    width: width,
+                    height: height,
+                    dotSize: dotSize,
+                    nodeWidth: nodeWidth,
+                    half: PitchHalf.top,
+                    jerseyTop: _awayJerseyTop,
+                    jerseyBottom: _awayJerseyBottom,
+                  ),
+                if (homeLineup != null && homeLineup!.lines.isNotEmpty)
+                  ..._teamPlayers(
+                    context: context,
+                    lineup: homeLineup!,
+                    width: width,
+                    height: height,
+                    dotSize: dotSize,
+                    nodeWidth: nodeWidth,
+                    half: PitchHalf.bottom,
+                    jerseyTop: _homeJerseyTop,
+                    jerseyBottom: _homeJerseyBottom,
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _teamPlayers({
+    required BuildContext context,
+    required LineupModel lineup,
+    required double width,
+    required double height,
+    required double dotSize,
+    required double nodeWidth,
+    required PitchHalf half,
+    required Color jerseyTop,
+    required Color jerseyBottom,
+  }) {
+    final layout = PitchPlayerLayout.compute(
+      lineup: lineup,
+      half: half,
+      pitchWidth: width,
+      pitchHeight: height,
+      nodeWidth: nodeWidth,
+      nodeHeight: dotSize + 22,
+    );
+
+    return layout.map((slot) {
+      return Positioned(
+        left: slot.left.clamp(2, width - nodeWidth - 2),
+        top: slot.top.clamp(2, height - slot.nodeHeight - 2),
+        child: Hero(
+          tag: 'player-avatar-${slot.player.id}',
+          child: Material(
+            color: Colors.transparent,
+            child: _PlayerPitchNode(
+              player: slot.player,
+              isGoalkeeper: slot.player.position == 'GK',
+              jerseyTop: jerseyTop,
+              jerseyBottom: jerseyBottom,
+              avatarSize: dotSize,
+              maxLabelWidth: nodeWidth,
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+}
+
+/// Legacy single-team pitch (kept for reuse elsewhere if needed).
 class PremiumFootballPitch extends StatelessWidget {
   const PremiumFootballPitch({
     super.key,
@@ -26,133 +136,162 @@ class PremiumFootballPitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 0.68,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppColors.pitchTop,
-                        AppColors.pitchMid,
-                        AppColors.pitchBottom,
-                      ],
-                      stops: [0.0, 0.55, 1.0],
-                    ),
-                  ),
-                ),
-                CustomPaint(painter: _StripePainter(stripeCount: 11)),
-                CustomPaint(painter: _PitchMarkingsPainter()),
-                const IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: Alignment.center,
-                        radius: 1.1,
-                        colors: [
-                          Color(0x00000000),
-                          Color(0x55000000),
-                        ],
-                        stops: [0.6, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                ..._playerWidgets(context, width, height),
-              ],
-            ),
-          );
-        },
-      ),
+    return DualTeamLineupPitch(
+      homeLineup: invert ? null : lineup,
+      awayLineup: invert ? lineup : null,
     );
   }
+}
 
-  List<Widget> _playerWidgets(
-      BuildContext context, double width, double height) {
-    final out = <Widget>[];
-    final rows = lineup.lines.length;
-    final topPad = height * 0.04;
-    final bottomPad = height * 0.04;
-    final usableH = height - topPad - bottomPad;
+enum PitchHalf { top, bottom }
 
-    for (var r = 0; r < rows; r++) {
-      final row = lineup.lines[r];
-      final yIndex = rows == 1 ? 0.5 : r / (rows - 1);
-      final y = invert ? (1 - yIndex) : yIndex;
+class PitchSlot {
+  const PitchSlot({
+    required this.player,
+    required this.left,
+    required this.top,
+    required this.nodeHeight,
+  });
+
+  final PlayerModel player;
+  final double left;
+  final double top;
+  final double nodeHeight;
+}
+
+/// Maps formation rows to normalized pitch coordinates.
+class PitchPlayerLayout {
+  PitchPlayerLayout._();
+
+  static List<PitchSlot> compute({
+    required LineupModel lineup,
+    required PitchHalf half,
+    required double pitchWidth,
+    required double pitchHeight,
+    required double nodeWidth,
+    required double nodeHeight,
+  }) {
+    final bounds = _halfBounds(half);
+    final horizontalPad = pitchWidth * 0.06;
+
+    final rows = lineup.lines;
+    if (rows.isEmpty) return const [];
+
+    final out = <PitchSlot>[];
+    final rowCount = rows.length;
+
+    for (var r = 0; r < rowCount; r++) {
+      final row = rows[r];
+      final rowIndex = rowCount == 1 ? 0.5 : r / (rowCount - 1);
+      final normalizedY = half == PitchHalf.bottom
+          ? bounds.maxY - rowIndex * (bounds.maxY - bounds.minY)
+          : bounds.minY + rowIndex * (bounds.maxY - bounds.minY);
+      final centerY = pitchHeight * normalizedY;
 
       for (var p = 0; p < row.length; p++) {
-        final player = row[p];
-        final x = (p + 1) / (row.length + 1);
-        final isGk = player.position == 'GK';
-        const dotSize = 44.0;
-        final left = x * width - dotSize / 2;
-        final top = topPad + y * usableH - dotSize / 2;
-
+        final xRatio = (p + 1) / (row.length + 1);
+        final centerX =
+            horizontalPad + xRatio * (pitchWidth - horizontalPad * 2);
         out.add(
-          Positioned(
-            left: left.clamp(2, width - dotSize - 2),
-            top: top.clamp(2, height - dotSize - 6),
-            child: Hero(
-              tag: 'player-avatar-${player.id}',
-              child: Material(
-                color: Colors.transparent,
-                child: _PlayerPitchDot(
-                  player: player,
-                  isGoalkeeper: isGk,
-                  jerseyTop: isGk ? const Color(0xFFFFE566) : homeColor,
-                  jerseyBottom:
-                      isGk ? const Color(0xFFFFB020) : homeAccent,
-                  size: dotSize,
-                ),
-              ),
-            ),
+          PitchSlot(
+            player: row[p],
+            left: centerX - nodeWidth / 2,
+            top: centerY - nodeHeight / 2,
+            nodeHeight: nodeHeight,
           ),
         );
       }
     }
     return out;
   }
+
+  static ({double minY, double maxY}) _halfBounds(PitchHalf half) {
+    switch (half) {
+      case PitchHalf.top:
+        return (minY: 0.06, maxY: 0.46);
+      case PitchHalf.bottom:
+        return (minY: 0.54, maxY: 0.94);
+    }
+  }
 }
 
-class _PlayerPitchDot extends StatefulWidget {
-  const _PlayerPitchDot({
+class _PitchSurface extends StatelessWidget {
+  const _PitchSurface();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.pitchTop,
+                AppColors.pitchMid,
+                AppColors.pitchBottom,
+              ],
+              stops: [0.0, 0.55, 1.0],
+            ),
+          ),
+        ),
+        CustomPaint(painter: _StripePainter(stripeCount: 14)),
+      ],
+    );
+  }
+}
+
+class _PitchVignette extends StatelessWidget {
+  const _PitchVignette();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment.center,
+          radius: 1.05,
+          colors: [Color(0x00000000), Color(0x48000000)],
+          stops: [0.55, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayerPitchNode extends StatefulWidget {
+  const _PlayerPitchNode({
     required this.player,
     required this.isGoalkeeper,
     required this.jerseyTop,
     required this.jerseyBottom,
-    required this.size,
+    required this.avatarSize,
+    required this.maxLabelWidth,
   });
 
   final PlayerModel player;
   final bool isGoalkeeper;
   final Color jerseyTop;
   final Color jerseyBottom;
-  final double size;
+  final double avatarSize;
+  final double maxLabelWidth;
 
   @override
-  State<_PlayerPitchDot> createState() => _PlayerPitchDotState();
+  State<_PlayerPitchNode> createState() => _PlayerPitchNodeState();
 }
 
-class _PlayerPitchDotState extends State<_PlayerPitchDot>
+class _PlayerPitchNodeState extends State<_PlayerPitchNode>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
+  late final AnimationController _press = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 140),
   );
 
   @override
   void dispose() {
-    _c.dispose();
+    _press.dispose();
     super.dispose();
   }
 
@@ -167,25 +306,25 @@ class _PlayerPitchDotState extends State<_PlayerPitchDot>
   @override
   Widget build(BuildContext context) {
     final p = widget.player;
-    final rating = p.matchRating > 0 ? p.matchRating.toStringAsFixed(1) : '—';
-    final allowCdn =
-        AppScope.footballRepositoryOf(context).usesLiveApi;
-    final photoUrl = PlayerPhotoResolver.resolve(
-      p,
-      allowCdnFallback: allowCdn,
-    );
+    final allowCdn = AppScope.footballRepositoryOf(context).usesLiveApi;
+    final photoUrl =
+        PlayerPhotoResolver.resolve(p, allowCdnFallback: allowCdn);
+    final hasPhoto = photoUrl != null;
+    final rating =
+        p.matchRating > 0 ? p.matchRating.toStringAsFixed(1) : null;
 
     return GestureDetector(
-      onTapDown: (_) => _c.forward(from: 0),
-      onTapUp: (_) => _c.reverse(),
-      onTapCancel: () => _c.reverse(),
+      onTapDown: (_) => _press.forward(from: 0),
+      onTapUp: (_) => _press.reverse(),
+      onTapCancel: () => _press.reverse(),
       onTap: () =>
           Navigator.pushNamed(context, AppRoutes.playerDetails, arguments: p),
       child: ScaleTransition(
-        scale: Tween<double>(begin: 1, end: 0.9)
-            .animate(CurvedAnimation(parent: _c, curve: Curves.easeOut)),
+        scale: Tween<double>(begin: 1, end: 0.92).animate(
+          CurvedAnimation(parent: _press, curve: Curves.easeOut),
+        ),
         child: SizedBox(
-          width: widget.size + 4,
+          width: widget.maxLabelWidth,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -195,107 +334,54 @@ class _PlayerPitchDotState extends State<_PlayerPitchDot>
                 children: [
                   PlayerAvatar(
                     player: p,
-                    size: widget.size,
+                    size: widget.avatarSize,
                     jerseyTop: widget.jerseyTop,
                     jerseyBottom: widget.jerseyBottom,
-                    showJerseyNumber: true,
+                    showJerseyNumber: !hasPhoto,
                   ),
-                  if (photoUrl != null && p.number > 0)
+                  if (hasPhoto && p.number > 0)
                     Positioned(
-                      bottom: -2,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.72),
-                          borderRadius: BorderRadius.circular(6),
-                          border:
-                              Border.all(color: Colors.white, width: 0.7),
-                        ),
-                        child: Text(
-                          '${p.number}',
-                          style: TextStyle(
-                            fontSize: widget.size * 0.22,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
+                      bottom: 0,
+                      child: _NumberPill(
+                        number: p.number,
+                        fontSize: widget.avatarSize * 0.2,
                       ),
                     ),
                   if (p.isCaptain)
                     Positioned(
-                      top: -5,
-                      right: -3,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.teal, AppColors.tealDeep],
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.2),
-                          boxShadow: [
-                            BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 4),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'C',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      top: -4,
+                      right: -2,
+                      child: _CaptainBadge(size: widget.avatarSize * 0.34),
                     ),
-                  if (p.matchRating > 0)
+                  if (rating != null)
                     Positioned(
-                      bottom: -4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: _ratingColor(p.matchRating),
-                          borderRadius: BorderRadius.circular(6),
-                          border:
-                              Border.all(color: Colors.white, width: 0.8),
-                          boxShadow: [
-                            BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 4),
-                          ],
-                        ),
-                        child: Text(
-                          rating,
-                          style: const TextStyle(
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.black,
-                          ),
-                        ),
+                      bottom: hasPhoto ? 14 : -3,
+                      right: -4,
+                      child: _RatingBadge(
+                        rating: rating,
+                        color: _ratingColor(p.matchRating),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+              const SizedBox(height: 4),
+              SizedBox(
+                width: widget.maxLabelWidth,
                 child: Text(
                   p.shortName,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.2),
+                    color: Colors.white,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.15,
+                    shadows: [
+                      Shadow(
+                        color: Color(0xAA000000),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -308,8 +394,218 @@ class _PlayerPitchDotState extends State<_PlayerPitchDot>
   }
 }
 
+class _NumberPill extends StatelessWidget {
+  const _NumberPill({required this.number, required this.fontSize});
+
+  final int number;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white, width: 0.7),
+      ),
+      child: Text(
+        '$number',
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _CaptainBadge extends StatelessWidget {
+  const _CaptainBadge({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.teal, AppColors.tealDeep],
+        ),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        'C',
+        style: TextStyle(
+          fontSize: size * 0.55,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _RatingBadge extends StatelessWidget {
+  const _RatingBadge({required this.rating, required this.color});
+
+  final String rating;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.white, width: 0.7),
+      ),
+      child: Text(
+        rating,
+        style: const TextStyle(
+          fontSize: 7.5,
+          fontWeight: FontWeight.w900,
+          color: Colors.black,
+        ),
+      ),
+    );
+  }
+}
+
+/// Header above the pitch: both teams, logos, and formation badges.
+class LineupPitchHeader extends StatelessWidget {
+  const LineupPitchHeader({
+    super.key,
+    required this.homeName,
+    required this.awayName,
+    required this.homeShort,
+    required this.awayShort,
+    this.homeLogoUrl,
+    this.awayLogoUrl,
+    this.homeFormation,
+    this.awayFormation,
+  });
+
+  final String homeName;
+  final String awayName;
+  final String homeShort;
+  final String awayShort;
+  final String? homeLogoUrl;
+  final String? awayLogoUrl;
+  final String? homeFormation;
+  final String? awayFormation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _teamRow(
+          context,
+          name: homeName,
+          shortName: homeShort,
+          logoUrl: homeLogoUrl,
+          formation: homeFormation,
+          alignEnd: false,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(
+            'VS',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+              color: Theme.of(context).hintColor,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        _teamRow(
+          context,
+          name: awayName,
+          shortName: awayShort,
+          logoUrl: awayLogoUrl,
+          formation: awayFormation,
+          alignEnd: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _teamRow(
+    BuildContext context, {
+    required String name,
+    required String shortName,
+    required String? logoUrl,
+    required String? formation,
+    required bool alignEnd,
+  }) {
+    final logo = TeamLogo(shortName: shortName, imageUrl: logoUrl, size: 32);
+    final nameWidget = Expanded(
+      child: Text(
+        name,
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 14,
+          letterSpacing: -0.2,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    final formationChip = formation != null && formation.isNotEmpty
+        ? _FormationChip(label: formation)
+        : const SizedBox.shrink();
+
+    final children = alignEnd
+        ? [formationChip, const SizedBox(width: 8), nameWidget, const SizedBox(width: 8), logo]
+        : [logo, const SizedBox(width: 8), nameWidget, const SizedBox(width: 8), formationChip];
+
+    return Row(children: children);
+  }
+}
+
+class _FormationChip extends StatelessWidget {
+  const _FormationChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.teal, AppColors.neonGreen],
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+}
+
 class _StripePainter extends CustomPainter {
-  _StripePainter({required this.stripeCount});
+  const _StripePainter({required this.stripeCount});
 
   final int stripeCount;
 
@@ -333,12 +629,12 @@ class _PitchMarkingsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final line = Paint()
-      ..color = Colors.white.withValues(alpha: 0.78)
+      ..color = Colors.white.withValues(alpha: 0.82)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+      ..strokeWidth = 1.5;
 
     final softLine = Paint()
-      ..color = Colors.white.withValues(alpha: 0.55)
+      ..color = Colors.white.withValues(alpha: 0.58)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -348,40 +644,52 @@ class _PitchMarkingsPainter extends CustomPainter {
     canvas.drawLine(
       Offset(0, size.height / 2),
       Offset(size.width, size.height / 2),
-      line,
+      line..strokeWidth = 2,
     );
 
-    final cr = size.width * 0.13;
+    final cr = size.width * 0.12;
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), cr, line);
     canvas.drawCircle(
       Offset(size.width / 2, size.height / 2),
-      2.4,
+      2.5,
       Paint()..color = Colors.white,
     );
 
-    final boxW = size.width * 0.62;
-    final boxH = size.height * 0.18;
+    final boxW = size.width * 0.6;
+    final boxH = size.height * 0.17;
     final boxLeft = (size.width - boxW) / 2;
     canvas.drawRect(Rect.fromLTWH(boxLeft, 0, boxW, boxH), line);
     canvas.drawRect(
-        Rect.fromLTWH(boxLeft, size.height - boxH, boxW, boxH), line);
+      Rect.fromLTWH(boxLeft, size.height - boxH, boxW, boxH),
+      line,
+    );
 
-    final sixW = size.width * 0.32;
-    final sixH = size.height * 0.08;
+    final sixW = size.width * 0.3;
+    final sixH = size.height * 0.075;
     final sixLeft = (size.width - sixW) / 2;
     canvas.drawRect(Rect.fromLTWH(sixLeft, 0, sixW, sixH), line);
     canvas.drawRect(
-        Rect.fromLTWH(sixLeft, size.height - sixH, sixW, sixH), line);
+      Rect.fromLTWH(sixLeft, size.height - sixH, sixW, sixH),
+      line,
+    );
 
-    canvas.drawCircle(Offset(size.width / 2, boxH * 0.62), 1.8,
-        Paint()..color = Colors.white);
-    canvas.drawCircle(Offset(size.width / 2, size.height - boxH * 0.62), 1.8,
-        Paint()..color = Colors.white);
+    canvas.drawCircle(
+      Offset(size.width / 2, boxH * 0.62),
+      2,
+      Paint()..color = Colors.white,
+    );
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height - boxH * 0.62),
+      2,
+      Paint()..color = Colors.white,
+    );
 
-    final arcR = size.width * 0.10;
+    final arcR = size.width * 0.09;
     canvas.drawArc(
       Rect.fromCircle(
-          center: Offset(size.width / 2, boxH * 0.85), radius: arcR),
+        center: Offset(size.width / 2, boxH * 0.85),
+        radius: arcR,
+      ),
       0.5,
       2.1,
       false,
@@ -389,53 +697,37 @@ class _PitchMarkingsPainter extends CustomPainter {
     );
     canvas.drawArc(
       Rect.fromCircle(
-          center: Offset(size.width / 2, size.height - boxH * 0.85),
-          radius: arcR),
+        center: Offset(size.width / 2, size.height - boxH * 0.85),
+        radius: arcR,
+      ),
       3.6,
       2.1,
       false,
       softLine,
     );
 
-    const cornerR = 8.0;
-    canvas.drawArc(
-      Rect.fromCircle(center: const Offset(2, 2), radius: cornerR),
-      0,
-      1.6,
-      false,
-      softLine,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(
-          center: Offset(size.width - 2, 2), radius: cornerR),
-      1.6,
-      1.6,
-      false,
-      softLine,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(
-          center: Offset(2, size.height - 2), radius: cornerR),
-      -1.6,
-      1.6,
-      false,
-      softLine,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(
-          center: Offset(size.width - 2, size.height - 2), radius: cornerR),
-      3.14,
-      1.6,
-      false,
-      softLine,
-    );
+    const cornerR = 7.0;
+    for (final corner in [
+      const Offset(2, 2),
+      Offset(size.width - 2, 2),
+      Offset(2, size.height - 2),
+      Offset(size.width - 2, size.height - 2),
+    ]) {
+      canvas.drawCircle(corner, cornerR * 0.35, softLine);
+    }
 
-    final goalW = size.width * 0.18;
+    final goalW = size.width * 0.16;
     final goalLeft = (size.width - goalW) / 2;
     canvas.drawLine(
-        Offset(goalLeft, 0), Offset(goalLeft + goalW, 0), line..strokeWidth = 2);
-    canvas.drawLine(Offset(goalLeft, size.height),
-        Offset(goalLeft + goalW, size.height), line);
+      Offset(goalLeft, 0),
+      Offset(goalLeft + goalW, 0),
+      line..strokeWidth = 2.2,
+    );
+    canvas.drawLine(
+      Offset(goalLeft, size.height),
+      Offset(goalLeft + goalW, size.height),
+      line,
+    );
   }
 
   @override

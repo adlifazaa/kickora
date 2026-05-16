@@ -1378,7 +1378,8 @@ class _FormStrip extends StatelessWidget {
   }
 }
 
-bool _hasPitchLineup(LineupModel lineup) => lineup.lines.isNotEmpty;
+bool _hasPitchLineup(LineupModel? lineup) =>
+    lineup != null && lineup.lines.isNotEmpty;
 
 bool _lineupHasContent(LineupModel? lineup) {
   if (lineup == null) return false;
@@ -1397,6 +1398,8 @@ class _LineupsTab extends StatelessWidget {
     final text = AppText.of(context);
     final showHome = _lineupHasContent(match.homeLineup);
     final showAway = _lineupHasContent(match.awayLineup);
+    final showPitch = _hasPitchLineup(match.homeLineup) ||
+        _hasPitchLineup(match.awayLineup);
 
     if (!showHome && !showAway) {
       return AsyncContentView(
@@ -1412,39 +1415,103 @@ class _LineupsTab extends StatelessWidget {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
       children: [
-        if (showHome) ...[
-          _TeamLineupCard(
-            teamName: match.homeTeam.name,
-            shortName: match.homeTeam.shortName,
-            logoUrl: match.homeTeam.logo,
-            lineup: match.homeLineup!,
-            invert: false,
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Theme.of(context).dividerColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LineupPitchHeader(
+                homeName: match.homeTeam.name,
+                awayName: match.awayTeam.name,
+                homeShort: match.homeTeam.shortName,
+                awayShort: match.awayTeam.shortName,
+                homeLogoUrl: match.homeTeam.logo,
+                awayLogoUrl: match.awayTeam.logo,
+                homeFormation: match.homeLineup?.formation,
+                awayFormation: match.awayLineup?.formation,
+              ),
+              if (showPitch) ...[
+                const SizedBox(height: 12),
+                DualTeamLineupPitch(
+                  homeLineup: match.homeLineup,
+                  awayLineup: match.awayLineup,
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (showHome || showAway) ...[
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 360;
+              final homeCard = showHome
+                  ? _TeamLineupExtras(
+                      teamName: match.homeTeam.name,
+                      shortName: match.homeTeam.shortName,
+                      logoUrl: match.homeTeam.logo,
+                      lineup: match.homeLineup!,
+                    )
+                  : null;
+              final awayCard = showAway
+                  ? _TeamLineupExtras(
+                      teamName: match.awayTeam.name,
+                      shortName: match.awayTeam.shortName,
+                      logoUrl: match.awayTeam.logo,
+                      lineup: match.awayLineup!,
+                    )
+                  : null;
+
+              if (stacked) {
+                return Column(
+                  children: [
+                    ?homeCard,
+                    if (homeCard != null && awayCard != null)
+                      const SizedBox(height: 10),
+                    ?awayCard,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (homeCard != null) Expanded(child: homeCard),
+                  if (homeCard != null && awayCard != null)
+                    const SizedBox(width: 10),
+                  if (awayCard != null) Expanded(child: awayCard),
+                ],
+              );
+            },
           ),
         ],
-        if (showHome && showAway) const SizedBox(height: 14),
-        if (showAway)
-          _TeamLineupCard(
-            teamName: match.awayTeam.name,
-            shortName: match.awayTeam.shortName,
-            logoUrl: match.awayTeam.logo,
-            lineup: match.awayLineup!,
-            invert: true,
-          ),
       ],
     );
   }
 }
 
-class _TeamLineupCard extends StatelessWidget {
-  const _TeamLineupCard({
+class _TeamLineupExtras extends StatelessWidget {
+  const _TeamLineupExtras({
     required this.teamName,
     required this.shortName,
     required this.lineup,
-    required this.invert,
     this.logoUrl,
   });
 
@@ -1452,7 +1519,6 @@ class _TeamLineupCard extends StatelessWidget {
   final String shortName;
   final String? logoUrl;
   final LineupModel lineup;
-  final bool invert;
 
   @override
   Widget build(BuildContext context) {
@@ -1477,42 +1543,22 @@ class _TeamLineupCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              TeamLogo(shortName: shortName, imageUrl: logoUrl, size: 40),
-              const SizedBox(width: 10),
+              TeamLogo(shortName: shortName, imageUrl: logoUrl, size: 32),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   teamName,
                   style: const TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 16,
+                      fontSize: 14,
                       letterSpacing: -0.2),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.teal, AppColors.neonGreen],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  lineup.formation,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                      color: Colors.black87),
-                ),
-              ),
             ],
           ),
-          if (_hasPitchLineup(lineup)) ...[
-            const SizedBox(height: 12),
-            PremiumFootballPitch(lineup: lineup, invert: invert),
-          ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           _coachCard(context, text, lineup.coach),
           const SizedBox(height: 12),
           _benchSection(context, text),
@@ -1586,10 +1632,17 @@ class _TeamLineupCard extends StatelessWidget {
                           showJerseyNumber: true,
                         ),
                         const SizedBox(width: 6),
-                        Text(p.shortName,
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 96),
+                          child: Text(
+                            p.shortName,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 12)),
-                        const SizedBox(width: 6),
+                                fontWeight: FontWeight.w700, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
                       ],
                     ),
                   ),
