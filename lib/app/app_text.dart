@@ -133,6 +133,62 @@ class AppText {
   String get finished => _isArabic ? 'منتهية' : 'Finished';
   String get pullRefreshHint => _isArabic ? 'اسحب للتحديث' : 'Pull to refresh';
 
+  String get removeAdsTitle =>
+      _isArabic ? 'إزالة الإعلانات' : 'Remove ads';
+
+  String get removeAdsHeadline => _isArabic
+      ? 'استمتع بـ Kickora بدون إعلانات'
+      : 'Enjoy Kickora without ads';
+
+  String get removeAdsSubtitle => _isArabic
+      ? 'تجربة أنظف للمباريات والبطولات والتفاصيل.'
+      : 'A cleaner experience across matches, leagues, and details.';
+
+  String get removeAdsSettingsSubtitle => _isArabic
+      ? 'اشترك أو جرّب مجانًا — الدفع قريبًا'
+      : 'Subscribe or try free — payments coming soon';
+
+  String get premiumActiveTitle =>
+      _isArabic ? 'أنت مشترك مميز' : 'You are Premium';
+
+  String get premiumActiveSubtitle => _isArabic
+      ? 'الإعلانات مخفية في كل أنحاء التطبيق.'
+      : 'Ads are hidden throughout the app.';
+
+  String get subscriptionPlansTitle =>
+      _isArabic ? 'اختر خطتك' : 'Choose your plan';
+
+  String get startFreeTrial =>
+      _isArabic ? 'ابدأ التجربة المجانية (٧ أيام)' : 'Start free trial (7 days)';
+
+  String get restorePurchases =>
+      _isArabic ? 'استعادة المشتريات' : 'Restore purchases';
+
+  String get paymentsComingSoonMessage => _isArabic
+      ? 'الدفع غير مفعّل بعد — قريبًا'
+      : 'Payments are not active yet — coming soon';
+
+  String get trialStartedMessage => _isArabic
+      ? 'تم تفعيل التجربة المجانية محليًا'
+      : 'Free trial activated locally';
+
+  String get restoreUnavailableMessage => _isArabic
+      ? 'لا توجد مشتريات لاستعادتها بعد'
+      : 'No purchases to restore yet';
+
+  String get restoreSuccessMessage => _isArabic
+      ? 'تمت الاستعادة'
+      : 'Purchases restored';
+
+  String get subscriptionLegalNote => _isArabic
+      ? 'الأسعار للعرض فقط. الاشتراك يتجدد تلقائيًا عند التفعيل لاحقًا.'
+      : 'Prices shown for preview. Subscriptions will auto-renew when billing goes live.';
+
+  String premiumExpiresLabel(DateTime at) {
+    final d = '${at.day}/${at.month}/${at.year}';
+    return _isArabic ? 'ينتهي في $d' : 'Renews / expires $d';
+  }
+
   String get refreshingLabel =>
       _isArabic ? 'جاري التحديث…' : 'Refreshing…';
 

@@ -13,6 +13,7 @@ import '../screens/matches_screen.dart';
 import '../screens/player_details_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/splash_screen.dart';
+import '../screens/subscription_screen.dart';
 import '../screens/terms_of_use_screen.dart';
 import '../screens/standings_screen.dart';
 import '../widgets/micro_interactions.dart';
@@ -29,6 +30,7 @@ class AppRoutes {
   static const about = '/about';
   static const privacy = '/privacy';
   static const terms = '/terms';
+  static const subscription = '/subscription';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -81,6 +83,10 @@ class AppRoutes {
         return PremiumPageRoute(
             settings: settings,
             builder: (context) => const TermsOfUseScreen());
+      case subscription:
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const SubscriptionScreen());
       default:
         return MaterialPageRoute(
             settings: settings, builder: (context) => const HomeScreen());

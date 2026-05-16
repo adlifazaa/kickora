@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ads/ad_placement.dart';
 import '../ads/ad_service.dart';
+import '../app/app_scope.dart';
 import 'ad_placeholder.dart';
 
 /// In-feed native-style slot (match lists, competitions, match details).
@@ -21,15 +22,23 @@ class NativeAdPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ads = AdService.instance;
-    if (!ads.shouldShowPlaceholder(
-      placement,
-      feedItemIndex: feedItemIndex,
-    )) {
-      return const SizedBox.shrink();
-    }
+    return ListenableBuilder(
+      listenable: AppScope.of(context),
+      builder: (context, _) {
+        if (!AppScope.of(context).adsEnabled) {
+          return const SizedBox.shrink();
+        }
+        final ads = AdService.instance;
+        if (!ads.shouldShowPlaceholder(
+          placement,
+          feedItemIndex: feedItemIndex,
+        )) {
+          return const SizedBox.shrink();
+        }
 
-    ads.recordPlaceholderImpression(placement);
-    return ContentSpotlightPlaceholder(variant: variant);
+        ads.recordPlaceholderImpression(placement);
+        return ContentSpotlightPlaceholder(variant: variant);
+      },
+    );
   }
 }

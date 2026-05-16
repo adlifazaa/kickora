@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ads/ad_placement.dart';
 import '../ads/ad_service.dart';
+import '../app/app_scope.dart';
 import 'ad_placeholder.dart';
 
 /// Home (and other) banner slot — premium placeholder until AdMob banner is enabled.
@@ -23,10 +24,22 @@ class BannerPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ads = AdService.instance;
-    if (!ads.shouldShowPlaceholder(placement)) {
-      return const SizedBox.shrink();
-    }
+    return ListenableBuilder(
+      listenable: AppScope.of(context),
+      builder: (context, _) {
+        if (!AppScope.of(context).adsEnabled) {
+          return const SizedBox.shrink();
+        }
+        final ads = AdService.instance;
+        if (!ads.shouldShowPlaceholder(placement)) {
+          return const SizedBox.shrink();
+        }
+        return _buildSlot(context, ads);
+      },
+    );
+  }
+
+  Widget _buildSlot(BuildContext context, AdService ads) {
 
     ads.recordPlaceholderImpression(placement);
 

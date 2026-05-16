@@ -97,6 +97,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               ),
               const SizedBox(height: 10),
               ...insertFeedSpotlights(
+                context: context,
                 interval: 4,
                 items: [
                   for (final match in matches)

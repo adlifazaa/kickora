@@ -155,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 10),
                 ...insertFeedSpotlights(
+                  context: context,
                   skipFirst: 0,
                   interval: 4,
                   items: [
@@ -209,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               else
                 ...insertFeedSpotlights(
+                  context: context,
                   interval: 4,
                   items: [
                     for (var i = 0; i < _todayMatches.length; i++)

@@ -7,6 +7,7 @@ import 'core/network/api_debug_log.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/services/football_api_service.dart';
 import 'ads/ad_service.dart';
+import 'subscription/premium_subscription_service.dart';
 import 'core/refresh/match_refresh_service.dart';
 import 'notifications/services/kickora_notification_service.dart';
 import 'services/app_controller.dart';
@@ -15,8 +16,11 @@ import 'services/favorite_manager.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiDebugLog.boot();
-  await AdService.instance.initialize();
   final preferences = await SharedPreferences.getInstance();
+  final premiumSubscriptionService = PremiumSubscriptionService(preferences);
+  await premiumSubscriptionService.load();
+  AdService.instance.bindPremium(premiumSubscriptionService);
+  await AdService.instance.initialize();
   final notificationService =
       KickoraNotificationService.createMock(preferences);
   await notificationService.initialize();
@@ -37,6 +41,7 @@ Future<void> main() async {
     notificationService: notificationService,
     favoriteManager: favoriteManager,
     matchRefreshService: matchRefreshService,
+    premiumSubscriptionService: premiumSubscriptionService,
   );
   await controller.load();
   runApp(KickoraApp(controller: controller));

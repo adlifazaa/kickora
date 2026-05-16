@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'ad_frequency_controller.dart';
 import 'ad_placement.dart';
 import 'ad_remote_config.dart';
+import '../subscription/premium_subscription_service.dart';
 import 'managers/banner_ad_manager.dart';
 import 'managers/interstitial_ad_manager.dart';
 import 'managers/rewarded_ad_manager.dart';
@@ -21,12 +22,20 @@ class AdService {
   late final RewardedAdManager _rewarded = RewardedAdManager(_config);
 
   bool _initialized = false;
+  PremiumSubscriptionService? _premium;
 
   bool get isInitialized => _initialized;
   AdRemoteConfig get config => _config;
   BannerAdManager get banners => _banners;
   InterstitialAdManager get interstitials => _interstitials;
   RewardedAdManager get rewarded => _rewarded;
+
+  /// Links premium state so ad placeholders hide when [PremiumSubscriptionService.isPremium].
+  void bindPremium(PremiumSubscriptionService premium) {
+    _premium = premium;
+  }
+
+  bool get _suppressAds => _premium?.isPremium ?? false;
 
   /// Call once at app startup.
   Future<void> initialize({AdRemoteConfig? remoteConfig}) async {
@@ -56,6 +65,7 @@ class AdService {
   }
 
   bool shouldShowPlaceholder(AdPlacement placement, {int? feedItemIndex}) {
+    if (_suppressAds) return false;
     if (!_config.placementEnabled(placement)) return false;
     return _frequency.canShowPlacement(
       placement,
@@ -63,14 +73,17 @@ class AdService {
     );
   }
 
-  bool shouldShowRealAd(AdPlacement placement) =>
-      _config.allowsRealAds(placement);
+  bool shouldShowRealAd(AdPlacement placement) {
+    if (_suppressAds) return false;
+    return _config.allowsRealAds(placement);
+  }
 
   void recordPlaceholderImpression(AdPlacement placement) {
     _frequency.recordImpression(placement);
   }
 
   Future<void> onNavigationAction() async {
+    if (_suppressAds) return;
     await _interstitials.showIfAllowed();
   }
 

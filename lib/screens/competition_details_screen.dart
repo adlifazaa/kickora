@@ -301,6 +301,7 @@ class _CompetitionHeader extends StatelessWidget {
 List<Widget> _matchesWithSpotlights(
     BuildContext context, List<MatchModel> matches) {
   return insertFeedSpotlights(
+    context: context,
     interval: 4,
     items: [
       for (final match in matches)

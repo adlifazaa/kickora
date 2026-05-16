@@ -84,6 +84,27 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 26),
               SectionHeader(
+                title: text.isArabic ? 'Kickora Premium' : 'Kickora Premium',
+                icon: Icons.workspace_premium_rounded,
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.block_rounded,
+                iconColor: AppColors.neonGreen,
+                title: text.removeAdsTitle,
+                subtitle: app.isPremium
+                    ? text.premiumActiveSubtitle
+                    : text.removeAdsSettingsSubtitle,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.subscription),
+                trailing: app.isPremium
+                    ? Icon(Icons.verified_rounded,
+                        color: Theme.of(context).colorScheme.primary)
+                    : Icon(Icons.chevron_right_rounded,
+                        color: Theme.of(context).hintColor),
+              ),
+              const SizedBox(height: 26),
+              SectionHeader(
                 title: text.isArabic ? 'معلومات Kickora' : 'About Kickora',
                 icon: Icons.info_outline_rounded,
               ),

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../data/repositories/football_repository.dart';
 import '../notifications/services/kickora_notification_service.dart';
+import '../subscription/premium_subscription_service.dart';
 import 'favorite_manager.dart';
 
 class AppController extends ChangeNotifier {
@@ -13,6 +14,7 @@ class AppController extends ChangeNotifier {
     KickoraNotificationService? notificationService,
     FavoriteManager? favoriteManager,
     MatchRefreshService? matchRefreshService,
+    PremiumSubscriptionService? premiumSubscriptionService,
   })  : footballRepository = footballRepository ?? FootballRepository(),
         notificationService = notificationService ??
             KickoraNotificationService.createMock(_preferences),
@@ -25,14 +27,18 @@ class AppController extends ChangeNotifier {
         matchRefreshService = matchRefreshService ??
             MatchRefreshService(
               footballRepository ?? FootballRepository(),
-            ) {
+            ),
+        premiumSubscriptionService = premiumSubscriptionService ??
+            PremiumSubscriptionService(_preferences) {
     this.favoriteManager.addListener(notifyListeners);
+    this.premiumSubscriptionService.addListener(notifyListeners);
   }
 
   final FootballRepository footballRepository;
   final KickoraNotificationService notificationService;
   final FavoriteManager favoriteManager;
   final MatchRefreshService matchRefreshService;
+  final PremiumSubscriptionService premiumSubscriptionService;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
@@ -59,6 +65,10 @@ class AppController extends ChangeNotifier {
   bool get notificationsEnabled => _notificationsEnabled;
   List<String> get recentSearches => List.unmodifiable(_recentSearches);
 
+  bool get isPremium => premiumSubscriptionService.isPremium;
+  bool get adsEnabled => premiumSubscriptionService.adsEnabled;
+  bool get trialAvailable => premiumSubscriptionService.trialAvailable;
+
   Future<void> load() async {
     final themeValue = _preferences.getString(_themeKey) ?? ThemeMode.dark.name;
     _themeMode =
@@ -68,6 +78,7 @@ class AppController extends ChangeNotifier {
     _locale = Locale(languageCode);
 
     await favoriteManager.load();
+    await premiumSubscriptionService.load();
 
     _notificationsEnabled = _preferences.getBool(_notificationsKey) ?? false;
     _recentSearches =
@@ -161,6 +172,7 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     favoriteManager.removeListener(notifyListeners);
+    premiumSubscriptionService.removeListener(notifyListeners);
     super.dispose();
   }
 }
