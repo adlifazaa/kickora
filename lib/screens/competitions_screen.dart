@@ -7,6 +7,7 @@ import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../services/app_controller.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/async_content_view.dart';
 import '../widgets/competition_card.dart';
 
 /// Browse + search competitions. Includes a premium search field, category
@@ -22,11 +23,37 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
   final TextEditingController _controller = TextEditingController();
   String _query = '';
   String _category = 'all';
+  bool _loading = true;
+  String? _loadError;
+  List<CompetitionModel> _competitions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCompetitions());
+  }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCompetitions() async {
+    final repo = AppScope.footballRepositoryOf(context);
+    final state = await repo.getCompetitions();
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _loadError = state.hasError ? state.errorMessage : null;
+      if (state.hasError) {
+        _competitions = [];
+      } else if (repo.usesLiveApi) {
+        _competitions = state.data ?? [];
+      } else {
+        _competitions = state.data ?? MockData.competitions;
+      }
+    });
   }
 
   void _setQuery(String value) {
@@ -55,8 +82,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
     return ListenableBuilder(
       listenable: app,
       builder: (context, _) {
-        final all = MockData.competitions;
-        final filtered = all.where((c) {
+        final filtered = _competitions.where((c) {
           final qOk = _query.isEmpty ||
               c.name.toLowerCase().contains(_query.toLowerCase()) ||
               c.region.toLowerCase().contains(_query.toLowerCase());
@@ -166,6 +192,24 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
 
   Widget _buildBody(BuildContext context, AppController app, AppText text,
       List<CompetitionModel> filtered) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+
+    if (_loadError != null && filtered.isEmpty) {
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        onRetry: _loadCompetitions,
+        emptyIcon: Icons.cloud_off_rounded,
+        emptyTitle: text.isArabic
+            ? 'تعذر تحميل البطولات'
+            : 'Could not load competitions',
+        emptySubtitle: _loadError!,
+        child: const SizedBox.shrink(),
+      );
+    }
+
     final hasQuery = _query.trim().isNotEmpty;
     if (!hasQuery && _category == 'all' && filtered.isNotEmpty) {
       // Idle state: show recent searches + the catalog grid.

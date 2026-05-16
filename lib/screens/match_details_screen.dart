@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
+import '../core/debug/match_details_log.dart';
+import '../core/state/data_state.dart';
 import '../core/refresh/match_refresh_category.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../app/routes.dart';
@@ -43,10 +45,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
 
   MatchModel get m => _match;
 
+  int get _fixtureId => _match.resolvedFixtureId;
+
+  bool get _isApiFixture => _match.isApiFixture;
+
   @override
   void initState() {
     super.initState();
     _match = widget.match;
+    logMatchDetails(
+      'open match id=${widget.match.id} fixtureId=$_fixtureId '
+      'apiFixture=$_isApiFixture '
+      '${widget.match.homeTeam.name} vs ${widget.match.awayTeam.name}',
+    );
     _tabController = TabController(
       length: 4,
       vsync: this,
@@ -85,6 +96,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     }
   }
 
+  bool _acceptRepositoryResult<T>(DataState<T> state) {
+    if (!_isApiFixture) return true;
+    return !state.fromMock;
+  }
+
   Future<void> _loadDetails({bool silent = false}) async {
     if (!silent && mounted) {
       setState(() => _loadingDetails = true);
@@ -93,28 +109,143 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     }
 
     final repo = AppScope.footballRepositoryOf(context);
-    final id = _match.id;
+    final fixtureId = _fixtureId;
+    final matchId = _match.id;
 
-    final matchState = await repo.getMatchById(id);
-    final eventsState = await repo.getMatchEvents(id);
-    final statsState = await repo.getMatchStatistics(id);
-    final lineupsState = await repo.getMatchLineups(id);
-    final standingsState =
-        await repo.getStandings(leagueId: _match.competition.id);
+    var base = _match;
+    var events = _isApiFixture ? const <MatchEventModel>[] : _match.events;
+    var stats = _isApiFixture ? const <MatchStatisticModel>[] : _match.stats;
+    LineupModel? homeLineup = _isApiFixture ? null : _match.homeLineup;
+    LineupModel? awayLineup = _isApiFixture ? null : _match.awayLineup;
+    var standings =
+        _isApiFixture ? const <StandingModel>[] : _match.standings;
 
-    final base = matchState.data ?? _match;
-    final events = eventsState.data;
-    final stats = statsState.data;
-    final lineups = lineupsState.data;
-    final standings = standingsState.data;
+    try {
+      final matchState =
+          await repo.getMatchById(matchId, fixtureId: fixtureId);
+      logMatchDetails(
+        'fixture=$fixtureId match=${matchState.fromMock ? "mock-fallback" : "api"} '
+        'hasData=${matchState.data != null}',
+      );
+      if (_acceptRepositoryResult(matchState)) {
+        final refreshed = matchState.data;
+        if (refreshed != null) {
+          base = _match.copyWith(
+            fixtureId: fixtureId,
+            homeTeam: refreshed.homeTeam,
+            awayTeam: refreshed.awayTeam,
+            homeScore: refreshed.homeScore,
+            awayScore: refreshed.awayScore,
+            status: refreshed.status,
+            timeLabel: refreshed.timeLabel,
+            competition: refreshed.competition,
+            date: refreshed.date,
+            stadium: refreshed.stadium.isNotEmpty
+                ? refreshed.stadium
+                : _match.stadium,
+            liveCommentary: _isApiFixture
+                ? const []
+                : refreshed.liveCommentary,
+          );
+        }
+      }
+    } catch (e) {
+      logMatchDetails('fixture fetch error: $e');
+    }
 
-    var homeLineup = lineups?.home ?? base.homeLineup ?? _match.homeLineup;
-    var awayLineup = lineups?.away ?? base.awayLineup ?? _match.awayLineup;
+    try {
+      final eventsState =
+          await repo.getMatchEvents(matchId, fixtureId: fixtureId);
+      logMatchDetails(
+        'events fixture=$fixtureId source=${eventsState.fromMock ? "mock-fallback" : "api"} '
+        'count=${eventsState.data?.length ?? 0}',
+      );
+      if (_acceptRepositoryResult(eventsState)) {
+        final data = eventsState.data;
+        if (data != null) events = data;
+      }
+    } catch (e) {
+      logMatchDetails('events error: $e');
+    }
 
-    final homeFormation = await repo.getFormation(id, isHome: true);
-    final awayFormation = await repo.getFormation(id, isHome: false);
-    homeLineup = _lineupWithFormation(homeLineup, homeFormation.data);
-    awayLineup = _lineupWithFormation(awayLineup, awayFormation.data);
+    try {
+      final statsState =
+          await repo.getMatchStatistics(matchId, fixtureId: fixtureId);
+      logMatchDetails(
+        'stats fixture=$fixtureId source=${statsState.fromMock ? "mock-fallback" : "api"} '
+        'count=${statsState.data?.length ?? 0}',
+      );
+      if (_acceptRepositoryResult(statsState)) {
+        final data = statsState.data;
+        if (data != null) stats = data;
+      }
+    } catch (e) {
+      logMatchDetails('stats error: $e');
+    }
+
+    try {
+      final lineupsState =
+          await repo.getMatchLineups(matchId, fixtureId: fixtureId);
+      logMatchDetails(
+        'lineups fixture=$fixtureId source=${lineupsState.fromMock ? "mock-fallback" : "api"} '
+        'home=${lineupsState.data?.home != null} away=${lineupsState.data?.away != null}',
+      );
+      if (_acceptRepositoryResult(lineupsState)) {
+        final data = lineupsState.data;
+        if (data != null) {
+          if (data.home != null) homeLineup = data.home;
+          if (data.away != null) awayLineup = data.away;
+        }
+      }
+    } catch (e) {
+      logMatchDetails('lineups error: $e');
+    }
+
+    try {
+      final homeFormation = await repo.getFormation(
+        matchId,
+        fixtureId: fixtureId,
+        isHome: true,
+      );
+      final awayFormation = await repo.getFormation(
+        matchId,
+        fixtureId: fixtureId,
+        isHome: false,
+      );
+      if (_acceptRepositoryResult(homeFormation) &&
+          homeFormation.data != null &&
+          homeLineup != null) {
+        homeLineup = _mergeFormation(homeLineup, homeFormation.data!);
+      }
+      if (_acceptRepositoryResult(awayFormation) &&
+          awayFormation.data != null &&
+          awayLineup != null) {
+        awayLineup = _mergeFormation(awayLineup, awayFormation.data!);
+      }
+    } catch (e) {
+      logMatchDetails('formations error: $e');
+    }
+
+    try {
+      final standingsState = await repo.getStandings(
+        leagueId: _match.competition.id,
+        allowMockFallback: !_isApiFixture,
+      );
+      logMatchDetails(
+        'standings league=${_match.competition.id} '
+        'source=${standingsState.fromMock ? "mock-fallback" : "api"} '
+        'count=${standingsState.data?.length ?? 0}',
+      );
+      if (_acceptRepositoryResult(standingsState)) {
+        final data = standingsState.data;
+        if (data != null) standings = data;
+      }
+    } catch (e) {
+      logMatchDetails('standings error: $e');
+    }
+
+    final momentum = _momentumFromStats(stats) ??
+        (_isApiFixture ? 0.5 : base.momentumHome);
 
     if (!mounted) return;
     setState(() {
@@ -122,23 +253,21 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       _refreshingDetails = false;
       _lastUpdated = DateTime.now();
       _match = base.copyWith(
-        events: (events != null && events.isNotEmpty) ? events : base.events,
-        stats: (stats != null && stats.isNotEmpty) ? stats : base.stats,
+        fixtureId: fixtureId,
+        events: events,
+        stats: stats,
         homeLineup: homeLineup,
         awayLineup: awayLineup,
-        standings: (standings != null && standings.isNotEmpty)
-            ? standings
-            : (base.standings.isNotEmpty ? base.standings : _match.standings),
+        standings: standings,
+        momentumHome: momentum,
+        liveCommentary: _isApiFixture ? const [] : base.liveCommentary,
       );
+      _displayMinute = _parseMinute(_match);
     });
     _startLiveTimers();
   }
 
-  LineupModel? _lineupWithFormation(
-    LineupModel? lineup,
-    FormationModel? formation,
-  ) {
-    if (lineup == null || formation == null) return lineup;
+  LineupModel _mergeFormation(LineupModel lineup, FormationModel formation) {
     return LineupModel(
       formation: lineup.formation,
       coach: lineup.coach,
@@ -148,6 +277,16 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       missing: lineup.missing,
       formationDetail: formation,
     );
+  }
+
+  double? _momentumFromStats(List<MatchStatisticModel> stats) {
+    for (final stat in stats) {
+      if (!stat.title.toLowerCase().contains('possession')) continue;
+      final total = stat.home + stat.away;
+      if (total <= 0) continue;
+      return (stat.home / total).clamp(0.05, 0.95);
+    }
+    return null;
   }
 
   @override
@@ -448,6 +587,7 @@ class _GlowMatchHeader extends StatelessWidget {
                     child: _TeamBlock(
                       name: match.homeTeam.name,
                       shortName: match.homeTeam.shortName,
+                      logoUrl: match.homeTeam.logo,
                     ),
                   ),
                   Column(
@@ -505,6 +645,7 @@ class _GlowMatchHeader extends StatelessWidget {
                     child: _TeamBlock(
                       name: match.awayTeam.name,
                       shortName: match.awayTeam.shortName,
+                      logoUrl: match.awayTeam.logo,
                     ),
                   ),
                 ],
@@ -569,16 +710,28 @@ class _BigScore extends StatelessWidget {
 }
 
 class _TeamBlock extends StatelessWidget {
-  const _TeamBlock({required this.name, required this.shortName});
+  const _TeamBlock({
+    required this.name,
+    required this.shortName,
+    this.logoUrl,
+  });
 
   final String name;
   final String shortName;
+  final String? logoUrl;
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TeamLogo(shortName: shortName, size: 58),
+        Center(
+          child: TeamLogo(
+            shortName: shortName,
+            imageUrl: logoUrl,
+            size: 58,
+          ),
+        ),
         const SizedBox(height: 10),
         Text(
           name,
@@ -1212,6 +1365,15 @@ class _FormStrip extends StatelessWidget {
   }
 }
 
+bool _hasPitchLineup(LineupModel lineup) => lineup.lines.isNotEmpty;
+
+bool _lineupHasContent(LineupModel? lineup) {
+  if (lineup == null) return false;
+  return lineup.lines.isNotEmpty ||
+      lineup.substitutes.isNotEmpty ||
+      lineup.coach.isNotEmpty;
+}
+
 class _LineupsTab extends StatelessWidget {
   const _LineupsTab({required this.match});
 
@@ -1220,7 +1382,10 @@ class _LineupsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    if (match.homeLineup == null || match.awayLineup == null) {
+    final showHome = _lineupHasContent(match.homeLineup);
+    final showAway = _lineupHasContent(match.awayLineup);
+
+    if (!showHome && !showAway) {
       return AsyncContentView(
         loading: false,
         isEmpty: true,
@@ -1238,19 +1403,24 @@ class _LineupsTab extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
       children: [
-        _TeamLineupCard(
-          teamName: match.homeTeam.name,
-          shortName: match.homeTeam.shortName,
-          lineup: match.homeLineup!,
-          invert: false,
-        ),
-        const SizedBox(height: 14),
-        _TeamLineupCard(
-          teamName: match.awayTeam.name,
-          shortName: match.awayTeam.shortName,
-          lineup: match.awayLineup!,
-          invert: true,
-        ),
+        if (showHome) ...[
+          _TeamLineupCard(
+            teamName: match.homeTeam.name,
+            shortName: match.homeTeam.shortName,
+            logoUrl: match.homeTeam.logo,
+            lineup: match.homeLineup!,
+            invert: false,
+          ),
+        ],
+        if (showHome && showAway) const SizedBox(height: 14),
+        if (showAway)
+          _TeamLineupCard(
+            teamName: match.awayTeam.name,
+            shortName: match.awayTeam.shortName,
+            logoUrl: match.awayTeam.logo,
+            lineup: match.awayLineup!,
+            invert: true,
+          ),
       ],
     );
   }
@@ -1262,10 +1432,12 @@ class _TeamLineupCard extends StatelessWidget {
     required this.shortName,
     required this.lineup,
     required this.invert,
+    this.logoUrl,
   });
 
   final String teamName;
   final String shortName;
+  final String? logoUrl;
   final LineupModel lineup;
   final bool invert;
 
@@ -1292,7 +1464,7 @@ class _TeamLineupCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              TeamLogo(shortName: shortName, size: 40),
+              TeamLogo(shortName: shortName, imageUrl: logoUrl, size: 40),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1323,8 +1495,10 @@ class _TeamLineupCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          PremiumFootballPitch(lineup: lineup, invert: invert),
+          if (_hasPitchLineup(lineup)) ...[
+            const SizedBox(height: 12),
+            PremiumFootballPitch(lineup: lineup, invert: invert),
+          ],
           const SizedBox(height: 14),
           _coachCard(context, text, lineup.coach),
           const SizedBox(height: 12),

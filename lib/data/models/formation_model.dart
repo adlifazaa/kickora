@@ -18,7 +18,18 @@ class FormationModel {
     );
   }
 
-  factory FormationModel.fromName(String name) => FormationModel(name: name);
+  factory FormationModel.fromName(String name) {
+    final trimmed = name.trim();
+    final lines = trimmed
+        .split('-')
+        .map((part) => int.tryParse(part.trim()) ?? 0)
+        .where((n) => n > 0)
+        .toList();
+    return FormationModel(
+      name: trimmed.isEmpty ? '?' : trimmed,
+      lines: lines,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'name': name,

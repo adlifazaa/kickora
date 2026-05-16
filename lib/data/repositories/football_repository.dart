@@ -1,5 +1,6 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/errors/api_exception.dart';
+import '../../core/network/api_debug_log.dart';
 import '../../core/state/data_state.dart';
 import '../mock_data.dart';
 import '../models/competition_model.dart';
@@ -38,6 +39,7 @@ class FootballRepository {
       );
     }
     return _loadMatches(
+      operation: 'getLiveMatches',
       cacheKey: 'cache_live_matches',
       fetch: () => _api.fetchLiveMatches(
         date: date,
@@ -63,6 +65,7 @@ class FootballRepository {
       );
     }
     return _loadMatches(
+      operation: 'getUpcomingMatches',
       cacheKey: 'cache_upcoming_matches',
       fetch: () => _api.fetchUpcomingMatches(
         date: date,
@@ -88,6 +91,7 @@ class FootballRepository {
       );
     }
     return _loadMatches(
+      operation: 'getFinishedMatches',
       cacheKey: 'cache_finished_matches',
       fetch: () => _api.fetchFinishedMatches(
         date: date,
@@ -113,6 +117,7 @@ class FootballRepository {
       );
     }
     return _loadMatches(
+      operation: 'getMatches',
       cacheKey: 'cache_all_matches',
       fetch: () => _api.fetchMatches(
         date: date,
@@ -124,72 +129,162 @@ class FootballRepository {
     );
   }
 
-  Future<DataState<MatchModel?>> getMatchById(int id) async {
+  Future<DataState<MatchModel?>> getMatchById(
+    int id, {
+    int? fixtureId,
+  }) async {
+    final fid = _resolvedFixtureId(fixtureId, id);
+    final allowMock = _allowMockFallback(fid);
+
     try {
       if (!_api.isLive) {
         return DataState.success(_mockMatchById(id), fromMock: true);
       }
-      final remote = await _api.fetchMatchById(id);
-      if (remote != null) return DataState.success(remote);
-      return DataState.success(_mockMatchById(id), fromMock: true);
-    } on ApiException catch (e) {
-      if (e.isNotConfigured) {
+      final remote = await _api.fetchMatchById(fid);
+      if (remote != null) {
+        return DataState.success(
+          remote.copyWith(fixtureId: fid),
+          fromMock: false,
+        );
+      }
+      if (allowMock) {
         return DataState.success(_mockMatchById(id), fromMock: true);
       }
-      return DataState.success(_mockMatchById(id), fromMock: true);
+      return const DataState.success(null, fromMock: false);
+    } on ApiException catch (e) {
+      if (e.isNotConfigured || allowMock) {
+        return DataState.success(_mockMatchById(id), fromMock: true);
+      }
+      return const DataState.success(null, fromMock: false);
     } catch (_) {
-      return DataState.success(_mockMatchById(id), fromMock: true);
+      if (allowMock) {
+        return DataState.success(_mockMatchById(id), fromMock: true);
+      }
+      return const DataState.success(null, fromMock: false);
     }
   }
 
-  Future<DataState<List<MatchEventModel>>> getMatchEvents(int matchId) async {
-    final mock = _mockMatchById(matchId)?.events ?? const [];
-    return _loadSimple(
-      fetch: () => _api.fetchMatchEvents(matchId),
-      mock: () => mock,
+  Future<DataState<List<MatchEventModel>>> getMatchEvents(
+    int matchId, {
+    int? fixtureId,
+  }) async {
+    final fid = _resolvedFixtureId(fixtureId, matchId);
+    return _loadFixtureDetail(
+      fixtureId: fid,
+      allowMock: _allowMockFallback(fid),
+      fetch: () => _api.fetchMatchEvents(fid),
+      mockValue: () => _mockMatchById(matchId)?.events ?? const [],
+      emptyValue: () => const <MatchEventModel>[],
     );
   }
 
   Future<DataState<List<MatchStatisticModel>>> getMatchStatistics(
-    int matchId,
-  ) async {
-    final mock = _mockMatchById(matchId)?.stats ?? const [];
-    return _loadSimple(
-      fetch: () => _api.fetchMatchStatistics(matchId),
-      mock: () => mock,
+    int matchId, {
+    int? fixtureId,
+  }) async {
+    final fid = _resolvedFixtureId(fixtureId, matchId);
+    return _loadFixtureDetail(
+      fixtureId: fid,
+      allowMock: _allowMockFallback(fid),
+      fetch: () => _api.fetchMatchStatistics(fid),
+      mockValue: () => _mockMatchById(matchId)?.stats ?? const [],
+      emptyValue: () => const <MatchStatisticModel>[],
     );
   }
 
   Future<DataState<({LineupModel? home, LineupModel? away})>> getMatchLineups(
-    int matchId,
-  ) async {
+    int matchId, {
+    int? fixtureId,
+  }) async {
+    final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
-    return _loadSimple(
-      fetch: () => _api.fetchMatchLineups(matchId),
-      mock: () => (home: match?.homeLineup, away: match?.awayLineup),
+    return _loadFixtureDetail(
+      fixtureId: fid,
+      allowMock: _allowMockFallback(fid),
+      fetch: () => _api.fetchMatchLineups(fid),
+      mockValue: () => (home: match?.homeLineup, away: match?.awayLineup),
+      emptyValue: () => (home: null, away: null),
     );
   }
 
   Future<DataState<FormationModel?>> getFormation(
     int matchId, {
+    int? fixtureId,
     required bool isHome,
   }) async {
+    final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
     final lineup = isHome ? match?.homeLineup : match?.awayLineup;
-    return _loadSimple(
-      fetch: () => _api.fetchFormation(matchId, isHome: isHome),
-      mock: () => lineup?.resolvedFormation,
+    return _loadFixtureDetail(
+      fixtureId: fid,
+      allowMock: _allowMockFallback(fid),
+      fetch: () => _api.fetchFormation(fid, isHome: isHome),
+      mockValue: () => lineup?.resolvedFormation,
+      emptyValue: () => null,
     );
+  }
+
+  Future<DataState<List<StandingModel>>> getStandings({
+    int? leagueId,
+    bool allowMockFallback = true,
+  }) async {
+    if (!_api.isLive) {
+      return DataState.success(MockData.standings, fromMock: true);
+    }
+    try {
+      final data = await _api.fetchStandings(leagueId: leagueId);
+      return DataState.success(data, fromMock: false);
+    } on ApiException catch (e) {
+      if (e.isNotConfigured || allowMockFallback) {
+        return DataState.success(MockData.standings, fromMock: true);
+      }
+      return const DataState.success([], fromMock: false);
+    } catch (_) {
+      if (allowMockFallback) {
+        return DataState.success(MockData.standings, fromMock: true);
+      }
+      return const DataState.success([], fromMock: false);
+    }
   }
 
   // --- Competitions / teams / standings / players ---
 
   Future<DataState<List<CompetitionModel>>> getCompetitions() async {
-    return _loadSimple(
-      cacheKey: 'cache_competitions',
-      fetch: _api.fetchCompetitions,
-      mock: () => MockData.competitions,
-    );
+    const operation = 'getCompetitions';
+    if (!_api.isLive) {
+      final list = MockData.competitions;
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: 'mock',
+        count: list.length,
+      );
+      return DataState.success(list, fromMock: true);
+    }
+    try {
+      final data = await _api.fetchCompetitions();
+      await _cache?.setJson('cache_competitions', {'ok': true});
+      final source = data.isEmpty ? 'empty' : 'api';
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: source,
+        count: data.length,
+      );
+      return DataState.success(data, fromMock: false);
+    } on ApiException catch (e) {
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: 'error',
+        message: 'status=${e.statusCode} ${e.code ?? e.message}',
+      );
+      return DataState.failure(e.message);
+    } catch (e) {
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: 'error',
+        message: '$e',
+      );
+      return DataState.failure(e.toString());
+    }
   }
 
   Future<DataState<CompetitionModel?>> getCompetitionById(int id) async {
@@ -208,14 +303,6 @@ class FootballRepository {
     return _loadSimple(
       fetch: () => _api.fetchTeams(competitionId: competitionId),
       mock: () => MockData.competitionTeams(competitionId),
-    );
-  }
-
-  Future<DataState<List<StandingModel>>> getStandings({int? leagueId}) async {
-    return _loadSimple(
-      cacheKey: 'cache_standings_$leagueId',
-      fetch: () => _api.fetchStandings(leagueId: leagueId),
-      mock: () => MockData.standings,
     );
   }
 
@@ -241,28 +328,83 @@ class FootballRepository {
   // --- Helpers ---
 
   Future<DataState<List<MatchModel>>> _loadMatches({
+    required String operation,
     required String cacheKey,
     required Future<List<MatchModel>> Function() fetch,
     required List<MatchModel> Function() mock,
     int? filterCompetition,
   }) async {
+    if (!_api.isLive) {
+      final list = _filterMatches(mock(), filterCompetition);
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: 'mock',
+        count: list.length,
+      );
+      return DataState.success(list, fromMock: true);
+    }
+
     try {
-      if (!_api.isLive) {
-        return DataState.success(_filterMatches(mock(), filterCompetition), fromMock: true);
-      }
       final data = await fetch();
-      if (data.isEmpty) {
-        return DataState.success(_filterMatches(mock(), filterCompetition), fromMock: true);
-      }
+      final filtered = _filterMatches(data, filterCompetition);
       await _cache?.setJson(cacheKey, {'ok': true});
-      return DataState.success(_filterMatches(data, filterCompetition));
+      final source = filtered.isEmpty ? 'empty' : 'api';
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: source,
+        count: filtered.length,
+      );
+      return DataState.success(filtered, fromMock: false);
     } on ApiException catch (e) {
-      if (e.isNotConfigured) {
-        return DataState.success(_filterMatches(mock(), filterCompetition), fromMock: true);
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: 'error',
+        message: 'status=${e.statusCode} ${e.code ?? e.message}',
+      );
+      return DataState.failure(e.message);
+    } catch (e) {
+      ApiDebugLog.dataSource(
+        operation: operation,
+        source: 'error',
+        message: '$e',
+      );
+      return DataState.failure(e.toString());
+    }
+  }
+
+  int _resolvedFixtureId(int? fixtureId, int matchId) {
+    if (fixtureId != null && fixtureId > 0) return fixtureId;
+    return matchId;
+  }
+
+  bool _allowMockFallback(int fixtureId) {
+    if (!_api.isLive) return true;
+    return MockData.isMockMatchId(fixtureId);
+  }
+
+  Future<DataState<T>> _loadFixtureDetail<T>({
+    required int fixtureId,
+    required bool allowMock,
+    required Future<T> Function() fetch,
+    required T Function() mockValue,
+    required T Function() emptyValue,
+  }) async {
+    if (!_api.isLive) {
+      return DataState.success(mockValue(), fromMock: true);
+    }
+    try {
+      final data = await fetch();
+      return DataState.success(data, fromMock: false);
+    } on ApiException catch (e) {
+      if (e.isNotConfigured || allowMock) {
+        return DataState.success(mockValue(), fromMock: true);
       }
-      return DataState.success(_filterMatches(mock(), filterCompetition), fromMock: true);
+      return DataState.success(emptyValue(), fromMock: false);
     } catch (_) {
-      return DataState.success(_filterMatches(mock(), filterCompetition), fromMock: true);
+      if (allowMock) {
+        return DataState.success(mockValue(), fromMock: true);
+      }
+      return DataState.success(emptyValue(), fromMock: false);
     }
   }
 

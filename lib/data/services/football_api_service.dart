@@ -2,6 +2,7 @@ import '../../core/cache/cache_manager.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
+import '../../core/network/api_debug_log.dart';
 import '../mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
@@ -39,6 +40,14 @@ class FootballApiService {
 
   bool get isLive => _client.isConfigured && provider == ApiProvider.apiFootball;
 
+  void logApiMode() {
+    ApiDebugLog.dataSource(
+      operation: 'FootballApiService',
+      source: isLive ? 'api' : 'mock',
+      message: 'configured=${_client.isConfigured} provider=$provider',
+    );
+  }
+
   // --- Matches ---
 
   Future<List<MatchModel>> fetchLiveMatches({
@@ -63,9 +72,8 @@ class FootballApiService {
       },
     );
 
-    var matches = ApiFootballParser.parseFixtures(response)
-        .where((m) => m.status == MatchStatus.live)
-        .toList();
+    // `live=all` already scopes to in-play fixtures — do not drop rows here.
+    var matches = ApiFootballParser.parseFixtures(response);
 
     if (matches.isEmpty && date != null) {
       matches = await fetchMatches(
@@ -238,7 +246,11 @@ class FootballApiService {
       ApiConstants.fixtureStatistics,
       queryParameters: {'fixture': '$matchId'},
     );
-    final stats = ApiFootballParser.parseStatistics(response);
+    final fixture = await fetchMatchById(matchId);
+    final stats = ApiFootballParser.parseStatistics(
+      response,
+      homeTeamId: fixture?.homeTeam.id,
+    );
 
     await _cache?.setJsonList(
       cacheKey,
@@ -267,7 +279,12 @@ class FootballApiService {
       ApiConstants.fixtureLineups,
       queryParameters: {'fixture': '$matchId'},
     );
-    return ApiFootballParser.parseLineups(response);
+    final fixture = await fetchMatchById(matchId);
+    return ApiFootballParser.parseLineups(
+      response,
+      homeTeamId: fixture?.homeTeam.id,
+      awayTeamId: fixture?.awayTeam.id,
+    );
   }
 
   Future<FormationModel?> fetchFormation(

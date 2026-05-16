@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   MatchRefreshService? _refresh;
   DateTime? _lastUpdated;
   bool _refreshing = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -71,12 +72,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final repo = AppScope.footballRepositoryOf(context);
     final force = silent;
-    final liveState = await repo.getLiveMatches(forceRefresh: force);
-    final allState = await repo.getMatches(forceRefresh: force);
-    final compState = await repo.getCompetitions();
+    final today = DateTime.now();
+    String? loadError;
 
-    final all = allState.data ?? [];
-    final competitions = compState.data ?? MockData.competitions;
+    var liveMatches = <MatchModel>[];
+    final liveState = await repo.getLiveMatches(forceRefresh: force);
+    if (liveState.hasError) {
+      liveMatches = [];
+    } else {
+      liveMatches = liveState.data ?? [];
+    }
+
+    var todayMatches = <MatchModel>[];
+    final allState = await repo.getMatches(date: today, forceRefresh: force);
+    if (allState.hasError) {
+      todayMatches = [];
+    } else {
+      final all = allState.data ?? [];
+      todayMatches =
+          all.where((m) => m.status != MatchStatus.finished).toList();
+    }
+
+    final compState = await repo.getCompetitions();
+    List<CompetitionModel> competitions;
+    if (compState.hasError) {
+      competitions = [];
+    } else if (repo.usesLiveApi) {
+      competitions = compState.data ?? [];
+    } else {
+      competitions = compState.data ?? MockData.competitions;
+    }
+
+    if (repo.usesLiveApi) {
+      if (liveState.hasError && liveMatches.isEmpty) {
+        loadError = liveState.errorMessage;
+      }
+      if (allState.hasError && todayMatches.isEmpty) {
+        loadError ??= allState.errorMessage;
+      }
+    }
+
     CompetitionModel? featured;
     for (final c in competitions) {
       if (c.isFeatured) {
@@ -91,9 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
         _refreshing = false;
         _lastUpdated = DateTime.now();
-        _liveMatches = liveState.data ?? [];
-        _todayMatches =
-            all.where((m) => m.status != MatchStatus.finished).toList();
+        _loadError = repo.usesLiveApi ? loadError : null;
+        _liveMatches = liveMatches;
+        _todayMatches = todayMatches;
         _competitions = competitions;
         _featuredCompetition = featured;
       });
@@ -129,6 +164,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 refreshing: _refreshing || (_refresh?.isRefreshing ?? false),
               ),
             const SizedBox(height: 10),
+            if (_loadError != null) ...[
+              AsyncContentView(
+                loading: false,
+                isEmpty: true,
+                onRetry: _onRefresh,
+                emptyIcon: Icons.cloud_off_rounded,
+                emptyTitle: text.isArabic
+                    ? 'تعذر تحميل البيانات الحية'
+                    : 'Could not load live data',
+                emptySubtitle: _loadError!,
+                child: const SizedBox.shrink(),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_loading) ...[
               const _FeaturedMatchSlotSkeleton(),
               const SizedBox(height: 14),
@@ -174,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                   ],
                 ),
-              ] else ...[
+              ] else if (_loadError == null) ...[
                 SectionHeader(
                   title: text.liveNow,
                   subtitle: text.matchesCountLabel(0),

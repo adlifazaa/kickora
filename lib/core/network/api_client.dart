@@ -155,9 +155,14 @@ class ApiClient {
 
   void _throwIfApiFootballErrors(Object? decoded, int statusCode) {
     if (decoded is! Map<String, dynamic>) return;
+
+    // API-Football may include a non-empty `errors` map alongside a valid
+    // `response` payload — always prefer usable rows when present.
+    final response = decoded['response'];
+    if (response is List && response.isNotEmpty) return;
+
     final errors = decoded['errors'];
     if (errors == null) return;
-
     if (errors is List && errors.isEmpty) return;
     if (errors is Map && errors.isEmpty) return;
 

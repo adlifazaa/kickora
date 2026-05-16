@@ -32,6 +32,7 @@ Future<void> main() async {
   );
   final cache = CacheManager(preferences);
   final footballApi = FootballApiService(cache: cache);
+  footballApi.logApiMode();
   final footballRepository = FootballRepository(
     api: footballApi,
     cache: cache,

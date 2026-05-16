@@ -38,27 +38,26 @@ class MatchEventModel {
   }
 
   static MatchEventType _parseType(String raw) {
-    switch (raw.toLowerCase()) {
+    final key = raw.toLowerCase().replaceAll('_', '');
+    switch (key) {
       case 'goal':
         return MatchEventType.goal;
       case 'owngoal':
-      case 'own_goal':
         return MatchEventType.ownGoal;
       case 'penalty':
         return MatchEventType.penalty;
       case 'yellowcard':
-      case 'yellow_card':
         return MatchEventType.yellowCard;
       case 'redcard':
-      case 'red_card':
         return MatchEventType.redCard;
       case 'subst':
       case 'substitution':
         return MatchEventType.substitution;
       case 'var':
+      case 'vardecision':
         return MatchEventType.varDecision;
       default:
-        return MatchEventType.goal;
+        return MatchEventType.varDecision;
     }
   }
 }

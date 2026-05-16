@@ -6,6 +6,11 @@ import 'models/standing_model.dart';
 import 'models/team_model.dart';
 
 class MockData {
+  /// Demo match ids used only when the API key is not configured.
+  static const mockMatchIds = {100, 101, 102, 103};
+
+  static bool isMockMatchId(int id) => mockMatchIds.contains(id);
+
   static const teams = [
     TeamModel(id: 1, name: 'Argentina', shortName: 'ARG', logo: 'ARG', nationality: 'Argentina'),
     TeamModel(id: 2, name: 'Brazil', shortName: 'BRA', logo: 'BRA', nationality: 'Brazil'),

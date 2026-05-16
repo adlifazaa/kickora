@@ -43,8 +43,10 @@ class ApiFootballParser {
     final homeScore = _goalCount(goals['home'], score, 'home');
     final awayScore = _goalCount(goals['away'], score, 'away');
 
+    final fixtureId = _int(fixture['id']);
     return MatchModel(
-      id: _int(fixture['id']),
+      id: fixtureId,
+      fixtureId: fixtureId,
       homeTeam: _teamFromFixtureSide(homeTeamJson),
       awayTeam: _teamFromFixtureSide(awayTeamJson),
       homeScore: homeScore,
@@ -77,6 +79,7 @@ class ApiFootballParser {
       case 'BT':
       case 'P':
       case 'LIVE':
+      case 'INPLAY':
       case 'INT':
         return MatchStatus.live;
       case 'FT':
@@ -151,15 +154,23 @@ class ApiFootballParser {
           ? teamId == homeTeamId
           : (json['isHome'] as bool? ?? false);
 
+      final typeRaw = json['type']?.toString() ?? '';
+      final detailRaw = json['detail']?.toString() ?? '';
+      final eventType = _parseEventType(typeRaw, detailRaw);
+      final playerIn = player['name']?.toString() ?? '';
+      final playerOut = assist['name']?.toString();
+      final description = eventType == MatchEventType.substitution &&
+              playerOut != null &&
+              playerOut.isNotEmpty
+          ? 'Replaces $playerOut'
+          : detailRaw;
+
       return MatchEventModel(
         minute: minute,
-        type: _parseEventType(
-          json['type']?.toString() ?? '',
-          json['detail']?.toString() ?? '',
-        ),
-        playerName: player['name']?.toString() ?? '',
-        assistName: assist['name']?.toString(),
-        description: json['detail']?.toString() ?? '',
+        type: eventType,
+        playerName: playerIn,
+        assistName: playerOut,
+        description: description,
         isHome: isHome,
       );
     });
@@ -168,28 +179,57 @@ class ApiFootballParser {
   static MatchEventType _parseEventType(String type, String detail) {
     final t = type.toLowerCase();
     final d = detail.toLowerCase();
-    if (t.contains('subst')) return MatchEventType.substitution;
-    if (t.contains('var')) return MatchEventType.varDecision;
-    if (t.contains('card')) {
-      if (d.contains('red')) return MatchEventType.redCard;
+    if (t.contains('subst') || d.contains('substitution')) {
+      return MatchEventType.substitution;
+    }
+    if (t.contains('var') || d.contains('var')) {
+      return MatchEventType.varDecision;
+    }
+    if (t.contains('card') || d.contains('card')) {
+      if (d.contains('red') || d.contains('second yellow')) {
+        return MatchEventType.redCard;
+      }
       return MatchEventType.yellowCard;
     }
-    if (t.contains('goal')) {
+    if (t.contains('goal') || d.contains('goal')) {
       if (d.contains('own')) return MatchEventType.ownGoal;
       if (d.contains('penalty')) return MatchEventType.penalty;
       return MatchEventType.goal;
     }
-    return MatchEventType.goal;
+    return MatchEventType.varDecision;
   }
 
   // --- Statistics ---
 
-  static List<MatchStatisticModel> parseStatistics(Map<String, dynamic> body) {
+  static List<MatchStatisticModel> parseStatistics(
+    Map<String, dynamic> body, {
+    int? homeTeamId,
+  }) {
     final teams = body['response'];
-    if (teams is! List || teams.length < 2) return const [];
+    if (teams is! List || teams.isEmpty) return const [];
 
-    final homeEntry = Map<String, dynamic>.from(teams[0] as Map);
-    final awayEntry = Map<String, dynamic>.from(teams[1] as Map);
+    Map<String, dynamic>? homeEntry;
+    Map<String, dynamic>? awayEntry;
+
+    for (final raw in teams) {
+      if (raw is! Map) continue;
+      final entry = Map<String, dynamic>.from(raw);
+      final teamId = _int(_map(entry['team'])['id']);
+      if (homeTeamId != null && teamId == homeTeamId) {
+        homeEntry = entry;
+      } else if (awayEntry == null ||
+          (homeTeamId != null && teamId != homeTeamId)) {
+        awayEntry = entry;
+      }
+    }
+
+    homeEntry ??=
+        teams.isNotEmpty ? Map<String, dynamic>.from(teams[0] as Map) : null;
+    awayEntry ??= teams.length > 1
+        ? Map<String, dynamic>.from(teams[1] as Map)
+        : null;
+
+    if (homeEntry == null || awayEntry == null) return const [];
     final homeStats = _statisticsMap(homeEntry);
     final awayStats = _statisticsMap(awayEntry);
 
@@ -242,8 +282,10 @@ class ApiFootballParser {
   // --- Lineups ---
 
   static ({LineupModel? home, LineupModel? away}) parseLineups(
-    Map<String, dynamic> body,
-  ) {
+    Map<String, dynamic> body, {
+    int? homeTeamId,
+    int? awayTeamId,
+  }) {
     final entries = body['response'];
     if (entries is! List || entries.isEmpty) {
       return (home: null, away: null);
@@ -252,10 +294,17 @@ class ApiFootballParser {
     LineupModel? home;
     LineupModel? away;
 
-    for (var i = 0; i < entries.length; i++) {
-      final entry = Map<String, dynamic>.from(entries[i] as Map);
+    for (final raw in entries) {
+      if (raw is! Map) continue;
+      final entry = Map<String, dynamic>.from(raw);
       final lineup = _parseLineupEntry(entry);
-      if (i == 0) {
+      final teamId = _int(_map(entry['team'])['id']);
+
+      if (homeTeamId != null && teamId == homeTeamId) {
+        home = lineup;
+      } else if (awayTeamId != null && teamId == awayTeamId) {
+        away = lineup;
+      } else if (home == null) {
         home = lineup;
       } else {
         away = lineup;
@@ -300,7 +349,7 @@ class ApiFootballParser {
       nationality: '',
       age: 0,
       height: 0,
-      position: json['pos']?.toString() ?? '',
+      position: _lineupPosition(json['pos']?.toString()),
       team: '',
       appearances: 0,
       goals: 0,
@@ -506,6 +555,16 @@ class ApiFootballParser {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString()) ?? 0;
+  }
+
+  static String _lineupPosition(String? pos) {
+    switch (pos?.toUpperCase()) {
+      case 'G':
+      case 'GK':
+        return 'GK';
+      default:
+        return pos ?? '';
+    }
   }
 
   static String _abbrev(String name) {

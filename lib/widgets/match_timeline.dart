@@ -347,6 +347,13 @@ class _EventCard extends StatelessWidget {
 }
 
 String? _substitutionDetail(AppText text, MatchEvent event) {
+  final playerOut = event.assistName?.trim();
+  if (playerOut != null && playerOut.isNotEmpty) {
+    return text.timelineSubstitution(
+      playerIn: event.playerName,
+      playerOut: playerOut,
+    );
+  }
   final desc = event.description;
   final replaces = RegExp(
     r'(?:replaces|Replaces|يحل محل)\s+(.+)$',

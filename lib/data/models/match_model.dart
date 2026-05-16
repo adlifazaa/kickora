@@ -1,3 +1,4 @@
+import '../mock_data.dart';
 import 'competition_model.dart';
 import 'lineup_model.dart';
 import 'match_event_model.dart';
@@ -32,6 +33,7 @@ MatchStatus parseMatchStatus(String raw) {
 class MatchModel {
   const MatchModel({
     required this.id,
+    this.fixtureId,
     required this.homeTeam,
     required this.awayTeam,
     required this.homeScore,
@@ -51,6 +53,19 @@ class MatchModel {
   });
 
   final int id;
+
+  /// API-Football fixture id. Null for demo/mock-only matches.
+  final int? fixtureId;
+
+  /// Id used for `/fixtures?id=` and related endpoints.
+  int get resolvedFixtureId => (fixtureId != null && fixtureId! > 0)
+      ? fixtureId!
+      : id;
+
+  /// True when this row should load remote fixture detail (not demo fallback).
+  bool get isApiFixture =>
+      resolvedFixtureId > 0 && !MockData.isMockMatchId(resolvedFixtureId);
+
   final TeamModel homeTeam;
   final TeamModel awayTeam;
   final int homeScore;
@@ -79,8 +94,15 @@ class MatchModel {
     final eventsJson = json['events'] as List? ?? const [];
     final statsJson = json['stats'] as List? ?? const [];
 
+    final id = (json['id'] as num?)?.toInt() ?? 0;
+    final fixtureRaw = json['fixtureId'];
+    final fixtureId = fixtureRaw == null
+        ? null
+        : (fixtureRaw as num).toInt();
+
     return MatchModel(
-      id: (json['id'] as num?)?.toInt() ?? 0,
+      id: id,
+      fixtureId: fixtureId,
       homeTeam: homeTeam,
       awayTeam: awayTeam,
       homeScore: (json['homeScore'] ?? 0) as int,
@@ -102,6 +124,7 @@ class MatchModel {
 
   MatchModel copyWith({
     int? id,
+    int? fixtureId,
     TeamModel? homeTeam,
     TeamModel? awayTeam,
     int? homeScore,
@@ -121,6 +144,7 @@ class MatchModel {
   }) {
     return MatchModel(
       id: id ?? this.id,
+      fixtureId: fixtureId ?? this.fixtureId,
       homeTeam: homeTeam ?? this.homeTeam,
       awayTeam: awayTeam ?? this.awayTeam,
       homeScore: homeScore ?? this.homeScore,

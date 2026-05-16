@@ -3,26 +3,30 @@ import 'package:flutter/foundation.dart';
 import '../constants/api_constants.dart';
 
 /// Safe API logging for local testing. Never logs API keys or auth headers.
-///
-/// Enable with: `flutter run --dart-define=KICKORA_API_DEBUG=true`
 class ApiDebugLog {
   ApiDebugLog._();
 
-  static bool get _enabled => kDebugMode && ApiConstants.enableDebugLogs;
+  static bool get _httpVerbose => kDebugMode && ApiConstants.enableDebugLogs;
 
   static void boot() {
-    if (!_enabled) return;
-    final mode = ApiConstants.hasApiKey
-        ? 'API-Football (key configured via --dart-define)'
-        : 'mock fallback (no KICKORA_API_KEY)';
-    debugPrint('[Kickora API] Boot → $mode');
-    debugPrint('[Kickora API] Base URL → ${ApiConstants.baseUrl}');
+    if (!kDebugMode) return;
+    debugPrint(
+      '[Kickora] apiKeyPresent=${ApiConstants.hasApiKey} '
+      'dataSource=${ApiConstants.hasApiKey ? "api" : "mock"}',
+    );
+    debugPrint('[Kickora] baseUrl=${ApiConstants.baseUrl}');
+    if (ApiConstants.hasApiKey) {
+      debugPrint(
+        '[Kickora] header=${ApiConstants.headerApiKey} (value not logged)',
+      );
+    }
   }
 
   static void request(String method, Uri uri) {
-    if (!_enabled) return;
-    final safe = _redactUri(uri);
-    debugPrint('[Kickora API] → $method $safe');
+    if (!kDebugMode) return;
+    final path = uri.path.isEmpty ? '/' : uri.path;
+    final query = uri.query.isEmpty ? '' : '?${_redactQuery(uri.query)}';
+    debugPrint('[Kickora] → $method $path$query');
   }
 
   static void response({
@@ -31,30 +35,51 @@ class ApiDebugLog {
     int? results,
     String? errorCode,
   }) {
-    if (!_enabled) return;
-    final count = results != null ? ' results=$results' : '';
+    if (!kDebugMode) return;
+    final count = results != null ? ' resultCount=$results' : '';
     final err = errorCode != null ? ' error=$errorCode' : '';
-    debugPrint('[Kickora API] ← HTTP $statusCode $path$count$err');
+    debugPrint('[Kickora] ← HTTP $statusCode $path$count$err');
   }
 
   static void retry(String path, int attempt, String reason) {
-    if (!_enabled) return;
-    debugPrint('[Kickora API] ↻ retry $attempt $path ($reason)');
+    if (!_httpVerbose) return;
+    debugPrint('[Kickora] ↻ retry $attempt $path ($reason)');
   }
 
   static void failure(String path, String code) {
-    if (!_enabled) return;
-    debugPrint('[Kickora API] ✗ $path [$code]');
+    if (!kDebugMode) return;
+    debugPrint('[Kickora] ✗ $path [$code]');
   }
 
-  static String _redactUri(Uri uri) {
-    final params = Map<String, String>.from(uri.queryParameters);
-    for (final key in params.keys.toList()) {
-      if (key.toLowerCase().contains('key') ||
-          key.toLowerCase().contains('token')) {
-        params[key] = '***';
-      }
-    }
-    return uri.replace(queryParameters: params).toString();
+  /// Repository layer: api vs mock, never logs secrets.
+  static void dataSource({
+    required String operation,
+    required String source,
+    int? count,
+    String? message,
+  }) {
+    if (!kDebugMode) return;
+    final n = count != null ? ' resultCount=$count' : '';
+    final msg = message != null ? ' $message' : '';
+    debugPrint(
+      '[Kickora] apiKeyPresent=${ApiConstants.hasApiKey} '
+      '$operation dataSource=$source$n$msg',
+    );
+  }
+
+  static String _redactQuery(String query) {
+    return query
+        .split('&')
+        .map((part) {
+          final eq = part.indexOf('=');
+          if (eq <= 0) return part;
+          final key = part.substring(0, eq);
+          if (key.toLowerCase().contains('key') ||
+              key.toLowerCase().contains('token')) {
+            return '$key=***';
+          }
+          return part;
+        })
+        .join('&');
   }
 }

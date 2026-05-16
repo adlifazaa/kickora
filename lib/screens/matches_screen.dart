@@ -30,6 +30,7 @@ class _MatchesScreenState extends State<MatchesScreen>
   MatchRefreshService? _refresh;
   DateTime? _lastUpdated;
   bool _refreshing = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -68,14 +69,34 @@ class _MatchesScreenState extends State<MatchesScreen>
       repo.getFinishedMatches(date: _selectedDate, forceRefresh: force),
     ]);
 
+    var live = results[0].hasError ? <MatchModel>[] : (results[0].data ?? []);
+    var upcoming =
+        results[1].hasError ? <MatchModel>[] : (results[1].data ?? []);
+    var finished =
+        results[2].hasError ? <MatchModel>[] : (results[2].data ?? []);
+
+    String? loadError;
+    if (repo.usesLiveApi) {
+      if (results[0].hasError && live.isEmpty) {
+        loadError = results[0].errorMessage;
+      }
+      if (results[1].hasError && upcoming.isEmpty) {
+        loadError ??= results[1].errorMessage;
+      }
+      if (results[2].hasError && finished.isEmpty) {
+        loadError ??= results[2].errorMessage;
+      }
+    }
+
     if (mounted) {
       setState(() {
         _loading = false;
         _refreshing = false;
         _lastUpdated = DateTime.now();
-        _live = results[0].data ?? [];
-        _upcoming = results[1].data ?? [];
-        _finished = results[2].data ?? [];
+        _loadError = loadError;
+        _live = live;
+        _upcoming = upcoming;
+        _finished = finished;
       });
     }
   }
@@ -172,6 +193,12 @@ class _MatchesScreenState extends State<MatchesScreen>
                     loading: _loading,
                     isEmpty: !_loading && matches.isEmpty,
                     onRetry: _load,
+                    emptyTitle: _loadError != null
+                        ? (text.isArabic
+                            ? 'تعذر تحميل المباريات'
+                            : 'Could not load matches')
+                        : null,
+                    emptySubtitle: _loadError ?? text.noMatchesSub,
                     skeleton: const MatchListSkeleton(),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
