@@ -1,5 +1,6 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/constants/api_cache_policy.dart';
+import '../../core/player/player_photo_resolver.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_debug_log.dart';
 import '../../core/state/data_state.dart';
@@ -389,12 +390,24 @@ class FootballRepository {
   }
 
   Future<DataState<PlayerModel?>> getPlayerById(int id) async {
+    final memKey = 'player_profile_$id';
+    if (!_api.isLive) {
+      return DataState.success(_mockPlayerById(id), fromMock: true);
+    }
+    final cached =
+        _memory.get<PlayerModel>(memKey, ApiCachePolicy.playerProfile);
+    if (cached != null) {
+      PlayerPhotoResolver.cacheProfilePhoto(id, cached.photoUrl);
+      return DataState.success(cached, fromMock: false);
+    }
     try {
-      if (!_api.isLive) {
-        return DataState.success(_mockPlayerById(id), fromMock: true);
-      }
       final remote = await _api.fetchPlayerById(id);
-      return DataState.success(remote ?? _mockPlayerById(id), fromMock: remote == null);
+      final player = remote ?? _mockPlayerById(id);
+      if (remote != null) {
+        _memory.put(memKey, remote);
+        PlayerPhotoResolver.cacheProfilePhoto(id, remote.photoUrl);
+      }
+      return DataState.success(player, fromMock: remote == null);
     } catch (_) {
       return DataState.success(_mockPlayerById(id), fromMock: true);
     }

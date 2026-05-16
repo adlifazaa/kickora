@@ -370,8 +370,9 @@ class ApiFootballParser {
 
   static PlayerModel _lineupPlayer(Map<String, dynamic> json) {
     final name = json['name']?.toString() ?? '';
+    final id = _int(json['id']);
     return PlayerModel(
-      id: _int(json['id']),
+      id: id,
       name: name,
       shortName: _abbrev(name),
       number: _int(json['number']),
@@ -385,6 +386,7 @@ class ApiFootballParser {
       assists: 0,
       yellowCards: 0,
       redCards: 0,
+      photoUrl: resolvePlayerPhotoUrl(json),
     );
   }
 
@@ -585,6 +587,7 @@ class ApiFootballParser {
       yellowCards: 0,
       redCards: 0,
       seasonRating: '7.5',
+      photoUrl: resolvePlayerPhotoUrl(player),
     );
   }
 
@@ -647,6 +650,22 @@ class ApiFootballParser {
       return _CountryFields(name: raw);
     }
     return const _CountryFields();
+  }
+
+  /// Explicit player photo from lineup/player API payload only.
+  static String resolvePlayerPhotoUrl(Map<String, dynamic> json) {
+    final explicit = json['photo']?.toString().trim() ?? '';
+    if (_isHttpUrl(explicit)) return explicit;
+    return '';
+  }
+
+  static String playerCdnPhotoUrl(int id) =>
+      'https://media.api-sports.io/football/players/$id.png';
+
+  static bool _isHttpUrl(String? value) {
+    if (value == null || value.isEmpty) return false;
+    final trimmed = value.trim();
+    return trimmed.startsWith('http://') || trimmed.startsWith('https://');
   }
 
   /// API-Football CDN flag asset from ISO country code.

@@ -19,6 +19,7 @@ import '../widgets/live_update_indicator.dart';
 import '../widgets/match_timeline.dart';
 import '../widgets/skeleton_box.dart';
 import '../widgets/match/premium_football_pitch.dart';
+import '../widgets/player_avatar.dart';
 import '../widgets/team_logo.dart';
 
 class MatchDetailsScreen extends StatefulWidget {
@@ -1578,22 +1579,11 @@ class _TeamLineupCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(colors: [
-                              Color(0xFFF5F7FA),
-                              Color(0xFFD7DDE8),
-                            ]),
-                          ),
-                          child: Text('${p.number}',
-                              style: const TextStyle(
-                                  color: Color(0xFF0E1822),
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 10)),
+                        PlayerAvatar(
+                          player: p,
+                          size: 22,
+                          borderWidth: 1,
+                          showJerseyNumber: true,
                         ),
                         const SizedBox(width: 6),
                         Text(p.shortName,

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/routes.dart';
+import '../../app/app_scope.dart';
+import '../../core/player/player_photo_resolver.dart';
 import '../../models/lineup_model.dart';
 import '../../models/player_model.dart';
+import '../player_avatar.dart';
 
 /// Premium football pitch with realistic gradient turf, mowed stripes,
 /// regulation markings, vignette lighting, and tappable jersey-style dots.
@@ -165,6 +168,12 @@ class _PlayerPitchDotState extends State<_PlayerPitchDot>
   Widget build(BuildContext context) {
     final p = widget.player;
     final rating = p.matchRating > 0 ? p.matchRating.toStringAsFixed(1) : '—';
+    final allowCdn =
+        AppScope.footballRepositoryOf(context).usesLiveApi;
+    final photoUrl = PlayerPhotoResolver.resolve(
+      p,
+      allowCdnFallback: allowCdn,
+    );
 
     return GestureDetector(
       onTapDown: (_) => _c.forward(from: 0),
@@ -184,44 +193,35 @@ class _PlayerPitchDotState extends State<_PlayerPitchDot>
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  Container(
-                    width: widget.size,
-                    height: widget.size,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [widget.jerseyTop, widget.jerseyBottom],
-                      ),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          width: 1.8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                        BoxShadow(
-                          color: widget.jerseyTop.withValues(alpha: 0.4),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${p.number}',
-                      style: TextStyle(
-                        fontSize: widget.size * 0.36,
-                        fontWeight: FontWeight.w900,
-                        color: widget.isGoalkeeper
-                            ? Colors.black
-                            : const Color(0xFF0E1822),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
+                  PlayerAvatar(
+                    player: p,
+                    size: widget.size,
+                    jerseyTop: widget.jerseyTop,
+                    jerseyBottom: widget.jerseyBottom,
+                    showJerseyNumber: true,
                   ),
+                  if (photoUrl != null && p.number > 0)
+                    Positioned(
+                      bottom: -2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(6),
+                          border:
+                              Border.all(color: Colors.white, width: 0.7),
+                        ),
+                        child: Text(
+                          '${p.number}',
+                          style: TextStyle(
+                            fontSize: widget.size * 0.22,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (p.isCaptain)
                     Positioned(
                       top: -5,

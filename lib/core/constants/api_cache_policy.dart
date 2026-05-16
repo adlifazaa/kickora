@@ -7,6 +7,7 @@ class ApiCachePolicy {
   static const Duration competitions = Duration(hours: 24);
   static const Duration teams = Duration(hours: 24);
   static const Duration matchDetails = Duration(minutes: 5);
+  static const Duration playerProfile = Duration(hours: 24);
 
   /// Fixtures by date / status (non-live lists).
   static const Duration fixturesByDate = Duration(minutes: 3);

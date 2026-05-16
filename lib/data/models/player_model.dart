@@ -46,6 +46,7 @@ class PlayerModel {
     this.seasonRating = '7.8',
     this.career = const <String>[],
     this.recentMatches = const [],
+    this.photoUrl = '',
   });
 
   final int id;
@@ -72,6 +73,7 @@ class PlayerModel {
   final String seasonRating;
   final List<String> career;
   final List<PlayerRecentMatch> recentMatches;
+  final String photoUrl;
 
   factory PlayerModel.fromJson(Map<String, dynamic> json) {
     return PlayerModel(
@@ -103,6 +105,7 @@ class PlayerModel {
       recentMatches: ((json['recentMatches'] as List?) ?? const [])
           .map((e) => PlayerRecentMatch.fromJson(e as Map<String, dynamic>))
           .toList(),
+      photoUrl: (json['photoUrl'] ?? json['photo'] ?? '').toString(),
     );
   }
 }

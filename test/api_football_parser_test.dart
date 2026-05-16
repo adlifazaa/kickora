@@ -147,5 +147,79 @@ void main() {
       expect(result.home?.formation, '4-3-3');
       expect(result.away?.formation, '4-4-2');
     });
+
+    test('maps player id, name, number, pos, and photo', () {
+      final result = ApiFootballParser.parseLineups(
+        {
+          'response': [
+            {
+              'team': {'id': 1, 'name': 'Home'},
+              'formation': '4-3-3',
+              'coach': {'name': 'Coach'},
+              'startXI': [
+                {
+                  'player': {
+                    'id': 276,
+                    'name': 'N. Mendy',
+                    'number': 16,
+                    'pos': 'G',
+                    'grid': '1:1',
+                    'photo':
+                        'https://media.api-sports.io/football/players/276.png',
+                  },
+                },
+              ],
+              'substitutes': [
+                {
+                  'player': {
+                    'id': 999,
+                    'name': 'Sub Player',
+                    'number': 12,
+                    'pos': 'M',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        homeTeamId: 1,
+        awayTeamId: 2,
+      );
+
+      final starter = result.home!.lines.first.first;
+      expect(starter.id, 276);
+      expect(starter.name, 'N. Mendy');
+      expect(starter.number, 16);
+      expect(starter.position, 'GK');
+      expect(starter.photoUrl, contains('players/276'));
+
+      final sub = result.home!.substitutes.first;
+      expect(sub.id, 999);
+      expect(sub.position, 'M');
+      expect(sub.photoUrl, isEmpty);
+    });
+  });
+
+  group('ApiFootballParser.resolvePlayerPhotoUrl', () {
+    test('returns explicit photo only', () {
+      expect(
+        ApiFootballParser.resolvePlayerPhotoUrl({
+          'id': 10,
+          'photo': 'https://cdn.example/photo.png',
+        }),
+        'https://cdn.example/photo.png',
+      );
+      expect(
+        ApiFootballParser.resolvePlayerPhotoUrl({'id': 10}),
+        isEmpty,
+      );
+    });
+
+    test('playerCdnPhotoUrl uses API-Sports pattern', () {
+      expect(
+        ApiFootballParser.playerCdnPhotoUrl(154),
+        'https://media.api-sports.io/football/players/154.png',
+      );
+    });
   });
 }
