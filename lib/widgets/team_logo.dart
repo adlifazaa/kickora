@@ -1,23 +1,33 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../core/mock/mock_visual_resolver.dart';
+import '../data/models/competition_model.dart';
 import '../data/models/team_model.dart';
 import 'api_display_text.dart';
+import 'mock_competition_badge.dart';
+import 'mock_flag_badge.dart';
 import 'network_logo_image.dart';
 
-/// Team crest — logo, then country flag, then gradient initials (never raw URLs as text).
+/// Team crest — API logo, flag, local mock flag, then initials.
 class TeamLogo extends StatelessWidget {
   const TeamLogo({
     super.key,
     required this.shortName,
     this.imageUrl,
     this.flagUrl,
+    this.countryName,
+    this.countryCode,
+    this.teamId,
     this.size = 36,
   });
 
   final String shortName;
   final String? imageUrl;
   final String? flagUrl;
+  final String? countryName;
+  final String? countryCode;
+  final int? teamId;
   final double size;
 
   factory TeamLogo.fromTeam(TeamModel team, {Key? key, double size = 36}) {
@@ -26,6 +36,9 @@ class TeamLogo extends StatelessWidget {
       shortName: teamShortCode(team.shortName, team.name),
       imageUrl: team.logoUrl.isNotEmpty ? team.logoUrl : team.logo,
       flagUrl: team.flagUrl,
+      countryName: team.countryName,
+      countryCode: team.countryCode,
+      teamId: team.id,
       size: size,
     );
   }
@@ -61,6 +74,22 @@ class TeamLogo extends StatelessWidget {
     final flag = flagUrl?.trim();
     if (isNetworkImageUrl(flag)) return flag;
     return null;
+  }
+
+  String? get _resolvedAssetPath {
+    return MockVisualResolver.bundledAssetPath(imageUrl) ??
+        MockVisualResolver.bundledAssetPath(flagUrl);
+  }
+
+  Widget? get _mockFlagVisual {
+    final key = MockVisualResolver.flagKeyForTeam(
+      shortName: shortName,
+      countryName: countryName,
+      countryCode: countryCode,
+      teamId: teamId,
+    );
+    if (key == null) return null;
+    return MockFlagBadge(flagKey: key, size: size);
   }
 
   Widget _initialsBadge() {
@@ -110,6 +139,8 @@ class TeamLogo extends StatelessWidget {
     return NetworkLogoImage(
       size: size,
       imageUrl: _resolvedNetworkUrl,
+      assetPath: _resolvedAssetPath,
+      localVisual: _mockFlagVisual,
       fallback: _initialsBadge(),
     );
   }
@@ -123,6 +154,9 @@ class TeamCrestTile extends StatelessWidget {
     required this.name,
     this.imageUrl,
     this.flagUrl,
+    this.countryName,
+    this.countryCode,
+    this.teamId,
     this.subtitle,
     this.trailing,
     this.onTap,
@@ -141,6 +175,9 @@ class TeamCrestTile extends StatelessWidget {
       name: team.name,
       imageUrl: team.logoUrl.isNotEmpty ? team.logoUrl : team.logo,
       flagUrl: team.flagUrl,
+      countryName: team.countryName,
+      countryCode: team.countryCode,
+      teamId: team.id,
       subtitle: subtitle ?? team.countryName,
       trailing: trailing,
       onTap: onTap,
@@ -151,6 +188,9 @@ class TeamCrestTile extends StatelessWidget {
   final String name;
   final String? imageUrl;
   final String? flagUrl;
+  final String? countryName;
+  final String? countryCode;
+  final int? teamId;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -171,6 +211,9 @@ class TeamCrestTile extends StatelessWidget {
                 shortName: teamShortCode(shortName, name),
                 imageUrl: imageUrl,
                 flagUrl: flagUrl,
+                countryName: countryName,
+                countryCode: countryCode,
+                teamId: teamId,
                 size: 34,
               ),
               const SizedBox(width: 12),
@@ -211,12 +254,36 @@ class TeamCrestTile extends StatelessWidget {
   }
 }
 
-/// Competition badge — network logo or short initials (never raw URL text).
+/// Competition badge — API crest, mock league shield, then initials.
 class CompetitionBadge extends StatelessWidget {
-  const CompetitionBadge({super.key, required this.logo, this.size = 40});
+  const CompetitionBadge({
+    super.key,
+    required this.logo,
+    this.size = 40,
+    this.competitionId,
+    this.competitionName,
+  });
+
+  factory CompetitionBadge.fromCompetition(
+    CompetitionModel competition, {
+    Key? key,
+    double size = 40,
+  }) {
+    return CompetitionBadge(
+      key: key,
+      logo: competition.logoUrl.isNotEmpty
+          ? competition.logoUrl
+          : competition.logo,
+      competitionId: competition.id,
+      competitionName: competition.name,
+      size: size,
+    );
+  }
 
   final String logo;
   final double size;
+  final int? competitionId;
+  final String? competitionName;
 
   String get _initials {
     if (logo.isEmpty) return '?';
@@ -259,11 +326,24 @@ class CompetitionBadge extends StatelessWidget {
     );
   }
 
+  Widget? get _mockCompetitionVisual {
+    final key = MockVisualResolver.competitionKeyFor(
+      logo: logo,
+      name: competitionName,
+      id: competitionId,
+    );
+    if (key == null) return null;
+    return MockCompetitionBadge(competitionKey: key, size: size);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final networkUrl = isNetworkImageUrl(logo) ? logo : null;
     return NetworkLogoImage(
       size: size,
-      imageUrl: logo,
+      imageUrl: networkUrl,
+      assetPath: MockVisualResolver.bundledAssetPath(logo),
+      localVisual: _mockCompetitionVisual,
       fallback: _initialsBadge(),
     );
   }

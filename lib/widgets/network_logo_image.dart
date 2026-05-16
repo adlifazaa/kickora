@@ -8,12 +8,14 @@ bool isNetworkImageUrl(String? value) {
   return trimmed.startsWith('http://') || trimmed.startsWith('https://');
 }
 
-/// Loads a remote logo with loading + error fallbacks — never shows the URL as text.
+/// Loads remote, bundled asset, or [localVisual] with loading + error fallbacks.
 class NetworkLogoImage extends StatelessWidget {
   const NetworkLogoImage({
     super.key,
     required this.size,
     this.imageUrl,
+    this.assetPath,
+    this.localVisual,
     required this.fallback,
     this.fit = BoxFit.contain,
     this.clipOval = true,
@@ -21,6 +23,8 @@ class NetworkLogoImage extends StatelessWidget {
 
   final double size;
   final String? imageUrl;
+  final String? assetPath;
+  final Widget? localVisual;
   final Widget fallback;
   final BoxFit fit;
   final bool clipOval;
@@ -28,15 +32,28 @@ class NetworkLogoImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = imageUrl?.trim();
-    if (!isNetworkImageUrl(url)) {
-      return SizedBox(width: size, height: size, child: fallback);
+    if (isNetworkImageUrl(url)) {
+      return _networkImage(context, url!);
     }
 
+    final asset = assetPath?.trim();
+    if (asset != null && asset.isNotEmpty) {
+      return _assetImage(context, asset);
+    }
+
+    if (localVisual != null) {
+      return SizedBox(width: size, height: size, child: localVisual);
+    }
+
+    return SizedBox(width: size, height: size, child: fallback);
+  }
+
+  Widget _networkImage(BuildContext context, String url) {
     final primary = Theme.of(context).colorScheme.primary;
     final pad = size * 0.12;
 
     Widget image = CachedNetworkImage(
-      imageUrl: url!,
+      imageUrl: url,
       width: size,
       height: size,
       fit: fit,
@@ -45,15 +62,38 @@ class NetworkLogoImage extends StatelessWidget {
       errorWidget: (_, _, _) => fallback,
     );
 
-    image = Padding(
-      padding: EdgeInsets.all(pad),
-      child: image,
-    );
+    image = Padding(padding: EdgeInsets.all(pad), child: image);
 
     if (clipOval) {
       image = ClipOval(child: image);
     }
 
+    return SizedBox(
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: clipOval ? BoxShape.circle : BoxShape.rectangle,
+          color: Theme.of(context).cardTheme.color?.withValues(alpha: 0.35),
+        ),
+        child: image,
+      ),
+    );
+  }
+
+  Widget _assetImage(BuildContext context, String path) {
+    final pad = size * 0.1;
+    Widget image = Image.asset(
+      path,
+      width: size,
+      height: size,
+      fit: fit,
+      errorBuilder: (_, _, _) => localVisual ?? fallback,
+    );
+    image = Padding(padding: EdgeInsets.all(pad), child: image);
+    if (clipOval) {
+      image = ClipOval(child: image);
+    }
     return SizedBox(
       width: size,
       height: size,

@@ -12,12 +12,12 @@ class MockData {
   static bool isMockMatchId(int id) => mockMatchIds.contains(id);
 
   static const teams = [
-    TeamModel(id: 1, name: 'Argentina', shortName: 'ARG', logo: 'ARG', nationality: 'Argentina'),
-    TeamModel(id: 2, name: 'Brazil', shortName: 'BRA', logo: 'BRA', nationality: 'Brazil'),
-    TeamModel(id: 3, name: 'France', shortName: 'FRA', logo: 'FRA', nationality: 'France'),
-    TeamModel(id: 4, name: 'Spain', shortName: 'ESP', logo: 'ESP', nationality: 'Spain'),
-    TeamModel(id: 5, name: 'Morocco', shortName: 'MAR', logo: 'MAR', nationality: 'Morocco'),
-    TeamModel(id: 6, name: 'Germany', shortName: 'GER', logo: 'GER', nationality: 'Germany'),
+    TeamModel(id: 1, name: 'Argentina', shortName: 'ARG', logo: 'ARG', countryName: 'Argentina', countryCode: 'AR'),
+    TeamModel(id: 2, name: 'Brazil', shortName: 'BRA', logo: 'BRA', countryName: 'Brazil', countryCode: 'BR'),
+    TeamModel(id: 3, name: 'France', shortName: 'FRA', logo: 'FRA', countryName: 'France', countryCode: 'FR'),
+    TeamModel(id: 4, name: 'Spain', shortName: 'ESP', logo: 'ESP', countryName: 'Spain', countryCode: 'ES'),
+    TeamModel(id: 5, name: 'Morocco', shortName: 'MAR', logo: 'MAR', countryName: 'Morocco', countryCode: 'MA'),
+    TeamModel(id: 6, name: 'Germany', shortName: 'GER', logo: 'GER', countryName: 'Germany', countryCode: 'DE'),
   ];
 
   static const competitions = [
@@ -29,12 +29,12 @@ class MockData {
   ];
 
   static const standings = [
-    StandingModel(position: 1, team: TeamModel(id: 1, name: 'Argentina', shortName: 'ARG', logo: 'ARG', nationality: 'Argentina'), played: 3, wins: 3, draws: 0, losses: 0, goalDifference: 6, points: 9),
-    StandingModel(position: 2, team: TeamModel(id: 2, name: 'Brazil', shortName: 'BRA', logo: 'BRA', nationality: 'Brazil'), played: 3, wins: 2, draws: 1, losses: 0, goalDifference: 4, points: 7),
-    StandingModel(position: 3, team: TeamModel(id: 3, name: 'France', shortName: 'FRA', logo: 'FRA', nationality: 'France'), played: 3, wins: 2, draws: 0, losses: 1, goalDifference: 3, points: 6),
-    StandingModel(position: 4, team: TeamModel(id: 4, name: 'Spain', shortName: 'ESP', logo: 'ESP', nationality: 'Spain'), played: 3, wins: 1, draws: 1, losses: 1, goalDifference: 0, points: 4),
-    StandingModel(position: 5, team: TeamModel(id: 5, name: 'Morocco', shortName: 'MAR', logo: 'MAR', nationality: 'Morocco'), played: 3, wins: 1, draws: 0, losses: 2, goalDifference: -2, points: 3),
-    StandingModel(position: 6, team: TeamModel(id: 6, name: 'Germany', shortName: 'GER', logo: 'GER', nationality: 'Germany'), played: 3, wins: 0, draws: 0, losses: 3, goalDifference: -11, points: 0),
+    StandingModel(position: 1, team: TeamModel(id: 1, name: 'Argentina', shortName: 'ARG', logo: 'ARG', countryName: 'Argentina', countryCode: 'AR'), played: 3, wins: 3, draws: 0, losses: 0, goalDifference: 6, points: 9),
+    StandingModel(position: 2, team: TeamModel(id: 2, name: 'Brazil', shortName: 'BRA', logo: 'BRA', countryName: 'Brazil', countryCode: 'BR'), played: 3, wins: 2, draws: 1, losses: 0, goalDifference: 4, points: 7),
+    StandingModel(position: 3, team: TeamModel(id: 3, name: 'France', shortName: 'FRA', logo: 'FRA', countryName: 'France', countryCode: 'FR'), played: 3, wins: 2, draws: 0, losses: 1, goalDifference: 3, points: 6),
+    StandingModel(position: 4, team: TeamModel(id: 4, name: 'Spain', shortName: 'ESP', logo: 'ESP', countryName: 'Spain', countryCode: 'ES'), played: 3, wins: 1, draws: 1, losses: 1, goalDifference: 0, points: 4),
+    StandingModel(position: 5, team: TeamModel(id: 5, name: 'Morocco', shortName: 'MAR', logo: 'MAR', countryName: 'Morocco', countryCode: 'MA'), played: 3, wins: 1, draws: 0, losses: 2, goalDifference: -2, points: 3),
+    StandingModel(position: 6, team: TeamModel(id: 6, name: 'Germany', shortName: 'GER', logo: 'GER', countryName: 'Germany', countryCode: 'DE'), played: 3, wins: 0, draws: 0, losses: 3, goalDifference: -11, points: 0),
   ];
 
   static final List<PlayerModel> players = [

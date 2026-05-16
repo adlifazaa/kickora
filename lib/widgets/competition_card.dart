@@ -51,7 +51,10 @@ class CompetitionCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                CompetitionBadge(logo: competition.logo, size: logoSize),
+                CompetitionBadge.fromCompetition(
+                  competition,
+                  size: logoSize,
+                ),
                 const Spacer(),
                 InkWell(
                   onTap: () => app.toggleCompetitionFavorite(competition.id),

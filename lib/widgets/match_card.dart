@@ -102,8 +102,8 @@ class MatchCard extends StatelessWidget {
                   SizedBox(
                     width: compact ? 22 : 24,
                     height: compact ? 22 : 24,
-                    child: CompetitionBadge(
-                      logo: match.competition.logo,
+                    child: CompetitionBadge.fromCompetition(
+                      match.competition,
                       size: compact ? 22 : 24,
                     ),
                   ),

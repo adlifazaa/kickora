@@ -537,7 +537,10 @@ class _GlowMatchHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CompetitionBadge(logo: match.competition.logo, size: 36),
+                  CompetitionBadge.fromCompetition(
+                    match.competition,
+                    size: 36,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(

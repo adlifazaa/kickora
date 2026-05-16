@@ -17,6 +17,15 @@ class CompetitionModel {
   final int teamCount;
   final int matchesToday;
 
+  /// HTTP league crest when sourced from API-Football `league.logo`.
+  String get logoUrl {
+    final value = logo.trim();
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    return '';
+  }
+
   factory CompetitionModel.fromJson(Map<String, dynamic> json) {
     return CompetitionModel(
       id: (json['id'] as num?)?.toInt() ?? 0,

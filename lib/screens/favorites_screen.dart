@@ -182,7 +182,7 @@ class _CompetitionTile extends StatelessWidget {
           onTap: () => Navigator.pushNamed(
               context, AppRoutes.competitionDetails,
               arguments: competition),
-          leading: CompetitionBadge(logo: competition.logo, size: 36),
+          leading: CompetitionBadge.fromCompetition(competition, size: 36),
           title: Text(competition.name,
               style: const TextStyle(fontWeight: FontWeight.w800)),
           subtitle: Text(competition.region,

@@ -427,7 +427,7 @@ class _FeaturedCompetitionStrip extends StatelessWidget {
             ),
             child: Row(
               children: [
-                CompetitionBadge(logo: competition.logo, size: 46),
+                CompetitionBadge.fromCompetition(competition, size: 46),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

@@ -240,7 +240,7 @@ class _CompetitionHeader extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CompetitionBadge(logo: competition.logo, size: 64),
+            CompetitionBadge.fromCompetition(competition, size: 64),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
