@@ -12,15 +12,18 @@ class ApiDebugLog {
   static void boot() {
     if (!kDebugMode) return;
     debugPrint(
-      '[Kickora] apiKeyPresent=${ApiConstants.hasApiKey} '
-      'apiDevMode=${ApiConstants.apiDevMode} '
-      'dataSource=${ApiConstants.hasApiKey ? "api" : "mock"}',
+      '[Kickora] apiMode=${ApiConstants.apiMode.name} '
+      'remoteConfigured=${ApiConstants.hasRemoteApi} '
+      'apiDevMode=${ApiConstants.apiDevMode}',
     );
-    debugPrint('[Kickora] baseUrl=${ApiConstants.baseUrl}');
-    if (ApiConstants.hasApiKey) {
+    debugPrint('[Kickora] baseUrl=${ApiConstants.effectiveBaseUrl}');
+    if (ApiConstants.isDirectApi && ApiConstants.hasApiKey) {
       debugPrint(
-        '[Kickora] header=${ApiConstants.headerApiKey} (value not logged)',
+        '[Kickora] directApi header=${ApiConstants.headerApiKey} (value not logged)',
       );
+    }
+    if (ApiConstants.isBackendProxy) {
+      debugPrint('[Kickora] backendProxy: no API key header from app');
     }
   }
 
@@ -77,7 +80,8 @@ class ApiDebugLog {
     final n = count != null ? ' resultCount=$count' : '';
     final msg = message != null ? ' $message' : '';
     debugPrint(
-      '[Kickora] apiKeyPresent=${ApiConstants.hasApiKey} '
+      '[Kickora] apiMode=${ApiConstants.apiMode.name} '
+      'remote=${ApiConstants.hasRemoteApi} '
       '$operation dataSource=$source$n$msg',
     );
   }

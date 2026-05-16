@@ -3,24 +3,28 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../constants/api_constants.dart';
+import '../constants/api_mode.dart';
 import '../errors/api_exception.dart';
 import 'api_debug_log.dart';
 import 'api_request_coordinator.dart';
 import 'request_throttler.dart';
 
-/// HTTP client for API-Football with throttling, retries, and timeouts.
+/// HTTP client for football data (API-Football direct or Kickora backend proxy).
 class ApiClient {
   ApiClient({
     String? baseUrl,
     String? apiKey,
+    ApiMode? mode,
     this.connectTimeout = ApiConstants.connectTimeout,
     this.receiveTimeout = ApiConstants.receiveTimeout,
     this.maxRetries = ApiConstants.maxRetries,
     RequestThrottler? throttler,
-  })  : _baseUrl = baseUrl ?? ApiConstants.baseUrl,
+  })  : _mode = mode ?? ApiConstants.apiMode,
+        _baseUrl = baseUrl ?? ApiConstants.effectiveBaseUrl,
         _apiKey = apiKey ?? ApiConstants.apiKey,
         _throttler = throttler ?? RequestThrottler();
 
+  final ApiMode _mode;
   final String _baseUrl;
   final String _apiKey;
   final Duration connectTimeout;
@@ -28,7 +32,16 @@ class ApiClient {
   final int maxRetries;
   final RequestThrottler _throttler;
 
-  bool get isConfigured => _apiKey.trim().isNotEmpty;
+  ApiMode get mode => _mode;
+
+  bool get isConfigured {
+    switch (_mode) {
+      case ApiMode.directApi:
+        return _apiKey.trim().isNotEmpty;
+      case ApiMode.backendProxy:
+        return _baseUrl.trim().isNotEmpty;
+    }
+  }
 
   Future<Map<String, dynamic>> get(
     String path, {
@@ -82,7 +95,7 @@ class ApiClient {
       final body = await response.transform(utf8.decoder).join();
 
       final decoded = _decodeBody(body);
-      _throwIfApiFootballErrors(decoded, response.statusCode);
+      _throwIfResponseErrors(decoded, response.statusCode);
 
       if (response.statusCode == 429) {
         ApiDebugLog.response(
@@ -167,6 +180,8 @@ class ApiClient {
     if (results is num) return results.toInt();
     final response = decoded['response'];
     if (response is List) return response.length;
+    final data = decoded['data'];
+    if (data is List) return data.length;
     return null;
   }
 
@@ -181,15 +196,17 @@ class ApiClient {
     }
   }
 
-  void _throwIfApiFootballErrors(Object? decoded, int statusCode) {
+  void _throwIfResponseErrors(Object? decoded, int statusCode) {
     if (decoded is! Map<String, dynamic>) return;
 
-    // API-Football may include a non-empty `errors` map alongside a valid
-    // `response` payload — always prefer usable rows when present.
+    // API-Football / proxy: prefer usable rows when present.
     final response = decoded['response'];
     if (response is List && response.isNotEmpty) return;
 
-    final errors = decoded['errors'];
+    final data = decoded['data'];
+    if (data is List && data.isNotEmpty) return;
+
+    final errors = decoded['errors'] ?? decoded['error'];
     if (errors == null) return;
     if (errors is List && errors.isEmpty) return;
     if (errors is Map && errors.isEmpty) return;
@@ -240,6 +257,11 @@ class ApiClient {
   void _applyHeaders(HttpHeaders headers) {
     headers.set(HttpHeaders.acceptHeader, 'application/json');
     headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-    headers.set(ApiConstants.headerApiKey, _apiKey);
+
+    // TODO(production): Use backendProxy for store builds — never ship the sports API key in the app.
+    if (_mode == ApiMode.directApi && _apiKey.trim().isNotEmpty) {
+      headers.set(ApiConstants.headerApiKey, _apiKey);
+    }
+    // backendProxy: no x-apisports-key header from Flutter.
   }
 }
