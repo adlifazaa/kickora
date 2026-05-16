@@ -9,8 +9,9 @@ import '../app/routes.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/standing_model.dart';
-import '../widgets/app_empty_state.dart';
+import '../widgets/async_content_view.dart';
 import '../widgets/live_badge.dart';
+import '../widgets/skeleton_box.dart';
 import '../widgets/match/premium_football_pitch.dart';
 import '../widgets/team_logo.dart';
 
@@ -30,18 +31,28 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   Timer? _commentaryTimer;
   int _displayMinute = 0;
   int _commentaryIndex = 0;
+  late MatchModel _match;
+  bool _loadingDetails = true;
 
-  MatchModel get m => widget.match;
+  MatchModel get m => _match;
 
   @override
   void initState() {
     super.initState();
+    _match = widget.match;
     _tabController = TabController(
       length: 4,
       vsync: this,
       animationDuration: const Duration(milliseconds: 280),
     );
     _displayMinute = _parseMinute(m);
+    _startLiveTimers();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDetails());
+  }
+
+  void _startLiveTimers() {
+    _minuteTimer?.cancel();
+    _commentaryTimer?.cancel();
     if (m.status == MatchStatus.live && m.timeLabel != 'HT') {
       _minuteTimer = Timer.periodic(const Duration(seconds: 25), (_) {
         if (!mounted) return;
@@ -55,6 +66,65 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
             (_commentaryIndex + 1) % m.liveCommentary.length);
       });
     }
+  }
+
+  Future<void> _loadDetails() async {
+    if (mounted) setState(() => _loadingDetails = true);
+
+    final repo = AppScope.footballRepositoryOf(context);
+    final id = _match.id;
+
+    final matchState = await repo.getMatchById(id);
+    final eventsState = await repo.getMatchEvents(id);
+    final statsState = await repo.getMatchStatistics(id);
+    final lineupsState = await repo.getMatchLineups(id);
+    final standingsState =
+        await repo.getStandings(leagueId: _match.competition.id);
+
+    final base = matchState.data ?? _match;
+    final events = eventsState.data;
+    final stats = statsState.data;
+    final lineups = lineupsState.data;
+    final standings = standingsState.data;
+
+    var homeLineup = lineups?.home ?? base.homeLineup ?? _match.homeLineup;
+    var awayLineup = lineups?.away ?? base.awayLineup ?? _match.awayLineup;
+
+    final homeFormation = await repo.getFormation(id, isHome: true);
+    final awayFormation = await repo.getFormation(id, isHome: false);
+    homeLineup = _lineupWithFormation(homeLineup, homeFormation.data);
+    awayLineup = _lineupWithFormation(awayLineup, awayFormation.data);
+
+    if (!mounted) return;
+    setState(() {
+      _loadingDetails = false;
+      _match = base.copyWith(
+        events: (events != null && events.isNotEmpty) ? events : base.events,
+        stats: (stats != null && stats.isNotEmpty) ? stats : base.stats,
+        homeLineup: homeLineup,
+        awayLineup: awayLineup,
+        standings: (standings != null && standings.isNotEmpty)
+            ? standings
+            : (base.standings.isNotEmpty ? base.standings : _match.standings),
+      );
+    });
+    _startLiveTimers();
+  }
+
+  LineupModel? _lineupWithFormation(
+    LineupModel? lineup,
+    FormationModel? formation,
+  ) {
+    if (lineup == null || formation == null) return lineup;
+    return LineupModel(
+      formation: lineup.formation,
+      coach: lineup.coach,
+      lines: lineup.lines,
+      substitutes: lineup.substitutes,
+      injured: lineup.injured,
+      missing: lineup.missing,
+      formationDetail: formation,
+    );
   }
 
   @override
@@ -142,15 +212,92 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
               controller: _tabController,
               physics: const BouncingScrollPhysics(),
               children: [
-                _OverviewTab(match: m),
-                _StatsTab(match: m),
-                _LineupsTab(match: m),
-                _StandingsTab(standings: m.standings),
+                _MatchDetailTabShell(
+                  loading: _loadingDetails,
+                  onRetry: _loadDetails,
+                  child: _OverviewTab(match: m),
+                ),
+                _MatchDetailTabShell(
+                  loading: _loadingDetails,
+                  onRetry: _loadDetails,
+                  child: _StatsTab(match: m),
+                ),
+                _MatchDetailTabShell(
+                  loading: _loadingDetails,
+                  onRetry: _loadDetails,
+                  skeleton: const _LineupsTabSkeleton(),
+                  child: _LineupsTab(match: m),
+                ),
+                _MatchDetailTabShell(
+                  loading: _loadingDetails,
+                  onRetry: _loadDetails,
+                  child: _StandingsTab(standings: m.standings),
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MatchDetailTabShell extends StatelessWidget {
+  const _MatchDetailTabShell({
+    required this.loading,
+    required this.onRetry,
+    required this.child,
+    this.skeleton,
+  });
+
+  final bool loading;
+  final Future<void> Function() onRetry;
+  final Widget child;
+  final Widget? skeleton;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return skeleton ??
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                SkeletonBox(height: 72),
+                SizedBox(height: 10),
+                SkeletonBox(height: 72),
+                SizedBox(height: 10),
+                SkeletonBox(height: 72),
+              ],
+            ),
+          );
+    }
+    return RefreshIndicator(
+      onRefresh: onRetry,
+      color: Theme.of(context).colorScheme.primary,
+      child: child is ScrollView
+          ? child
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [child],
+            ),
+    );
+  }
+}
+
+class _LineupsTabSkeleton extends StatelessWidget {
+  const _LineupsTabSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      physics: const NeverScrollableScrollPhysics(),
+      children: const [
+        SkeletonBox(height: 280, radius: 20),
+        SizedBox(height: 14),
+        SkeletonBox(height: 280, radius: 20),
+      ],
     );
   }
 }
@@ -616,16 +763,20 @@ class _OverviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (match.events.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.timeline_rounded,
-        title: text.isArabic ? 'لا توجد أحداث بعد' : 'No events yet',
-        subtitle: text.isArabic
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        emptyIcon: Icons.timeline_rounded,
+        emptyTitle: text.isArabic ? 'لا توجد أحداث بعد' : 'No events yet',
+        emptySubtitle: text.isArabic
             ? 'ستظهر الأحداث الكبرى هنا فور وقوعها.'
             : 'Key moments will show up here as they happen.',
+        child: const SizedBox.shrink(),
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
       itemCount: match.events.length + 1,
       itemBuilder: (context, index) {
@@ -805,16 +956,20 @@ class _StatsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (match.stats.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.bar_chart_rounded,
-        title: text.isArabic ? 'لا توجد إحصائيات' : 'No statistics',
-        subtitle: text.isArabic
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        emptyIcon: Icons.bar_chart_rounded,
+        emptyTitle: text.isArabic ? 'لا توجد إحصائيات' : 'No statistics',
+        emptySubtitle: text.isArabic
             ? 'سوف تتوفر الإحصائيات أثناء أو بعد المباراة.'
             : 'Statistics will be available during or after the match.',
+        child: const SizedBox.shrink(),
       );
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
       itemCount: match.stats.length + 1,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
@@ -1260,16 +1415,21 @@ class _LineupsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (match.homeLineup == null || match.awayLineup == null) {
-      return AppEmptyState(
-        icon: Icons.groups_2_outlined,
-        title: text.isArabic ? 'التشكيلات غير متوفرة' : 'Lineups not available',
-        subtitle: text.isArabic
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        emptyIcon: Icons.groups_2_outlined,
+        emptyTitle:
+            text.isArabic ? 'التشكيلات غير متوفرة' : 'Lineups not available',
+        emptySubtitle: text.isArabic
             ? 'تظهر التشكيلات عادةً قبل ساعة من المباراة.'
             : 'Lineups are typically published about an hour before kick-off.',
+        child: const SizedBox.shrink(),
       );
     }
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
       children: [
         _TeamLineupCard(
@@ -1560,16 +1720,20 @@ class _StandingsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     if (standings.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.leaderboard_outlined,
-        title: text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
-        subtitle: text.isArabic
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        emptyIcon: Icons.leaderboard_outlined,
+        emptyTitle: text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
+        emptySubtitle: text.isArabic
             ? 'سيظهر الترتيب عند توفر البيانات.'
             : 'The table will appear once data is available.',
+        child: const SizedBox.shrink(),
       );
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       itemCount: standings.length,
       separatorBuilder: (context, index) => const SizedBox(height: 6),

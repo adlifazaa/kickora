@@ -99,4 +99,44 @@ class MatchModel {
           .toList(),
     );
   }
+
+  MatchModel copyWith({
+    int? id,
+    TeamModel? homeTeam,
+    TeamModel? awayTeam,
+    int? homeScore,
+    int? awayScore,
+    MatchStatus? status,
+    String? timeLabel,
+    CompetitionModel? competition,
+    DateTime? date,
+    String? stadium,
+    List<MatchEventModel>? events,
+    List<MatchStatisticModel>? stats,
+    LineupModel? homeLineup,
+    LineupModel? awayLineup,
+    List<StandingModel>? standings,
+    double? momentumHome,
+    List<String>? liveCommentary,
+  }) {
+    return MatchModel(
+      id: id ?? this.id,
+      homeTeam: homeTeam ?? this.homeTeam,
+      awayTeam: awayTeam ?? this.awayTeam,
+      homeScore: homeScore ?? this.homeScore,
+      awayScore: awayScore ?? this.awayScore,
+      status: status ?? this.status,
+      timeLabel: timeLabel ?? this.timeLabel,
+      competition: competition ?? this.competition,
+      date: date ?? this.date,
+      stadium: stadium ?? this.stadium,
+      events: events ?? this.events,
+      stats: stats ?? this.stats,
+      homeLineup: homeLineup ?? this.homeLineup,
+      awayLineup: awayLineup ?? this.awayLineup,
+      standings: standings ?? this.standings,
+      momentumHome: momentumHome ?? this.momentumHome,
+      liveCommentary: liveCommentary ?? this.liveCommentary,
+    );
+  }
 }

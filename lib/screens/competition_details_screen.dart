@@ -4,13 +4,13 @@ import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
-import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../models/standing_model.dart';
 import '../models/team_model.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/async_content_view.dart';
 import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
 import '../widgets/section_header.dart';
@@ -29,27 +29,45 @@ class CompetitionDetailsScreen extends StatefulWidget {
 
 class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
   bool _loading = true;
+  List<MatchModel> _matches = [];
+  List<StandingModel> _standings = [];
+  List<TeamModel> _teams = [];
+  List<PlayerModel> _scorers = [];
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (mounted) setState(() => _loading = false);
+    if (mounted) setState(() => _loading = true);
+
+    final repo = AppScope.footballRepositoryOf(context);
+    final cid = widget.competition.id;
+    final matchState = await repo.getMatches(competitionId: cid);
+    final standingsState = await repo.getStandings(leagueId: cid);
+    final teamsState = await repo.getCompetitionTeams(cid);
+    final scorersState = await repo.getTopScorers(cid);
+
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _matches = matchState.data ?? [];
+        _standings = standingsState.data ?? [];
+        _teams = teamsState.data ?? [];
+        _scorers = scorersState.data ?? [];
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     final app = AppScope.of(context);
-    final matches = MockData.matches()
-        .where((m) => m.competition.id == widget.competition.id)
-        .toList();
-    final teams = MockData.competitionTeams(widget.competition.id);
-    final scorers = MockData.topScorers(widget.competition.id);
+    final matches = _matches;
+    final teams = _teams;
+    final scorers = _scorers;
     final featured = matches.isNotEmpty ? matches.first : null;
 
     return DefaultTabController(
@@ -142,9 +160,13 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
                   await _load();
                 },
               ),
-              _StandingsTab(loading: _loading, standings: MockData.standings),
-              _TeamsTab(loading: _loading, teams: teams),
-              _ScorersTab(loading: _loading, scorers: scorers),
+              _StandingsTab(
+                loading: _loading,
+                standings: _standings,
+                onRetry: _load,
+              ),
+              _TeamsTab(loading: _loading, teams: teams, onRetry: _load),
+              _ScorersTab(loading: _loading, scorers: scorers, onRetry: _load),
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -306,11 +328,14 @@ class _MatchesTab extends StatelessWidget {
             const MatchCardSkeleton(),
           ] else if (matches.isEmpty) ...[
             const SizedBox(height: 60),
-            AppEmptyState(
-              icon: Icons.sports_soccer_outlined,
-              title: text.noMatches,
-              subtitle: text.noMatchesSub,
-              detail: text.noMatchesEmptyDetail,
+            AsyncContentView(
+              loading: false,
+              isEmpty: true,
+              onRetry: () => refresh(),
+              emptyIcon: Icons.sports_soccer_outlined,
+              emptyTitle: text.noMatches,
+              emptySubtitle: text.noMatchesSub,
+              child: const SizedBox.shrink(),
             ),
           ] else ...[
             if (featured != null) ...[
@@ -342,19 +367,39 @@ class _MatchesTab extends StatelessWidget {
 }
 
 class _StandingsTab extends StatelessWidget {
-  const _StandingsTab({required this.loading, required this.standings});
+  const _StandingsTab({
+    required this.loading,
+    required this.standings,
+    required this.onRetry,
+  });
 
   final bool loading;
   final List<StandingModel> standings;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final text = AppText.of(context);
     if (loading) {
       return ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: 6,
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (_, _) => const SkeletonBox(height: 56, radius: 14),
+      );
+    }
+
+    if (standings.isEmpty) {
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        onRetry: onRetry,
+        emptyIcon: Icons.leaderboard_outlined,
+        emptyTitle: text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
+        emptySubtitle: text.isArabic
+            ? 'سيظهر الترتيب عند توفر البيانات.'
+            : 'The table will appear once data is available.',
+        child: const SizedBox.shrink(),
       );
     }
 
@@ -577,9 +622,14 @@ class _StandingsLegend extends StatelessWidget {
 }
 
 class _TeamsTab extends StatelessWidget {
-  const _TeamsTab({required this.loading, required this.teams});
+  const _TeamsTab({
+    required this.loading,
+    required this.teams,
+    required this.onRetry,
+  });
   final bool loading;
   final List<TeamModel> teams;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -598,12 +648,16 @@ class _TeamsTab extends StatelessWidget {
       );
     }
     if (teams.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.shield_outlined,
-        title: text.isArabic ? 'لا توجد فرق' : 'No teams',
-        subtitle: text.isArabic
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        onRetry: onRetry,
+        emptyIcon: Icons.shield_outlined,
+        emptyTitle: text.isArabic ? 'لا توجد فرق' : 'No teams',
+        emptySubtitle: text.isArabic
             ? 'لم نعثر على فرق لهذه البطولة بعد.'
             : 'We could not find teams for this competition yet.',
+        child: const SizedBox.shrink(),
       );
     }
     return GridView.builder(
@@ -649,9 +703,14 @@ class _TeamsTab extends StatelessWidget {
 }
 
 class _ScorersTab extends StatelessWidget {
-  const _ScorersTab({required this.loading, required this.scorers});
+  const _ScorersTab({
+    required this.loading,
+    required this.scorers,
+    required this.onRetry,
+  });
   final bool loading;
   final List<PlayerModel> scorers;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -665,12 +724,16 @@ class _ScorersTab extends StatelessWidget {
       );
     }
     if (scorers.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.scoreboard_outlined,
-        title: text.isArabic ? 'لا يوجد هدافون' : 'No top scorers',
-        subtitle: text.isArabic
+      return AsyncContentView(
+        loading: false,
+        isEmpty: true,
+        onRetry: onRetry,
+        emptyIcon: Icons.scoreboard_outlined,
+        emptyTitle: text.isArabic ? 'لا يوجد هدافون' : 'No top scorers',
+        emptySubtitle: text.isArabic
             ? 'سيظهر الهدافون فور توفر البيانات.'
             : 'Top scorers will appear once data is available.',
+        child: const SizedBox.shrink(),
       );
     }
     return ListView.separated(

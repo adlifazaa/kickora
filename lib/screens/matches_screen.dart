@@ -1,15 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
-import '../data/mock_data.dart';
 import '../models/match_model.dart';
-import '../widgets/app_empty_state.dart';
-import '../widgets/app_error_placeholder.dart';
 import '../widgets/ad_placeholder.dart';
+import '../widgets/async_content_view.dart';
 import '../widgets/match_card.dart';
-import '../widgets/skeleton_box.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
@@ -23,19 +21,35 @@ class _MatchesScreenState extends State<MatchesScreen>
   late final TabController _tabController;
   DateTime _selectedDate = DateTime.now();
   bool _loading = true;
-  bool _error = false;
+  List<MatchModel> _live = [];
+  List<MatchModel> _upcoming = [];
+  List<MatchModel> _finished = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-    if (mounted) setState(() => _loading = false);
+
+    final repo = AppScope.footballRepositoryOf(context);
+    final results = await Future.wait([
+      repo.getLiveMatches(date: _selectedDate),
+      repo.getUpcomingMatches(date: _selectedDate),
+      repo.getFinishedMatches(date: _selectedDate),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _live = results[0].data ?? [];
+        _upcoming = results[1].data ?? [];
+        _finished = results[2].data ?? [];
+      });
+    }
   }
 
   @override
@@ -44,20 +58,22 @@ class _MatchesScreenState extends State<MatchesScreen>
     super.dispose();
   }
 
-  Future<void> _onRefresh() async {
-    await _load();
-    if (mounted) setState(() => _error = false);
+  Future<void> _onRefresh() => _load();
+
+  List<MatchModel> _matchesForTab(int index) {
+    switch (index) {
+      case 0:
+        return _live;
+      case 1:
+        return _upcoming;
+      default:
+        return _finished;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    final all = MockData.matches();
-    final byStatus = [
-      all.where((m) => m.status == MatchStatus.live).toList(),
-      all.where((m) => m.status == MatchStatus.upcoming).toList(),
-      all.where((m) => m.status == MatchStatus.finished).toList(),
-    ];
 
     return SafeArea(
       child: Column(
@@ -94,8 +110,9 @@ class _MatchesScreenState extends State<MatchesScreen>
                       lastDate: DateTime(2028),
                       initialDate: _selectedDate,
                     );
-                    if (picked != null) {
+                    if (picked != null && picked != _selectedDate) {
                       setState(() => _selectedDate = picked);
+                      await _load();
                     }
                   },
                 ),
@@ -107,55 +124,28 @@ class _MatchesScreenState extends State<MatchesScreen>
             tabs: [text.live, text.upcoming, text.finished],
           ),
           Expanded(
-            child: _error
-                ? AppErrorPlaceholder(
-                    title: text.errorTitle,
-                    message: text.errorSub,
-                    retryLabel: text.retry,
-                    onRetry: () {
-                      setState(() => _error = false);
-                      _load();
-                    },
-                  )
-                : TabBarView(
-                    controller: _tabController,
-                    physics: const BouncingScrollPhysics(),
-                    children: List.generate(3, (index) {
-                      return RefreshIndicator(
-                        onRefresh: _onRefresh,
-                        child: _loading
-                            ? ListView.separated(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: 5,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 10),
-                                itemBuilder: (_, _) =>
-                                    const MatchCardSkeleton(),
-                              )
-                            : (byStatus[index].isEmpty
-                                ? ListView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    children: [
-                                      const SizedBox(height: 80),
-                                      AppEmptyState(
-                                        icon: Icons.sports_soccer_outlined,
-                                        title: text.noMatches,
-                                        subtitle: text.noMatchesSub,
-                                        detail: text.noMatchesEmptyDetail,
-                                      ),
-                                    ],
-                                  )
-                                : ListView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    padding: const EdgeInsets.all(16),
-                                    children: _buildGrouped(
-                                        byStatus[index], context, text),
-                                  )),
-                      );
-                    }),
+            child: TabBarView(
+              controller: _tabController,
+              physics: const BouncingScrollPhysics(),
+              children: List.generate(3, (index) {
+                final matches = _matchesForTab(index);
+                return RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  color: Theme.of(context).colorScheme.primary,
+                  child: AsyncContentView(
+                    loading: _loading,
+                    isEmpty: !_loading && matches.isEmpty,
+                    onRetry: _load,
+                    skeleton: const MatchListSkeleton(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      children: _buildGrouped(matches, context, text),
+                    ),
                   ),
+                );
+              }),
+            ),
           ),
         ],
       ),
@@ -285,8 +275,6 @@ class _PremiumTabBar extends StatelessWidget {
       ),
       child: TabBar(
         controller: controller,
-        // The indicator is always a teal/green gradient, so the label is
-        // black for selected (reads on the gradient) in both themes.
         labelColor: Colors.black,
         unselectedLabelColor: Theme.of(context).hintColor,
         indicatorSize: TabBarIndicatorSize.tab,

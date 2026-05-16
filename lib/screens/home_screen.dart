@@ -1,12 +1,14 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
+import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
+import '../widgets/async_content_view.dart';
 import '../widgets/competition_card.dart';
 import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
@@ -24,37 +26,59 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
+  List<MatchModel> _liveMatches = [];
+  List<MatchModel> _todayMatches = [];
+  List<CompetitionModel> _competitions = [];
+  CompetitionModel? _featuredCompetition;
 
   @override
   void initState() {
     super.initState();
-    _fakeLoad();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _fakeLoad() async {
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (mounted) setState(() => _loading = false);
+  Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
+
+    final repo = AppScope.footballRepositoryOf(context);
+    final liveState = await repo.getLiveMatches();
+    final allState = await repo.getMatches();
+    final compState = await repo.getCompetitions();
+
+    final all = allState.data ?? [];
+    final competitions = compState.data ?? MockData.competitions;
+    CompetitionModel? featured;
+    for (final c in competitions) {
+      if (c.isFeatured) {
+        featured = c;
+        break;
+      }
+    }
+    featured ??= competitions.isNotEmpty ? competitions.first : null;
+
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _liveMatches = liveState.data ?? [];
+        _todayMatches =
+            all.where((m) => m.status != MatchStatus.finished).toList();
+        _competitions = competitions;
+        _featuredCompetition = featured;
+      });
+    }
   }
 
-  Future<void> _onRefresh() async {
-    setState(() => _loading = true);
-    await _fakeLoad();
-  }
+  Future<void> _onRefresh() => _load();
 
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    final matches = MockData.matches();
-    final liveMatches =
-        matches.where((m) => m.status == MatchStatus.live).toList();
-    final todayMatches =
-        matches.where((m) => m.status != MatchStatus.finished).toList();
-    final featuredCompetition =
-        MockData.competitions.firstWhere((c) => c.isFeatured);
+    final featuredCompetition = _featuredCompetition;
 
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: _onRefresh,
+        color: Theme.of(context).colorScheme.primary,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           physics: const AlwaysScrollableScrollPhysics(),
@@ -68,19 +92,18 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
               const MatchCardSkeleton(),
             ] else ...[
-              if (liveMatches.isNotEmpty) ...[
+              if (_liveMatches.isNotEmpty) ...[
                 SectionHeader(
                   title: text.featuredMatch,
                   subtitle: text.homeFeaturedLiveSubtitle,
                   icon: Icons.star_rounded,
                 ),
                 const SizedBox(height: 10),
-                _FeaturedCarousel(matches: liveMatches),
+                _FeaturedCarousel(matches: _liveMatches),
                 const SizedBox(height: 20),
                 SectionHeader(
                   title: text.liveNow,
-                  subtitle:
-                      text.matchesCountLabel(liveMatches.length),
+                  subtitle: text.matchesCountLabel(_liveMatches.length),
                   icon: Icons.flash_on_rounded,
                   actionText: text.all,
                   onTap: () =>
@@ -91,51 +114,79 @@ class _HomeScreenState extends State<HomeScreen> {
                   skipFirst: 0,
                   interval: 4,
                   items: [
-                    for (var i = 0; i < liveMatches.length; i++)
+                    for (var i = 0; i < _liveMatches.length; i++)
                       _StaggeredItem(
                         index: i,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: MatchCard(
-                            match: liveMatches[i],
+                            match: _liveMatches[i],
                             onTap: () => Navigator.pushNamed(
                                 context, AppRoutes.matchDetails,
-                                arguments: liveMatches[i]),
+                                arguments: _liveMatches[i]),
                           ),
                         ),
                       ),
                   ],
                 ),
+              ] else ...[
+                SectionHeader(
+                  title: text.liveNow,
+                  subtitle: text.matchesCountLabel(0),
+                  icon: Icons.flash_on_rounded,
+                ),
+                const SizedBox(height: 10),
+                AsyncContentView(
+                  loading: false,
+                  isEmpty: true,
+                  onRetry: _load,
+                  emptyIcon: Icons.sports_soccer_outlined,
+                  emptyTitle: text.noMatches,
+                  emptySubtitle: text.noMatchesSub,
+                  child: const SizedBox.shrink(),
+                ),
               ],
               const SizedBox(height: 4),
               SectionHeader(
                 title: text.todayMatches,
-                subtitle:
-                    text.matchesCountLabel(todayMatches.length),
+                subtitle: text.matchesCountLabel(_todayMatches.length),
                 icon: Icons.today_rounded,
               ),
               const SizedBox(height: 10),
-              ...insertFeedSpotlights(
-                interval: 4,
-                items: [
-                  for (var i = 0; i < todayMatches.length; i++)
-                    _StaggeredItem(
-                      index: i,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: MatchCard(
-                          match: todayMatches[i],
-                          onTap: () => Navigator.pushNamed(
-                              context, AppRoutes.matchDetails,
-                              arguments: todayMatches[i]),
+              if (_todayMatches.isEmpty)
+                AsyncContentView(
+                  loading: false,
+                  isEmpty: true,
+                  onRetry: _load,
+                  emptyIcon: Icons.today_rounded,
+                  emptyTitle: text.noMatches,
+                  emptySubtitle: text.noMatchesSub,
+                  child: const SizedBox.shrink(),
+                )
+              else
+                ...insertFeedSpotlights(
+                  interval: 4,
+                  items: [
+                    for (var i = 0; i < _todayMatches.length; i++)
+                      _StaggeredItem(
+                        index: i,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: MatchCard(
+                            match: _todayMatches[i],
+                            onTap: () => Navigator.pushNamed(
+                                context, AppRoutes.matchDetails,
+                                arguments: _todayMatches[i]),
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
             ],
-            const SizedBox(height: 6),
-            _FeaturedCompetitionStrip(competition: featuredCompetition),
+            if (featuredCompetition != null) ...[
+              const SizedBox(height: 6),
+              _FeaturedCompetitionStrip(competition: featuredCompetition),
+            ],
             const SizedBox(height: 20),
             SectionHeader(
               title: text.competitions,
@@ -145,25 +196,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pushNamed(context, AppRoutes.competitions),
             ),
             const SizedBox(height: 10),
-            SizedBox(
-              height: 156,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                itemCount: MockData.competitions.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final competition = MockData.competitions[index];
-                  return CompetitionCard(
-                    competition: competition,
-                    onTap: () => Navigator.pushNamed(
-                        context, AppRoutes.competitionDetails,
-                        arguments: competition),
-                  );
-                },
+            if (_loading)
+              const SizedBox(
+                height: 156,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (_competitions.isEmpty)
+              AsyncContentView(
+                loading: false,
+                isEmpty: true,
+                onRetry: _load,
+                emptyIcon: Icons.emoji_events_outlined,
+                emptyTitle: text.noSearchResultsTitle,
+                emptySubtitle: text.searchEmptySubtitle,
+                child: const SizedBox.shrink(),
+              )
+            else
+              SizedBox(
+                height: 156,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  itemCount: _competitions.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final competition = _competitions[index];
+                    return CompetitionCard(
+                      competition: competition,
+                      onTap: () => Navigator.pushNamed(
+                          context, AppRoutes.competitionDetails,
+                          arguments: competition),
+                    );
+                  },
+                ),
               ),
-            ),
             const SizedBox(height: 20),
             const ContentSpotlightPlaceholder(
               variant: ContentSpotlightVariant.featuredContent,
@@ -301,16 +368,12 @@ class _FeaturedCompetitionStrip extends StatelessWidget {
   }
 }
 
-/// [PageView] needs a fixed extent; this tracks compact [MatchCard] layout
-/// plus a little headroom for live-badge scale and taller script metrics.
 double _featuredCarouselPageHeight(BuildContext context) {
   final textScale = MediaQuery.textScalerOf(context).scale(1.0);
   const base = 178.0;
   return (base * textScale.clamp(0.95, 1.55)).clamp(172.0, 280.0);
 }
 
-/// Horizontal PageView showing the top live matches with a subtle peek of the
-/// next card on either side — gives the home screen a real "carousel" feel.
 class _FeaturedCarousel extends StatefulWidget {
   const _FeaturedCarousel({required this.matches});
 
@@ -402,8 +465,6 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
   }
 }
 
-/// Subtle slide+fade-in for list items, indexed by [index] so a stack of cards
-/// staggers naturally on first paint.
 class _StaggeredItem extends StatelessWidget {
   const _StaggeredItem({required this.index, required this.child});
 
