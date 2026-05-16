@@ -1,0 +1,135 @@
+================================================================================
+KICKORA — Privacy Policy & Play Data Safety Checklist
+================================================================================
+App: Kickora
+Contact: sugarkeysapps@gmail.com
+In-app policy: Settings → Privacy policy
+In-app terms: Settings → Terms of use
+
+Complete this checklist when filling Google Play “Data safety” and ensuring
+your store listing matches what the app actually does.
+
+--------------------------------------------------------------------------------
+1. IN-APP DOCUMENTATION (verify before store submit)
+--------------------------------------------------------------------------------
+[ ] Privacy Policy screen is reachable from Settings
+[ ] Terms of Use screen is reachable from Settings
+[ ] Contact email sugarkeysapps@gmail.com shown on Privacy / About / Terms
+[ ] “Last updated” date on Privacy Policy is current
+[ ] Arabic and English policy text is accurate for current app behavior
+[ ] Policy states app is not directed to children under 13
+
+--------------------------------------------------------------------------------
+2. DATA THE APP COLLECTS OR PROCESSES (declare honestly)
+--------------------------------------------------------------------------------
+Review each type against the live app. Check only what applies today.
+
+ON-DEVICE / LOCAL (typical)
+[ ] App preferences (language, theme) — stored locally (SharedPreferences)
+[ ] Favorites (teams, competitions) — stored locally on device
+[ ] Recent searches (competitions) — stored locally if enabled
+
+NETWORK / THIRD PARTIES
+[ ] Football data fetched from API-Football (api-sports.io) when API key provided
+[ ] Device IP address processed by API provider as part of HTTP requests
+[ ] No Kickora account / login in current version (declare “No account required” if true)
+
+NOT COLLECTED BY KICKora SERVER (typical — confirm no backend)
+[ ] Kickora does not operate its own user accounts database (unless added later)
+[ ] No email collected unless user contacts support voluntarily
+
+FUTURE / ARCHITECTURE (declare when activated)
+[ ] Push notifications (FCM) — architecture ready; declare when live
+[ ] Advertising (e.g. Google AdMob) — declare when ads are enabled in production
+[ ] Analytics — declare if Firebase Analytics or similar is added
+
+--------------------------------------------------------------------------------
+3. GOOGLE PLAY DATA SAFETY FORM — SUGGESTED ANSWERS
+--------------------------------------------------------------------------------
+Adjust after final review of the app binary. These are starting points.
+
+Data collection
+[ ] Clarify whether you collect data: Often “Yes” if third-party APIs/processes
+    device data, OR “No” if only on-device with no transmission — verify with counsel.
+[ ] If using API-Football: data is requested from device to provider; document
+    “Data shared with third parties” for sports data provider as applicable.
+
+Data types (check if transmitted)
+[ ] App activity — optional / diagnostics only if analytics added
+[ ] Device or other IDs — only if ads/analytics SDKs enabled
+[ ] Approximate location — only if you add location-based features (not default)
+
+Security practices
+[ ] Data encrypted in transit (HTTPS for API calls) — Yes, when using HTTPS APIs
+[ ] Users can request data deletion — Yes, via sugarkeysapps@gmail.com
+[ ] Committed to Play Families Policy if targeting children — N/A if 13+ only
+
+Purpose
+[ ] App functionality (scores, favorites, preferences)
+[ ] Advertising — only when ads are enabled
+[ ] Analytics — only when analytics SDK is enabled
+
+--------------------------------------------------------------------------------
+4. PRIVACY POLICY URL (Play Console)
+--------------------------------------------------------------------------------
+[ ] Option A: Host privacy policy on a public HTTPS page (GitHub Pages, website)
+[ ] Option B: Some developers link to in-app-only policy — Play often requires a URL
+[ ] URL text must match in-app policy substance
+[ ] Include contact: sugarkeysapps@gmail.com
+[ ] Mention third-party football data provider (API-Football / API-Sports)
+[ ] Mention optional ads in future if stated in-app
+
+--------------------------------------------------------------------------------
+5. PERMISSIONS (Android)
+--------------------------------------------------------------------------------
+[ ] INTERNET — required for live football data
+[ ] ACCESS_NETWORK_STATE — connectivity checks
+[ ] No unnecessary dangerous permissions declared
+[ ] Notification permission — declare when push notifications ship (Android 13+)
+
+--------------------------------------------------------------------------------
+6. API KEY HANDLING (developer / compliance)
+--------------------------------------------------------------------------------
+[ ] API key passed via --dart-define=KICKORA_API_KEY (not in source repo)
+[ ] CI/CD secrets store key for release builds (not in git)
+[ ] Key not logged in release builds (debug logs use kDebugMode only)
+[ ] Rotate key if exposed
+
+--------------------------------------------------------------------------------
+7. USER RIGHTS & CONTACT
+--------------------------------------------------------------------------------
+[ ] Users can email sugarkeysapps@gmail.com for:
+      - Privacy questions
+      - Data access requests (if applicable)
+      - Data deletion requests (local data + any server logs you control)
+[ ] Response process documented internally (target: within reasonable time)
+
+--------------------------------------------------------------------------------
+8. CHILDREN & SENSITIVE CONTENT
+--------------------------------------------------------------------------------
+[ ] App not directed at children under 13 (stated in Privacy Policy)
+[ ] Sports content is public match/league information
+[ ] No user-generated public content in current version
+
+--------------------------------------------------------------------------------
+9. ALIGNMENT CHECK (store listing ↔ app ↔ policy)
+--------------------------------------------------------------------------------
+[ ] Store description does not promise features not in the build
+[ ] Data safety form matches Privacy Policy
+[ ] Ads / notifications claims match actual build or “coming soon” disclosures
+[ ] Contact email identical everywhere: sugarkeysapps@gmail.com
+
+--------------------------------------------------------------------------------
+10. BEFORE EACH RELEASE (re-run)
+--------------------------------------------------------------------------------
+[ ] Any new SDK (ads, analytics, crash reporting) added to privacy policy?
+[ ] Data safety form updated?
+[ ] New permissions added to AndroidManifest?
+[ ] Release notes mention privacy-impacting changes?
+
+================================================================================
+Reference files in this folder:
+  play_store_listing_en.txt
+  play_store_listing_ar.txt
+  release_checklist.txt
+================================================================================

@@ -1,0 +1,102 @@
+================================================================================
+KICKORA — Play Store Release Checklist
+================================================================================
+App: Kickora
+Package: com.kickora.live
+Contact: sugarkeysapps@gmail.com
+
+Use this list before uploading to Google Play Console. Do not ship until each
+blocking item is checked.
+
+--------------------------------------------------------------------------------
+A. PROJECT & BUILD (blocking)
+--------------------------------------------------------------------------------
+[ ] pubspec.yaml version bumped (format: MAJOR.MINOR.PATCH+versionCode)
+[ ] flutter analyze — no issues
+[ ] android/key.properties created from android/key.properties.example
+[ ] Upload keystore generated and backed up securely (never commit .jks)
+[ ] Release AAB built with API key (not hardcoded in repo):
+      flutter build appbundle --release --dart-define=KICKORA_API_KEY=YOUR_KEY
+[ ] Test release build on a physical device (live data, favorites, both languages)
+[ ] Confirm release build is NOT signed with debug keystore
+
+--------------------------------------------------------------------------------
+B. ANDROID CONFIGURATION
+--------------------------------------------------------------------------------
+[ ] App name: Kickora (strings.xml + Play Console)
+[ ] applicationId: com.kickora.live (matches Play Console app ID)
+[ ] Launcher icons: branded mipmap assets (replace Flutter placeholders if any)
+[ ] Splash / LaunchTheme references valid resources
+[ ] INTERNET permission present in AndroidManifest.xml
+[ ] No API keys or secrets in source control or APK strings
+
+--------------------------------------------------------------------------------
+C. PLAY CONSOLE — STORE LISTING
+--------------------------------------------------------------------------------
+[ ] App name: Kickora
+[ ] Short description (EN) — from play_store_listing_en.txt (≤80 chars)
+[ ] Full description (EN) — from play_store_listing_en.txt
+[ ] Short description (AR) — from play_store_listing_ar.txt (if listing in Arabic)
+[ ] Full description (AR) — from play_store_listing_ar.txt
+[ ] App icon: 512×512 PNG (32-bit, no transparency for store icon rules)
+[ ] Feature graphic: 1024×500
+[ ] Phone screenshots: minimum 2 (recommend 4–8), EN and/or AR
+[ ] Tablet screenshots (optional but recommended)
+[ ] Category: Sports
+[ ] Contact email: sugarkeysapps@gmail.com
+[ ] Privacy policy URL (hosted) OR note in-app policy + Play Data safety alignment
+[ ] Content rating questionnaire completed
+[ ] Target countries / regions selected
+[ ] Pricing & distribution set (free/paid)
+
+--------------------------------------------------------------------------------
+D. LEGAL & PRIVACY
+--------------------------------------------------------------------------------
+[ ] In-app Privacy Policy reviewed (Settings → Privacy)
+[ ] In-app Terms of Use reviewed
+[ ] Contact email sugarkeysapps@gmail.com visible in About / Privacy / Terms
+[ ] Data safety form completed (see privacy_policy_checklist.txt)
+[ ] Ads declaration accurate (current / future AdMob architecture)
+[ ] Children’s policy: not directed under 13 (matches in-app text)
+
+--------------------------------------------------------------------------------
+E. FUNCTIONAL QA (smoke test on release build)
+--------------------------------------------------------------------------------
+[ ] Home — live + today matches load (with API key)
+[ ] Matches — live / upcoming / finished tabs
+[ ] Match details — score, events, stats, lineups
+[ ] Competitions list + competition details
+[ ] Standings (where league supports it)
+[ ] Favorites add/remove
+[ ] Settings — language AR/EN, theme light/dark
+[ ] No silent fallback to mock World Cup data when API key is set
+[ ] Rate-limit message + Retry when API quota exceeded
+[ ] Pull-to-refresh works on main feeds
+
+--------------------------------------------------------------------------------
+F. UPLOAD & ROLLOUT
+--------------------------------------------------------------------------------
+[ ] Upload app-release.aab to Internal testing track first
+[ ] Internal testers install and sign off
+[ ] Promote to Closed testing → Open testing (optional) → Production
+[ ] Release notes written for this version (what’s new)
+[ ] Monitor crashes (Play Vitals / Firebase if configured later)
+[ ] Monitor API usage / quota for API-Football free tier
+
+--------------------------------------------------------------------------------
+G. POST-LAUNCH
+--------------------------------------------------------------------------------
+[ ] Respond to user reviews
+[ ] Plan icon / screenshot updates for major features
+[ ] Document API key rotation process (dart-define / CI secret)
+[ ] Keep release_notes/ updated for next version
+
+--------------------------------------------------------------------------------
+QUICK COMMANDS (when ready — do not run until checklist A is done)
+--------------------------------------------------------------------------------
+flutter analyze
+flutter build appbundle --release --dart-define=KICKORA_API_KEY=YOUR_KEY
+
+Output: build/app/outputs/bundle/release/app-release.aab
+
+================================================================================
