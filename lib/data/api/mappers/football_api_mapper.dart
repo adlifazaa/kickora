@@ -75,6 +75,9 @@ class FootballApiMapper {
   static List<PlayerModel> players(FootballApiEnvelope body) =>
       ApiFootballParser.parseTopScorers(body.raw);
 
+  static List<PlayerModel> searchPlayers(FootballApiEnvelope body) =>
+      ApiFootballParser.parseTopScorers(body.raw);
+
   static PlayerModel? playerById(FootballApiEnvelope body) =>
       ApiFootballParser.parsePlayer(body.raw);
 
