@@ -1,30 +1,33 @@
 import 'api_mode.dart';
 
-/// Football API configuration (direct API-Football or Kickora backend proxy).
+/// Football API configuration: mock, direct API-Football, or Kickora backend proxy.
 ///
-/// **Development / testing (direct API):**
+/// **Mock (default — Play Store / MVP):**
+/// `flutter run` or `flutter build appbundle --release`
+/// Optional: `--dart-define=KICKORA_API_MODE=mock`
+///
+/// **Development (direct API):**
 /// `flutter run --dart-define=KICKORA_API_MODE=direct --dart-define=KICKORA_API_KEY=your_key`
 ///
-/// **Production (backend proxy — recommended for Play Store):**
-/// `flutter build appbundle --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND_BASE_URL=https://your-api.example.com`
+/// **Production (backend proxy):**
+/// `flutter build appbundle --release --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND_URL=https://your-api.example.com`
 ///
-/// TODO(production): Ship Play Store builds with [ApiMode.backendProxy] only.
-/// Never embed `KICKORA_API_KEY` in Flutter release binaries — the key belongs on the server.
-///
-/// Optional: `--dart-define=KICKORA_API_DEBUG=true` | `KICKORA_API_DEV_MODE=true`
+/// Never embed `KICKORA_API_KEY` in Play Store release binaries.
 class ApiConstants {
   ApiConstants._();
 
   // --- Mode ---
 
-  /// `direct` (default) or `backend` / `backendProxy`.
+  /// `mock` (default), `direct`, or `backend`.
   static const String apiModeName = String.fromEnvironment(
     'KICKORA_API_MODE',
-    defaultValue: 'direct',
+    defaultValue: 'mock',
   );
 
   static ApiMode get apiMode {
     switch (apiModeName.trim().toLowerCase()) {
+      case 'mock':
+        return ApiMode.mock;
       case 'backend':
       case 'backendproxy':
       case 'backend_proxy':
@@ -32,10 +35,13 @@ class ApiConstants {
       case 'direct':
       case 'directapi':
       case 'direct_api':
-      default:
         return ApiMode.directApi;
+      default:
+        return ApiMode.mock;
     }
   }
+
+  static bool get isMock => apiMode == ApiMode.mock;
 
   static bool get isDirectApi => apiMode == ApiMode.directApi;
 
@@ -46,12 +52,19 @@ class ApiConstants {
   /// API-Football v3 host (direct mode only).
   static const String apiFootballBaseUrl = 'https://v3.football.api-sports.io';
 
-  /// Kickora backend proxy base URL (backend mode).
-  /// Example: `https://api.kickora.app`
-  static const String backendBaseUrl = String.fromEnvironment(
+  static const String _backendUrl = String.fromEnvironment(
+    'KICKORA_BACKEND_URL',
+    defaultValue: '',
+  );
+
+  static const String _backendUrlLegacy = String.fromEnvironment(
     'KICKORA_BACKEND_BASE_URL',
     defaultValue: '',
   );
+
+  /// Kickora backend proxy base URL (backend mode).
+  static String get backendBaseUrl =>
+      _backendUrl.trim().isNotEmpty ? _backendUrl : _backendUrlLegacy;
 
   static String get effectiveBaseUrl =>
       isBackendProxy ? backendBaseUrl : apiFootballBaseUrl;
@@ -61,7 +74,6 @@ class ApiConstants {
 
   // --- Credentials (direct mode only) ---
 
-  /// Injected at compile time for [ApiMode.directApi]; must be empty in production releases.
   static const String apiKey = String.fromEnvironment(
     'KICKORA_API_KEY',
     defaultValue: '',
@@ -91,22 +103,22 @@ class ApiConstants {
   static const String headerApiKey = 'x-apisports-key';
 
   // --- Kickora backend proxy routes (production) ---
-  // Server holds the API-Football key and normalizes responses for the app.
 
   static const String backendMatchesLive = '/matches/live';
   static const String backendMatchesToday = '/matches/today';
   static const String backendMatchesUpcoming = '/matches/upcoming';
   static const String backendMatchesFinished = '/matches/finished';
   static const String backendCompetitions = '/competitions';
-  static const String backendStandings = '/standings';
+  static const String backendPlayersSearch = '/players/search';
 
-  static String backendMatch(int id) => '/match/$id';
-  static String backendMatchEvents(int id) => '/match/$id/events';
-  static String backendMatchStatistics(int id) => '/match/$id/statistics';
-  static String backendMatchLineups(int id) => '/match/$id/lineups';
-
-  // TODO(backend): add when proxy implements competition teams / top scorers / players.
-  // static const String backendCompetitionTeams = '/competitions/{id}/teams';
+  static String backendCompetition(int id) => '/competitions/$id';
+  static String backendStandings(int competitionId) =>
+      '/standings/$competitionId';
+  static String backendTeams(int competitionId) => '/teams/$competitionId';
+  static String backendMatch(int id) => '/matches/$id';
+  static String backendMatchEvents(int id) => '/matches/$id/events';
+  static String backendMatchStatistics(int id) => '/matches/$id/statistics';
+  static String backendMatchLineups(int id) => '/matches/$id/lineups';
 
   // --- API-Football v3 routes (direct mode) ---
 
@@ -132,9 +144,11 @@ class ApiConstants {
 
   static bool get hasBackendUrl => backendBaseUrl.trim().isNotEmpty;
 
-  /// True when remote football data can be loaded (direct key or backend URL).
-  static bool get hasRemoteApi =>
-      isDirectApi ? hasApiKey : hasBackendUrl;
+  /// True when remote football data can be loaded (not mock, with credentials).
+  static bool get hasRemoteApi {
+    if (isMock) return false;
+    return isDirectApi ? hasApiKey : hasBackendUrl;
+  }
 
   static int currentSeason([DateTime? reference]) {
     final now = reference ?? DateTime.now();

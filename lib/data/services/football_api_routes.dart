@@ -122,8 +122,8 @@ class FootballApiRoutes {
   static ApiRouteRequest competitionById(int id, {required int season}) {
     if (ApiConstants.apiMode == ApiMode.backendProxy) {
       return ApiRouteRequest(
-        path: ApiConstants.backendCompetitions,
-        queryParameters: {'id': '$id', 'season': '$season'},
+        path: ApiConstants.backendCompetition(id),
+        queryParameters: {'season': '$season'},
       );
     }
     return ApiRouteRequest(
@@ -138,8 +138,8 @@ class FootballApiRoutes {
   }) {
     if (ApiConstants.apiMode == ApiMode.backendProxy) {
       return ApiRouteRequest(
-        path: ApiConstants.backendStandings,
-        queryParameters: {'league': '$leagueId', 'season': '$season'},
+        path: ApiConstants.backendStandings(leagueId),
+        queryParameters: {'season': '$season'},
       );
     }
     return ApiRouteRequest(
@@ -148,20 +148,42 @@ class FootballApiRoutes {
     );
   }
 
-  /// Direct API-Football only until the proxy exposes teams/scorers routes.
-  static bool get supportsTeamsOnBackend =>
-      ApiConstants.apiMode != ApiMode.backendProxy;
+  /// Top scorers / player profile remain direct-API only until backend exposes them.
+  static bool get supportsExtendedPlayerRoutes =>
+      ApiConstants.apiMode == ApiMode.directApi;
 
   static ApiRouteRequest teams({
     int? competitionId,
     required int season,
   }) {
+    if (ApiConstants.apiMode == ApiMode.backendProxy && competitionId != null) {
+      return ApiRouteRequest(
+        path: ApiConstants.backendTeams(competitionId),
+        queryParameters: {'season': '$season'},
+      );
+    }
     return ApiRouteRequest(
       path: ApiConstants.teams,
       queryParameters: {
         if (competitionId != null) 'league': '$competitionId',
         if (competitionId != null) 'season': '$season',
       },
+    );
+  }
+
+  static ApiRouteRequest playersSearch({
+    required String query,
+    required int season,
+  }) {
+    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+      return ApiRouteRequest(
+        path: ApiConstants.backendPlayersSearch,
+        queryParameters: {'q': query, 'season': '$season'},
+      );
+    }
+    return ApiRouteRequest(
+      path: ApiConstants.players,
+      queryParameters: {'search': query, 'season': '$season'},
     );
   }
 

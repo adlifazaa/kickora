@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../constants/api_constants.dart';
+import '../constants/api_mode_service.dart';
 import 'api_request_coordinator.dart';
 
 /// Safe API logging for local testing. Never logs API keys or auth headers.
@@ -12,8 +13,8 @@ class ApiDebugLog {
   static void boot() {
     if (!kDebugMode) return;
     debugPrint(
-      '[Kickora] apiMode=${ApiConstants.apiMode.name} '
-      'remoteConfigured=${ApiConstants.hasRemoteApi} '
+      '[Kickora] apiMode=${ApiModeService.mode.name} '
+      'remoteConfigured=${ApiModeService.usesRemoteApi} '
       'apiDevMode=${ApiConstants.apiDevMode}',
     );
     debugPrint('[Kickora] baseUrl=${ApiConstants.effectiveBaseUrl}');

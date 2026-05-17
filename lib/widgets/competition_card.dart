@@ -33,12 +33,12 @@ class CompetitionCard extends StatelessWidget {
         final compact =
             dense || (maxH.isFinite && maxH > 0 && maxH < 155);
         final padH = compact ? 10.0 : 12.0;
-        final padV = compact ? 9.0 : 11.0;
-        final logoSize = dense ? 100.0 : (compact ? 40.0 : 44.0);
+        final padV = dense ? 8.0 : (compact ? 9.0 : 11.0);
+        final logoSize = dense ? 88.0 : (compact ? 40.0 : 44.0);
         final nameSize = compact ? 12.5 : 13.5;
         final metaSize = compact ? 10.0 : 10.5;
-        final rowGap = compact ? 6.0 : 8.0;
-        final metaGap = 2.0;
+        final rowGap = dense ? 4.0 : (compact ? 6.0 : 8.0);
+        final metaGap = dense ? 1.0 : 2.0;
 
         final teamsLabel = text.competitionTeamsCount(competition.teamCount);
         final matchesLabel =
@@ -102,80 +102,97 @@ class CompetitionCard extends StatelessWidget {
         );
 
         final metaSection = dense
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    competition.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: nameSize,
-                      letterSpacing: -0.2,
-                      height: 1.12,
+            ? LayoutBuilder(
+                builder: (context, metaConstraints) {
+                  return FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: metaConstraints.maxWidth,
+                        maxHeight: metaConstraints.maxHeight,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            competition.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: nameSize,
+                              letterSpacing: -0.2,
+                              height: 1.12,
+                            ),
+                          ),
+                          if (competition.isFeatured) ...[
+                            SizedBox(height: metaGap),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: compact ? 5 : 6,
+                                vertical: compact ? 2 : 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppColors.teal,
+                                    AppColors.neonGreen,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                text.featuredBadge,
+                                style: TextStyle(
+                                  fontSize: compact ? 7.5 : 8,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (competition.teamCount > 0) ...[
+                            SizedBox(height: metaGap),
+                            Text(
+                              teamsLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Theme.of(context).hintColor,
+                                fontSize: metaSize,
+                                fontWeight: FontWeight.w700,
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
+                          if (competition.matchesToday > 0) ...[
+                            SizedBox(height: metaGap),
+                            Text(
+                              matchesLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.9),
+                                fontSize: metaSize,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                  if (competition.isFeatured) ...[
-                    SizedBox(height: metaGap),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 5 : 6,
-                        vertical: compact ? 2 : 2.5,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.teal, AppColors.neonGreen],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        text.featuredBadge,
-                        style: TextStyle(
-                          fontSize: compact ? 7.5 : 8,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (competition.teamCount > 0) ...[
-                    SizedBox(height: metaGap),
-                    Text(
-                      teamsLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Theme.of(context).hintColor,
-                        fontSize: metaSize,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                  if (competition.matchesToday > 0) ...[
-                    SizedBox(height: metaGap),
-                    Text(
-                      matchesLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.9),
-                        fontSize: metaSize,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                ],
+                  );
+                },
               )
             : Column(
                 mainAxisSize: MainAxisSize.min,
@@ -218,24 +235,27 @@ class CompetitionCard extends StatelessWidget {
 
         final Widget content;
         if (dense) {
-          content = Stack(
-            clipBehavior: Clip.none,
+          content = Column(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: CompetitionBadge.fromCompetition(
-                      competition,
-                      size: logoSize,
+              SizedBox(
+                height: logoSize,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Center(
+                      child: CompetitionBadge.fromCompetition(
+                        competition,
+                        size: logoSize,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: rowGap),
-                  metaSection,
-                ],
+                    Positioned(top: 0, right: 0, child: bookmark),
+                  ],
+                ),
               ),
-              Positioned(top: 0, right: 0, child: bookmark),
+              SizedBox(height: rowGap),
+              Expanded(child: metaSection),
             ],
           );
         } else {
@@ -295,12 +315,10 @@ class CompetitionCard extends StatelessWidget {
                   ),
                 ],
               ),
-              child: dense
-                  ? Align(
-                      alignment: Alignment.center,
-                      child: content,
-                    )
-                  : content,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: content,
+              ),
             ),
           ),
         );

@@ -487,8 +487,8 @@ class FootballRepository {
     return 'mem_${kind}_${competitionId ?? 'all'}_$d';
   }
 
-  String _friendlyError(ApiException e) =>
-      e.isRateLimited ? ApiCachePolicy.rateLimitMessageEn : e.message;
+  String _friendlyError(ApiException e, {bool isArabic = false}) =>
+      ApiCachePolicy.friendlyMessage(e, isArabic: isArabic);
 
   int _resolvedFixtureId(int? fixtureId, int matchId) {
     if (fixtureId != null && fixtureId > 0) return fixtureId;

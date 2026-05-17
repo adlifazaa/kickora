@@ -43,7 +43,9 @@ class FootballApiService {
   final ApiProvider provider;
 
   static ApiProvider _defaultProvider() {
-    if (!ApiConstants.hasRemoteApi) return ApiProvider.mock;
+    if (ApiConstants.isMock || !ApiConstants.hasRemoteApi) {
+      return ApiProvider.mock;
+    }
     return ApiConstants.isBackendProxy
         ? ApiProvider.backend
         : ApiProvider.apiFootball;
@@ -169,7 +171,7 @@ class FootballApiService {
       MatchStatus.live => ApiCachePolicy.liveMatches,
       MatchStatus.upcoming => ApiCachePolicy.fixturesUpcoming,
       MatchStatus.finished => ApiCachePolicy.fixturesFinished,
-      null => ApiCachePolicy.fixturesByDate,
+      null => ApiCachePolicy.todayMatches,
     };
     await _writeMatchCache(cacheKey, matches, ttl: ttl);
     return matches;
@@ -343,8 +345,7 @@ class FootballApiService {
 
   Future<List<TeamModel>> fetchTeams({int? competitionId}) async {
     if (!isLive) throw const ApiException.notConfigured();
-    // TODO(backend): expose teams via proxy; until then backend builds return empty.
-    if (!FootballApiRoutes.supportsTeamsOnBackend) {
+    if (ApiConstants.isBackendProxy && competitionId == null) {
       return const [];
     }
 
@@ -412,7 +413,7 @@ class FootballApiService {
 
   Future<List<PlayerModel>> fetchTopScorers(int competitionId) async {
     if (!isLive) throw const ApiException.notConfigured();
-    if (!FootballApiRoutes.supportsTeamsOnBackend) {
+    if (!FootballApiRoutes.supportsExtendedPlayerRoutes) {
       return const [];
     }
 
@@ -457,7 +458,7 @@ class FootballApiService {
 
   Future<PlayerModel?> fetchPlayerById(int id) async {
     if (!isLive) throw const ApiException.notConfigured();
-    if (!FootballApiRoutes.supportsTeamsOnBackend) {
+    if (!FootballApiRoutes.supportsExtendedPlayerRoutes) {
       return null;
     }
 

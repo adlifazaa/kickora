@@ -36,6 +36,8 @@ class ApiClient {
 
   bool get isConfigured {
     switch (_mode) {
+      case ApiMode.mock:
+        return false;
       case ApiMode.directApi:
         return _apiKey.trim().isNotEmpty;
       case ApiMode.backendProxy:
@@ -105,10 +107,21 @@ class ApiClient {
           errorCode: 'rate_limit',
           dataSource: 'error',
         );
-        throw const ApiException(
-          'Rate limit exceeded.',
-          statusCode: 429,
-          code: 'rate_limit',
+        throw const ApiException.rateLimited();
+      }
+
+      if (response.statusCode == 502 ||
+          response.statusCode == 503 ||
+          response.statusCode == 504) {
+        ApiDebugLog.response(
+          requestId: requestId,
+          statusCode: response.statusCode,
+          path: path,
+          errorCode: 'backend_unavailable',
+          dataSource: 'error',
+        );
+        throw ApiException.backendUnavailable(
+          'HTTP ${response.statusCode}',
         );
       }
 
@@ -187,7 +200,7 @@ class ApiClient {
 
   Object? _decodeBody(String body) {
     if (body.trim().isEmpty) {
-      throw const ApiException.parse('Empty response body.');
+      throw const ApiException.emptyResponse();
     }
     try {
       return jsonDecode(body);
@@ -216,11 +229,7 @@ class ApiClient {
         : errors.toString();
 
     if (message.toLowerCase().contains('rate limit')) {
-      throw ApiException(
-        message,
-        statusCode: statusCode,
-        code: 'rate_limit',
-      );
+      throw ApiException.rateLimited(message);
     }
 
     throw ApiException(
