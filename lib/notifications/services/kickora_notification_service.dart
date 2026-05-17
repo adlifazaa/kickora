@@ -7,49 +7,55 @@ import '../models/firebase_notification_payload.dart';
 import '../models/kickora_notification.dart';
 import '../models/notification_permission_status.dart';
 import '../models/notification_type.dart';
-import '../notification_channels.dart';
+import '../notification_manager.dart';
 import 'firebase_notification_bridge.dart';
 import 'local_notification_helper.dart';
 import 'notification_permission_handler.dart';
+import 'notification_service.dart';
 
-/// Central notifications API for Kickora (mock-safe until Firebase/plugins are added).
+/// App-facing notifications API (mock-safe; FCM foundation via [NotificationManager]).
 class KickoraNotificationService {
   KickoraNotificationService({
-    required NotificationPermissionHandler permissionHandler,
+    required NotificationManager manager,
     required LocalNotificationHelper localHelper,
-    required FirebaseNotificationBridge firebaseBridge,
-    required SharedPreferences preferences,
-  })  : _permission = permissionHandler,
+    FirebaseNotificationBridge? firebaseBridge,
+  })  : _manager = manager,
         _local = localHelper,
-        _firebase = firebaseBridge,
-        _prefs = preferences;
+        _firebaseBridge = firebaseBridge;
 
   factory KickoraNotificationService.createMock(SharedPreferences prefs) {
-    return KickoraNotificationService(
+    final bridge = MockFirebaseNotificationBridge();
+    final fcm = NotificationService(bridge);
+    final manager = NotificationManager(
+      notificationService: fcm,
       permissionHandler: MockNotificationPermissionHandler(prefs),
-      localHelper: MockLocalNotificationHelper(),
-      firebaseBridge: MockFirebaseNotificationBridge(),
       preferences: prefs,
+    );
+    return KickoraNotificationService(
+      manager: manager,
+      localHelper: MockLocalNotificationHelper(),
+      firebaseBridge: bridge,
     );
   }
 
-  final NotificationPermissionHandler _permission;
+  final NotificationManager _manager;
   final LocalNotificationHelper _local;
-  final FirebaseNotificationBridge _firebase;
-  final SharedPreferences _prefs;
-
-  /// Shared with [AppController] preferences toggle.
-  static const String enabledPreferenceKey = 'notifications_enabled';
+  final FirebaseNotificationBridge? _firebaseBridge;
 
   StreamSubscription<FirebaseNotificationPayload>? _foregroundSub;
   bool _initialized = false;
 
-  bool get isEnabled => _prefs.getBool(enabledPreferenceKey) ?? false;
+  static const String enabledPreferenceKey =
+      NotificationManager.enabledPreferenceKey;
 
-  bool get usesMockFirebase => !_firebase.isAvailable;
+  bool get isEnabled => _manager.isEnabled;
+
+  bool get usesMockFirebase => _manager.usesMockFirebase;
 
   MockFirebaseNotificationBridge? get mockFirebase =>
-      _firebase is MockFirebaseNotificationBridge ? _firebase : null;
+      _firebaseBridge is MockFirebaseNotificationBridge
+          ? _firebaseBridge
+          : null;
 
   MockLocalNotificationHelper? get mockLocal =>
       _local is MockLocalNotificationHelper ? _local : null;
@@ -57,92 +63,45 @@ class KickoraNotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
     await _local.initialize();
-    await _firebase.initialize();
-    _foregroundSub = _firebase.onForegroundMessage.listen(_onForegroundFcm);
-    _firebase.onMessageOpenedApp.listen(_onOpenedFcm);
+    await _manager.initialize();
+    _foregroundSub = _manager.onForegroundMessage.listen(_onForegroundFcm);
+    _manager.onMessageOpenedApp.listen(_onOpenedFcm);
     _initialized = true;
     if (kDebugMode) {
       debugPrint(
-        '[Kickora Notifications] initialized (mock=$usesMockFirebase)',
+        '[Kickora Notifications] service ready (mock=$usesMockFirebase '
+        'enabled=$isEnabled)',
       );
     }
   }
 
   Future<void> dispose() async {
     await _foregroundSub?.cancel();
-    if (_firebase is MockFirebaseNotificationBridge) {
-      _firebase.dispose();
+    await _manager.dispose();
+    if (_firebaseBridge is MockFirebaseNotificationBridge) {
+      _firebaseBridge.dispose();
     }
   }
 
   Future<NotificationPermissionStatus> permissionStatus() =>
-      _permission.getStatus();
+      _manager.permissionStatus();
 
-  /// Enables alerts: requests permission, registers FCM topics for favorites.
-  Future<bool> enable({Set<int> favoriteTeamIds = const {}}) async {
-    final status = await _permission.request();
-    if (status != NotificationPermissionStatus.granted &&
-        status != NotificationPermissionStatus.provisional) {
-      await _prefs.setBool(enabledPreferenceKey, false);
-      return false;
-    }
-
-    await _prefs.setBool(enabledPreferenceKey, true);
-    await syncFavoriteTeams(favoriteTeamIds);
-    return true;
-  }
+  Future<bool> enable({Set<int> favoriteTeamIds = const {}}) =>
+      _manager.enable(favoriteTeamIds: favoriteTeamIds);
 
   Future<void> disable() async {
-    await _prefs.setBool(enabledPreferenceKey, false);
+    await _manager.disable();
     await _local.cancelAll();
-    if (_firebase is MockFirebaseNotificationBridge) {
-      // Topics cleared on next enable sync.
-    }
   }
 
-  static const String _subscribedTeamsKey = 'fcm_subscribed_team_ids';
-  static const String _subscribedMatchesKey = 'fcm_subscribed_match_ids';
+  Future<void> syncFavoriteTeams(Set<int> teamIds) =>
+      _manager.syncFavoriteTeams(teamIds);
 
-  Future<void> syncFavoriteTeams(Set<int> teamIds) async {
-    if (!isEnabled) return;
-    await _syncTopicSet(
-      preferenceKey: _subscribedTeamsKey,
-      desiredIds: teamIds,
-      topicFor: NotificationTopics.favoriteTeam,
-    );
-  }
+  Future<void> syncFavoriteMatches(Set<int> matchIds) =>
+      _manager.syncFavoriteMatches(matchIds);
 
-  Future<void> syncFavoriteMatches(Set<int> matchIds) async {
-    if (!isEnabled) return;
-    await _syncTopicSet(
-      preferenceKey: _subscribedMatchesKey,
-      desiredIds: matchIds,
-      topicFor: NotificationTopics.favoriteMatch,
-    );
-  }
-
-  Future<void> _syncTopicSet({
-    required String preferenceKey,
-    required Set<int> desiredIds,
-    required String Function(int id) topicFor,
-  }) async {
-    final previous = _readIdSet(preferenceKey);
-    for (final id in previous.difference(desiredIds)) {
-      await _firebase.unsubscribeFromTopic(topicFor(id));
-    }
-    for (final id in desiredIds.difference(previous)) {
-      await _firebase.subscribeToTopic(topicFor(id));
-    }
-    await _prefs.setStringList(
-      preferenceKey,
-      desiredIds.map((e) => '$e').toList(),
-    );
-  }
-
-  Set<int> _readIdSet(String key) {
-    final raw = _prefs.getStringList(key) ?? <String>[];
-    return raw.map(int.tryParse).whereType<int>().toSet();
-  }
+  Future<void> syncFavoriteCompetitions(Set<int> competitionIds) =>
+      _manager.syncFavoriteCompetitions(competitionIds);
 
   Future<void> showLocal(KickoraNotification notification) async {
     if (!isEnabled) return;
@@ -158,7 +117,7 @@ class KickoraNotificationService {
   }) =>
       _dispatch(
         FirebaseNotificationPayload(
-          type: NotificationType.matchStarting,
+          type: NotificationType.matchStarted,
           matchId: matchId,
           homeTeam: homeTeam,
           awayTeam: awayTeam,
@@ -178,13 +137,33 @@ class KickoraNotificationService {
   }) =>
       _dispatch(
         FirebaseNotificationPayload(
-          type: NotificationType.goal,
+          type: NotificationType.goalScored,
           matchId: matchId,
           homeTeam: homeTeam,
           awayTeam: awayTeam,
           score: score,
           minute: minute,
           body: isArabic ? 'هدف — $scorer' : 'Goal — $scorer',
+        ),
+        isArabic: isArabic,
+      );
+
+  Future<void> notifyRedCard({
+    required int matchId,
+    required String playerName,
+    required String homeTeam,
+    required String awayTeam,
+    String? minute,
+    bool isArabic = false,
+  }) =>
+      _dispatch(
+        FirebaseNotificationPayload(
+          type: NotificationType.redCard,
+          matchId: matchId,
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+          minute: minute,
+          body: isArabic ? 'بطاقة حمراء — $playerName' : 'Red card — $playerName',
         ),
         isArabic: isArabic,
       );
@@ -214,9 +193,24 @@ class KickoraNotificationService {
     required String score,
     bool isArabic = false,
   }) =>
+      notifyMatchFinished(
+        matchId: matchId,
+        homeTeam: homeTeam,
+        awayTeam: awayTeam,
+        score: score,
+        isArabic: isArabic,
+      );
+
+  Future<void> notifyMatchFinished({
+    required int matchId,
+    required String homeTeam,
+    required String awayTeam,
+    required String score,
+    bool isArabic = false,
+  }) =>
       _dispatch(
         FirebaseNotificationPayload(
-          type: NotificationType.fulltime,
+          type: NotificationType.matchFinished,
           matchId: matchId,
           homeTeam: homeTeam,
           awayTeam: awayTeam,
@@ -235,7 +229,7 @@ class KickoraNotificationService {
   }) =>
       _dispatch(
         FirebaseNotificationPayload(
-          type: NotificationType.favoriteTeamReminder,
+          type: NotificationType.favoriteTeamUpdate,
           teamId: teamId,
           matchId: matchId,
           homeTeam: homeTeam,

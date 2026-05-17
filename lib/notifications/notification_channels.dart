@@ -9,8 +9,12 @@ class NotificationChannels {
   static String forType(String wireType) {
     switch (wireType) {
       case 'goal':
+      case 'goal_scored':
         return goals;
+      case 'red_card':
+        return matchAlerts;
       case 'favorite_team_reminder':
+      case 'favorite_team_update':
         return favorites;
       default:
         return matchAlerts;
@@ -18,11 +22,19 @@ class NotificationChannels {
   }
 }
 
-/// FCM topic naming for favorite teams / leagues (subscribe when Firebase is live).
+/// FCM topic naming (`team_{id}`, `match_{id}`, `competition_{id}`).
 class NotificationTopics {
   NotificationTopics._();
 
-  static String favoriteTeam(int teamId) => 'team_$teamId';
-  static String favoriteMatch(int matchId) => 'match_$matchId';
+  static String team(int teamId) => 'team_$teamId';
+  static String match(int matchId) => 'match_$matchId';
+  static String competition(int competitionId) => 'competition_$competitionId';
+
+  /// @deprecated Use [team].
+  static String favoriteTeam(int teamId) => team(teamId);
+
+  /// @deprecated Use [match].
+  static String favoriteMatch(int matchId) => match(matchId);
+
   static const String globalLive = 'kickora_live';
 }

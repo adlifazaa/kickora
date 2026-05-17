@@ -32,7 +32,7 @@ class FirebaseNotificationPayload {
   factory FirebaseNotificationPayload.fromData(Map<String, dynamic> data) {
     final type =
         NotificationTypeX.fromWireValue(data['type']?.toString()) ??
-            NotificationType.matchStarting;
+            NotificationType.matchStarted;
 
     return FirebaseNotificationPayload(
       type: type,
@@ -66,17 +66,21 @@ class FirebaseNotificationPayload {
   }
 
   String _defaultTitle(bool isArabic) {
-    switch (type) {
-      case NotificationType.matchStarting:
+    switch (type.canonical) {
+      case NotificationType.matchStarted:
         return isArabic ? 'المباراة تبدأ قريبًا' : 'Match starting soon';
-      case NotificationType.goal:
+      case NotificationType.goalScored:
         return isArabic ? 'هدف!' : 'Goal!';
+      case NotificationType.redCard:
+        return isArabic ? 'بطاقة حمراء' : 'Red card';
+      case NotificationType.matchFinished:
+        return isArabic ? 'نهاية المباراة' : 'Match finished';
       case NotificationType.halftime:
         return isArabic ? 'استراحة' : 'Half time';
-      case NotificationType.fulltime:
-        return isArabic ? 'نهاية المباراة' : 'Full time';
-      case NotificationType.favoriteTeamReminder:
-        return isArabic ? 'مباراة فريقك المفضل' : 'Favorite team match';
+      case NotificationType.favoriteTeamUpdate:
+        return isArabic ? 'مباراة فريقك المفضل' : 'Favorite team update';
+      default:
+        return isArabic ? 'Kickora' : 'Kickora';
     }
   }
 

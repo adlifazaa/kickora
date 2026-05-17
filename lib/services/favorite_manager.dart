@@ -146,8 +146,8 @@ class FavoriteManager extends ChangeNotifier {
     final away = match.awayTeam.name;
     final score = '${match.homeScore} - ${match.awayScore}';
 
-    switch (type) {
-      case NotificationType.matchStarting:
+    switch (type.canonical) {
+      case NotificationType.matchStarted:
         await notifications.notifyMatchStarting(
           matchId: match.id,
           homeTeam: home,
@@ -155,13 +155,22 @@ class FavoriteManager extends ChangeNotifier {
           kickoffLabel: kickoffLabel ?? match.timeLabel,
           isArabic: isArabic,
         );
-      case NotificationType.goal:
+      case NotificationType.goalScored:
         await notifications.notifyGoal(
           matchId: match.id,
           scorer: scorer ?? '',
           homeTeam: home,
           awayTeam: away,
           score: score,
+          minute: match.timeLabel,
+          isArabic: isArabic,
+        );
+      case NotificationType.redCard:
+        await notifications.notifyRedCard(
+          matchId: match.id,
+          playerName: scorer ?? '',
+          homeTeam: home,
+          awayTeam: away,
           minute: match.timeLabel,
           isArabic: isArabic,
         );
@@ -173,15 +182,15 @@ class FavoriteManager extends ChangeNotifier {
           score: score,
           isArabic: isArabic,
         );
-      case NotificationType.fulltime:
-        await notifications.notifyFulltime(
+      case NotificationType.matchFinished:
+        await notifications.notifyMatchFinished(
           matchId: match.id,
           homeTeam: home,
           awayTeam: away,
           score: score,
           isArabic: isArabic,
         );
-      case NotificationType.favoriteTeamReminder:
+      case NotificationType.favoriteTeamUpdate:
         final teamId = _teamIds.contains(match.homeTeam.id)
             ? match.homeTeam.id
             : match.awayTeam.id;
@@ -193,6 +202,8 @@ class FavoriteManager extends ChangeNotifier {
           kickoffLabel: kickoffLabel ?? match.timeLabel,
           isArabic: isArabic,
         );
+      default:
+        break;
     }
   }
 
