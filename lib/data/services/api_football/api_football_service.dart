@@ -193,4 +193,28 @@ class ApiFootballService {
           awayTeamId: fixture?.awayTeam.id,
         );
       });
+
+  Future<CompetitionModel?> getCompetitionById(int id) => safe(() async {
+        final envelope = await _get(
+          ApiFootballRoutes.competitionById(id: id, season: _season),
+        );
+        return FootballApiMapper.competitionById(envelope);
+      });
+
+  Future<List<PlayerModel>> getTopScorers(int competitionId) => safe(() async {
+        final envelope = await _get(
+          ApiFootballRoutes.topScorers(
+            competitionId: competitionId,
+            season: _season,
+          ),
+        );
+        return FootballApiMapper.players(envelope);
+      });
+
+  Future<PlayerModel?> getPlayerById(int id) => safe(() async {
+        final envelope = await _get(
+          ApiFootballRoutes.playerById(id: id, season: _season),
+        );
+        return FootballApiMapper.playerById(envelope);
+      });
 }

@@ -92,6 +92,33 @@ class BackendProxyRoutes {
         queryParameters: {'q': query, 'season': '$season'},
       );
 
+  static ApiRouteRequest competitionById({
+    required int id,
+    required int season,
+  }) =>
+      ApiRouteRequest(
+        path: ApiConstants.backendCompetition(id),
+        queryParameters: {'season': '$season'},
+      );
+
+  static ApiRouteRequest topScorers({
+    required int competitionId,
+    required int season,
+  }) =>
+      ApiRouteRequest(
+        path: ApiConstants.backendTopScorers(competitionId),
+        queryParameters: {'season': '$season'},
+      );
+
+  static ApiRouteRequest playerById({
+    required int id,
+    required int season,
+  }) =>
+      ApiRouteRequest(
+        path: ApiConstants.backendPlayer(id),
+        queryParameters: {'season': '$season'},
+      );
+
   static ApiRouteRequest matchById(int id) => ApiRouteRequest(
         path: ApiConstants.backendMatch(id),
       );

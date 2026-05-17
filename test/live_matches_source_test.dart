@@ -25,4 +25,20 @@ void main() {
     );
     expect(state.data!.isNotEmpty, isTrue);
   });
+
+  test('FootballRepository extended paths use mock by default', () async {
+    final repo = FootballRepository();
+
+    final scorers = await repo.getTopScorers(1);
+    expect(scorers.fromMock, isTrue);
+    expect(scorers.hasError, isFalse);
+
+    final player = await repo.getPlayerById(1);
+    expect(player.fromMock, isTrue);
+    expect(player.hasError, isFalse);
+
+    final competition = await repo.getCompetitionById(1);
+    expect(competition.fromMock, isTrue);
+    expect(competition.hasError, isFalse);
+  });
 }

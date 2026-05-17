@@ -112,6 +112,9 @@ class ApiConstants {
   static const String backendPlayersSearch = '/players/search';
 
   static String backendCompetition(int id) => '/competitions/$id';
+  static String backendTopScorers(int competitionId) =>
+      '/competitions/$competitionId/top-scorers';
+  static String backendPlayer(int id) => '/players/$id';
   static String backendStandings(int competitionId) =>
       '/standings/$competitionId';
   static String backendTeams(int competitionId) => '/teams/$competitionId';

@@ -385,14 +385,33 @@ class FootballRepository {
   }
 
   Future<DataState<CompetitionModel?>> getCompetitionById(int id) async {
-    try {
-      if (!_provider.isRemote) {
-        return DataState.success(_mockCompetitionById(id), fromMock: true);
-      }
-      final remote = await _provider.fetchCompetitionById(id);
-      return DataState.success(remote ?? _mockCompetitionById(id), fromMock: remote == null);
-    } catch (_) {
+    if (!RemoteFootballSource.isRemoteActive) {
+      ApiDebugLog.dataSource(
+        operation: 'getCompetitionById',
+        source: 'mock',
+        count: 1,
+        message: 'mode=${ApiConstants.apiMode.name}',
+      );
       return DataState.success(_mockCompetitionById(id), fromMock: true);
+    }
+    try {
+      final remote = await _remote.fetchCompetitionById(id);
+      return DataState.success(
+        remote ?? _mockCompetitionById(id),
+        fromMock: remote == null,
+      );
+    } on ApiException catch (e) {
+      final stale = _remote.readCachedCompetitionById(id);
+      if (stale != null) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
+      final stale = _remote.readCachedCompetitionById(id);
+      if (stale != null) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 
@@ -450,32 +469,74 @@ class FootballRepository {
   }
 
   Future<DataState<List<PlayerModel>>> getTopScorers(int competitionId) async {
-    return _loadSimple(
-      fetch: () => _provider.fetchTopScorers(competitionId),
-      mock: () => MockData.topScorers(competitionId),
-    );
+    if (!RemoteFootballSource.isRemoteActive) {
+      final list = MockData.topScorers(competitionId);
+      ApiDebugLog.dataSource(
+        operation: 'getTopScorers',
+        source: 'mock',
+        count: list.length,
+        message: 'mode=${ApiConstants.apiMode.name}',
+      );
+      return DataState.success(list, fromMock: true);
+    }
+    try {
+      final data = await _remote.fetchTopScorers(competitionId);
+      return DataState.success(data, fromMock: false);
+    } on ApiException catch (e) {
+      final stale = _remote.readCachedTopScorers(competitionId);
+      if (stale != null && stale.isNotEmpty) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
+      final stale = _remote.readCachedTopScorers(competitionId);
+      if (stale != null && stale.isNotEmpty) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+    }
   }
 
   Future<DataState<PlayerModel?>> getPlayerById(int id) async {
     final memKey = 'player_profile_$id';
-    if (!_provider.isRemote) {
+    if (!RemoteFootballSource.isRemoteActive) {
       return DataState.success(_mockPlayerById(id), fromMock: true);
     }
     final cached =
         _memory.get<PlayerModel>(memKey, ApiCachePolicy.playerProfile);
     if (cached != null) {
       PlayerPhotoResolver.cacheProfilePhoto(id, cached.photoUrl);
-      return DataState.success(cached, fromMock: false);
+      return DataState.success(cached, fromMock: false, fromCache: true);
     }
     try {
-      final remote = await _provider.fetchPlayerById(id);
+      final remote = await _remote.fetchPlayerById(id);
       final player = remote ?? _mockPlayerById(id);
       if (remote != null) {
         _memory.put(memKey, remote);
         PlayerPhotoResolver.cacheProfilePhoto(id, remote.photoUrl);
+        return DataState.success(player, fromMock: false);
       }
-      return DataState.success(player, fromMock: remote == null);
-    } catch (_) {
+      final stale = _remote.readCachedPlayerById(id);
+      if (stale != null) {
+        _memory.put(memKey, stale);
+        PlayerPhotoResolver.cacheProfilePhoto(id, stale.photoUrl);
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
+      return DataState.success(player, fromMock: true);
+    } on ApiException catch (e) {
+      final stale = _remote.readCachedPlayerById(id);
+      if (stale != null) {
+        _memory.put(memKey, stale);
+        PlayerPhotoResolver.cacheProfilePhoto(id, stale.photoUrl);
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
+      final stale = _remote.readCachedPlayerById(id);
+      if (stale != null) {
+        PlayerPhotoResolver.cacheProfilePhoto(id, stale.photoUrl);
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
       return DataState.success(_mockPlayerById(id), fromMock: true);
     }
   }
@@ -684,36 +745,6 @@ class FootballRepository {
   bool _allowMockFallback(int fixtureId) {
     if (!RemoteFootballSource.isRemoteActive) return true;
     return MockData.isMockMatchId(fixtureId);
-  }
-
-  Future<DataState<T>> _loadSimple<T>({
-    String? cacheKey,
-    required Future<T> Function() fetch,
-    required T Function() mock,
-  }) async {
-    try {
-      if (!_provider.isRemote) {
-        return DataState.success(mock(), fromMock: true);
-      }
-      final data = await fetch();
-      if (cacheKey != null) {
-        await _cache?.setJson(cacheKey, {'ok': true});
-      }
-      return DataState.success(data);
-    } on ApiException catch (e) {
-      if (e.isNotConfigured) {
-        return DataState.success(mock(), fromMock: true);
-      }
-      if (e.isRateLimited) {
-        return DataState.failure(_friendlyError(e));
-      }
-      return DataState.failure(_friendlyError(e));
-    } catch (e) {
-      if (!_provider.isRemote) {
-        return DataState.success(mock(), fromMock: true);
-      }
-      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
-    }
   }
 
   List<MatchModel> _mockLiveMatches() => MockData.matches()

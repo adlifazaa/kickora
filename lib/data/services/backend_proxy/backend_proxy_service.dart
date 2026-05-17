@@ -283,6 +283,56 @@ class BackendProxyService {
         );
       });
 
+  Future<CompetitionModel?> getCompetitionById(int id) => safe(() async {
+        final cacheKey = 'backend_competition_$id';
+        final cached = _readCompetitions(cacheKey);
+        if (cached != null && cached.isNotEmpty) return cached.first;
+
+        final envelope = await _get(
+          BackendProxyRoutes.competitionById(id: id, season: _season),
+        );
+        final competition = FootballApiMapper.competitionById(envelope);
+        if (competition != null) {
+          await _cache?.writeJsonList(
+            cacheKey,
+            [competition.toJson()],
+            CacheBucket.competitions,
+          );
+        }
+        return competition;
+      });
+
+  Future<List<PlayerModel>> getTopScorers(int competitionId) => safe(() async {
+        final cacheKey = 'backend_scorers_$competitionId';
+        final cached = _readPlayers(cacheKey);
+        if (cached != null) return cached;
+
+        final envelope = await _get(
+          BackendProxyRoutes.topScorers(
+            competitionId: competitionId,
+            season: _season,
+          ),
+        );
+        final list = FootballApiMapper.players(envelope);
+        await _writePlayers(cacheKey, list);
+        return list;
+      });
+
+  Future<PlayerModel?> getPlayerById(int id) => safe(() async {
+        final cacheKey = 'backend_player_$id';
+        final cached = _readPlayers(cacheKey);
+        if (cached != null && cached.isNotEmpty) return cached.first;
+
+        final envelope = await _get(
+          BackendProxyRoutes.playerById(id: id, season: _season),
+        );
+        final player = FootballApiMapper.playerById(envelope);
+        if (player != null) {
+          await _writePlayers(cacheKey, [player]);
+        }
+        return player;
+      });
+
   String _cacheKey(String prefix, {DateTime? date, int? league}) {
     final d = date != null ? ApiConstants.formatDate(date) : 'any';
     return 'backend_${prefix}_${league ?? 'all'}_$d';
@@ -357,6 +407,39 @@ class BackendProxyService {
         .map((e) => TeamModel.fromJson(Map<String, dynamic>.from(e)))
         .toList();
   }
+
+  List<PlayerModel>? _readPlayers(String key) {
+    final list = _cache?.readJsonList(key, CacheBucket.playerProfile);
+    if (list == null) return null;
+    return list
+        .whereType<Map>()
+        .map((e) => PlayerModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<void> _writePlayers(String key, List<PlayerModel> list) async {
+    await _cache?.writeJsonList(
+      key,
+      list.map(_playerToJson).toList(),
+      CacheBucket.playerProfile,
+    );
+  }
+
+  Map<String, dynamic> _playerToJson(PlayerModel p) => {
+        'id': p.id,
+        'name': p.name,
+        'shortName': p.shortName,
+        'number': p.number,
+        'nationality': p.nationality,
+        'age': p.age,
+        'position': p.position,
+        'team': p.team,
+        'teamLogoShort': p.teamLogoShort,
+        'appearances': p.appearances,
+        'goals': p.goals,
+        'seasonRating': p.seasonRating,
+        if (p.photoUrl.isNotEmpty) 'photoUrl': p.photoUrl,
+      };
 
   String _statusShort(MatchStatus status) {
     switch (status) {

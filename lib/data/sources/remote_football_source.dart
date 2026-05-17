@@ -319,6 +319,85 @@ class RemoteFootballSource {
     return lineup?.resolvedFormation;
   }
 
+  // --- Competition / players (extended) ---
+
+  Future<CompetitionModel?> fetchCompetitionById(int id) async {
+    _ensureActive();
+    final cacheKey = 'remote_competition_$id';
+    final cached = _readCompetitions(cacheKey);
+    if (cached != null && cached.isNotEmpty) {
+      _log('getCompetitionById', 'cache', 1);
+      return cached.first;
+    }
+    final competition = await _call(
+      () => _apiFootball.getCompetitionById(id),
+      () => _backendProxy.getCompetitionById(id),
+    );
+    if (competition != null) {
+      await _cache?.writeJsonList(
+        cacheKey,
+        [competition.toJson()],
+        CacheBucket.competitions,
+      );
+    }
+    _log('getCompetitionById', _sourceLabel, competition == null ? 0 : 1);
+    return competition;
+  }
+
+  CompetitionModel? readCachedCompetitionById(int id) {
+    final list = _readCompetitions('remote_competition_$id');
+    return list == null || list.isEmpty ? null : list.first;
+  }
+
+  Future<List<PlayerModel>> fetchTopScorers(
+    int competitionId, {
+    bool skipCache = false,
+  }) async {
+    _ensureActive();
+    final cacheKey = 'remote_scorers_$competitionId';
+    if (!skipCache) {
+      final cached = _readPlayers(cacheKey);
+      if (cached != null) {
+        _log('getTopScorers', 'cache', cached.length);
+        return cached;
+      }
+    }
+    final list = await _call(
+      () => _apiFootball.getTopScorers(competitionId),
+      () => _backendProxy.getTopScorers(competitionId),
+    );
+    await _writePlayers(cacheKey, list);
+    _log('getTopScorers', _sourceLabel, list.length);
+    return list;
+  }
+
+  List<PlayerModel>? readCachedTopScorers(int competitionId) =>
+      _readPlayers('remote_scorers_$competitionId');
+
+  Future<PlayerModel?> fetchPlayerById(int id) async {
+    _ensureActive();
+    final cacheKey = 'remote_player_$id';
+    final cached = _readPlayers(cacheKey);
+    if (cached != null && cached.isNotEmpty) {
+      _log('getPlayerById', 'cache', 1);
+      return cached.first;
+    }
+    final player = await _call(
+      () => _apiFootball.getPlayerById(id),
+      () => _backendProxy.getPlayerById(id),
+    );
+    if (player != null) {
+      await _writePlayers(cacheKey, [player]);
+    }
+    _log('getPlayerById', _sourceLabel, player == null ? 0 : 1);
+    return player;
+  }
+
+  PlayerModel? readCachedPlayerById(int id) {
+    final list = _readPlayers('remote_player_$id');
+    return list == null || list.isEmpty ? null : list.first;
+  }
+
   // --- Internals ---
 
   Future<T> _call<T>(
@@ -475,6 +554,39 @@ class RemoteFootballSource {
       CacheBucket.teams,
     );
   }
+
+  List<PlayerModel>? _readPlayers(String key) {
+    final list = _cache?.readJsonList(key, CacheBucket.playerProfile);
+    if (list == null) return null;
+    return list
+        .whereType<Map>()
+        .map((e) => PlayerModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList(growable: false);
+  }
+
+  Future<void> _writePlayers(String key, List<PlayerModel> list) async {
+    await _cache?.writeJsonList(
+      key,
+      list.map(_playerToJson).toList(),
+      CacheBucket.playerProfile,
+    );
+  }
+
+  Map<String, dynamic> _playerToJson(PlayerModel p) => {
+        'id': p.id,
+        'name': p.name,
+        'shortName': p.shortName,
+        'number': p.number,
+        'nationality': p.nationality,
+        'age': p.age,
+        'position': p.position,
+        'team': p.team,
+        'teamLogoShort': p.teamLogoShort,
+        'appearances': p.appearances,
+        'goals': p.goals,
+        'seasonRating': p.seasonRating,
+        if (p.photoUrl.isNotEmpty) 'photoUrl': p.photoUrl,
+      };
 
   String _statusShort(MatchStatus status) {
     switch (status) {
