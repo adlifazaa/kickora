@@ -6,6 +6,8 @@ import 'app/app.dart';
 import 'core/cache/cache_manager.dart';
 import 'core/constants/api_dev_mode.dart';
 import 'core/constants/api_mode_service.dart';
+import 'core/firebase/analytics_service.dart';
+import 'core/firebase/crashlytics_service.dart';
 import 'core/firebase/firebase_service.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/providers/football_data_provider_factory.dart';
@@ -22,6 +24,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await FirebaseService.initialize();
+  await AnalyticsService.instance.initialize();
+  await CrashlyticsService.instance.initialize();
   ApiModeService.logConfiguration();
   final preferences = await SharedPreferences.getInstance();
   final premiumSubscriptionService = PremiumSubscriptionService(preferences);
