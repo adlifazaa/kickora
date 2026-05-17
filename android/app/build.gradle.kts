@@ -36,24 +36,31 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storePassword = keystoreProperties.getProperty("storePassword")
+                storeFile = rootProject.file(
+                    keystoreProperties.getProperty("storeFile")
+                        ?: error("storeFile is missing in android/key.properties"),
+                )
             }
         }
     }
 
     buildTypes {
         release {
-            // Play Console requires a release keystore — configure android/key.properties.
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            if (!keystorePropertiesFile.exists()) {
+                throw GradleException(
+                    """
+                    Release signing is not configured.
+                    1. Create android/upload-keystore.jks (see android/key.properties.example).
+                    2. Copy android/key.properties.example to android/key.properties and fill in passwords.
+                    """.trimIndent(),
+                )
             }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
