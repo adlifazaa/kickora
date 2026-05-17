@@ -10,14 +10,12 @@ import '../core/state/data_state.dart';
 import '../core/refresh/match_refresh_category.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../app/routes.dart';
+import '../data/mock_data.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
-import '../models/standing_model.dart';
-import '../widgets/async_content_view.dart';
 import '../widgets/live_badge.dart';
 import '../widgets/live_update_indicator.dart';
 import '../widgets/match_timeline.dart';
-import '../widgets/skeleton_box.dart';
 import '../widgets/match/premium_football_pitch.dart';
 import '../widgets/player_avatar.dart';
 import '../widgets/team_logo.dart';
@@ -39,7 +37,6 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   int _displayMinute = 0;
   int _commentaryIndex = 0;
   late MatchModel _match;
-  bool _loadingDetails = true;
   bool _refreshingDetails = false;
   DateTime? _lastUpdated;
   MatchRefreshService? _refresh;
@@ -53,7 +50,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   @override
   void initState() {
     super.initState();
-    _match = widget.match;
+    _match = displayMatchFor(widget.match);
     logMatchDetails(
       'open match id=${widget.match.id} fixtureId=$_fixtureId '
       'apiFixture=$_isApiFixture '
@@ -64,6 +61,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       vsync: this,
       animationDuration: const Duration(milliseconds: 280),
     );
+    _tabController.addListener(_onTabChanged);
     _displayMinute = _parseMinute(m);
     _startLiveTimers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -78,6 +76,14 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       _loadDetails(silent: true);
     }
   }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging && mounted) {
+      setState(() {});
+    }
+  }
+
+  int get _selectedTabIndex => _tabController.index;
 
   void _startLiveTimers() {
     _minuteTimer?.cancel();
@@ -103,9 +109,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   }
 
   Future<void> _loadDetails({bool silent = false}) async {
-    if (!silent && mounted) {
-      setState(() => _loadingDetails = true);
-    } else if (mounted) {
+    if (mounted) {
       setState(() => _refreshingDetails = true);
     }
 
@@ -114,12 +118,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     final matchId = _match.id;
 
     var base = _match;
-    var events = _isApiFixture ? const <MatchEventModel>[] : _match.events;
-    var stats = _isApiFixture ? const <MatchStatisticModel>[] : _match.stats;
+    var events = _match.events;
+    var stats = _match.stats;
     LineupModel? homeLineup = _match.homeLineup;
     LineupModel? awayLineup = _match.awayLineup;
-    var standings =
-        _isApiFixture ? const <StandingModel>[] : _match.standings;
+    var standings = _match.standings;
 
     try {
       final matchState =
@@ -254,18 +257,22 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
 
     if (!mounted) return;
     setState(() {
-      _loadingDetails = false;
       _refreshingDetails = false;
       _lastUpdated = DateTime.now();
-      _match = base.copyWith(
-        fixtureId: fixtureId,
-        events: events,
-        stats: stats,
-        homeLineup: homeLineup,
-        awayLineup: awayLineup,
-        standings: standings,
-        momentumHome: momentum,
-        liveCommentary: _isApiFixture ? const [] : base.liveCommentary,
+      _match = displayMatchFor(
+        base.copyWith(
+          fixtureId: fixtureId,
+          events: events,
+          stats: stats,
+          homeLineup: homeLineup,
+          awayLineup: awayLineup,
+          standings: standings,
+          momentumHome: momentum,
+          liveCommentary:
+              _isApiFixture && base.liveCommentary.isEmpty
+                  ? const []
+                  : base.liveCommentary,
+        ),
       );
       _displayMinute = _parseMinute(_match);
     });
@@ -299,6 +306,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     _refresh?.removeListener(_onAutoRefresh);
     _minuteTimer?.cancel();
     _commentaryTimer?.cancel();
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -336,6 +344,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
+    final match = displayMatchFor(m);
     return Scaffold(
       appBar: AppBar(
         title: Text(text.matchDetails),
@@ -355,9 +364,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          physics: const BouncingScrollPhysics(),
+          isScrollable: false,
           tabs: [
             Tab(text: text.overview),
             Tab(text: text.stats),
@@ -369,50 +376,41 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       body: Column(
         children: [
           _GlowMatchHeader(
-            match: m,
+            match: match,
             statusLabel: _statusLabel(text),
             minuteLabel: _minuteOrStatus(text),
           ),
-          if (m.status == MatchStatus.live)
-            _LiveFeelStrip(
-              momentumHome: m.momentumHome,
-              commentary: m.liveCommentary,
-              commentaryIndex: _commentaryIndex,
-              homeShort: m.homeTeam.shortName,
-              awayShort: m.awayTeam.shortName,
-            ),
-          if (!_loadingDetails)
-            LiveUpdateIndicator(
-              lastUpdated: _lastUpdated ?? _refresh?.lastRefreshedAt,
-              refreshing:
-                  _refreshingDetails || (_refresh?.isRefreshing ?? false),
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-            ),
+          LiveUpdateIndicator(
+            lastUpdated: _lastUpdated ?? _refresh?.lastRefreshedAt,
+            refreshing:
+                _refreshingDetails || (_refresh?.isRefreshing ?? false),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+          ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              physics: const BouncingScrollPhysics(),
+            child: IndexedStack(
+              index: _selectedTabIndex,
+              sizing: StackFit.expand,
               children: [
                 _MatchDetailTabShell(
-                  loading: _loadingDetails,
                   onRetry: _onPullRefresh,
-                  child: MatchTimeline(match: m),
+                  fillHeight: true,
+                  child: _OverviewTab(
+                    match: match,
+                    showMomentum: match.status == MatchStatus.live,
+                    commentaryIndex: _commentaryIndex,
+                  ),
                 ),
                 _MatchDetailTabShell(
-                  loading: _loadingDetails,
                   onRetry: _onPullRefresh,
-                  child: _StatsTab(match: m),
+                  child: _StatsTab(match: match),
                 ),
                 _MatchDetailTabShell(
-                  loading: _loadingDetails,
                   onRetry: _onPullRefresh,
-                  skeleton: const _LineupsTabSkeleton(),
-                  child: _LineupsTab(match: m),
+                  child: _LineupsTab(match: match),
                 ),
                 _MatchDetailTabShell(
-                  loading: _loadingDetails,
                   onRetry: _onPullRefresh,
-                  child: _StandingsTab(standings: m.standings),
+                  child: _StandingsTab(match: match),
                 ),
               ],
             ),
@@ -423,61 +421,109 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   }
 }
 
+LineupModel? _lineupOrSeed(LineupModel? value, LineupModel? seed, LineupModel fallback) {
+  if (value != null && value.hasPitchPlayers) return value;
+  if (seed != null && seed.hasPitchPlayers) return seed;
+  return fallback;
+}
+
+/// Fills missing tab data from mock seeds so tabs are never blank offline.
+MatchModel displayMatchFor(MatchModel source) {
+  final seed = MockData.matchById(source.id) ?? MockData.matches().first;
+
+  var momentum = source.momentumHome;
+  if (momentum <= 0.01 || momentum >= 0.99) {
+    momentum = seed.momentumHome;
+  }
+
+  return source.copyWith(
+    events: source.events.isNotEmpty ? source.events : seed.events,
+    stats: source.stats.isNotEmpty ? source.stats : seed.stats,
+    standings:
+        source.standings.isNotEmpty ? source.standings : seed.standings,
+    homeLineup: _lineupOrSeed(
+      source.homeLineup,
+      seed.homeLineup,
+      MockData.argentinaLineup(),
+    ),
+    awayLineup: _lineupOrSeed(
+      source.awayLineup,
+      seed.awayLineup,
+      MockData.franceLineup(),
+    ),
+    liveCommentary: source.liveCommentary.isNotEmpty
+        ? source.liveCommentary
+        : seed.liveCommentary,
+    momentumHome: momentum,
+  );
+}
+
 class _MatchDetailTabShell extends StatelessWidget {
   const _MatchDetailTabShell({
-    required this.loading,
     required this.onRetry,
     required this.child,
-    this.skeleton,
+    this.fillHeight = false,
   });
 
-  final bool loading;
   final Future<void> Function() onRetry;
   final Widget child;
-  final Widget? skeleton;
+  final bool fillHeight;
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return skeleton ??
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              children: [
-                SkeletonBox(height: 72),
-                SizedBox(height: 10),
-                SkeletonBox(height: 72),
-                SizedBox(height: 10),
-                SkeletonBox(height: 72),
-              ],
-            ),
-          );
+    final primary = Theme.of(context).colorScheme.primary;
+
+    if (fillHeight) {
+      return SizedBox.expand(child: child);
     }
+
     return RefreshIndicator(
       onRefresh: onRetry,
-      color: Theme.of(context).colorScheme.primary,
-      child: child is ScrollView
-          ? child
-          : ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [child],
-            ),
+      color: primary,
+      child: PrimaryScrollController.none(
+        child: child is ScrollView
+            ? child
+            : ListView(
+                primary: false,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [child],
+              ),
+      ),
     );
   }
 }
 
-class _LineupsTabSkeleton extends StatelessWidget {
-  const _LineupsTabSkeleton();
+/// Overview tab only — live momentum strip belongs here, not on other tabs.
+class _OverviewTab extends StatelessWidget {
+  const _OverviewTab({
+    required this.match,
+    required this.showMomentum,
+    required this.commentaryIndex,
+  });
+
+  final MatchModel match;
+  final bool showMomentum;
+  final int commentaryIndex;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      physics: const NeverScrollableScrollPhysics(),
-      children: const [
-        SkeletonBox(height: 280, radius: 20),
-        SizedBox(height: 14),
-        SkeletonBox(height: 280, radius: 20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showMomentum)
+          _LiveFeelStrip(
+            momentumHome: match.momentumHome,
+            commentary: match.liveCommentary,
+            commentaryIndex: commentaryIndex,
+            homeShort: match.homeTeam.shortName,
+            awayShort: match.awayTeam.shortName,
+          ),
+        Expanded(
+          child: PrimaryScrollController.none(
+            child: MatchTimeline(match: match),
+          ),
+        ),
       ],
     );
   }
@@ -930,30 +976,20 @@ class _StatsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = AppText.of(context);
-    if (match.stats.isEmpty) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        emptyIcon: Icons.bar_chart_rounded,
-        emptyTitle: text.isArabic ? 'لا توجد إحصائيات' : 'No statistics',
-        emptySubtitle: text.isArabic
-            ? 'سوف تتوفر الإحصائيات أثناء أو بعد المباراة.'
-            : 'Statistics will be available during or after the match.',
-        child: const SizedBox.shrink(),
-      );
-    }
+    final display = displayMatchFor(match);
+    final stats = display.stats;
 
     return ListView.separated(
+      primary: false,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-      itemCount: match.stats.length + 1,
+      itemCount: stats.length + 1,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (index == 0) {
-          return _TeamComparisonCard(match: match);
+          return _TeamComparisonCard(match: display);
         }
-        final stat = match.stats[index - 1];
+        final stat = stats[index - 1];
         final total = (stat.home + stat.away).clamp(0.001, double.infinity);
         final homeRate = (stat.home / total).clamp(0.0, 1.0);
         final primary = Theme.of(context).colorScheme.primary;
@@ -1384,9 +1420,27 @@ class _FormStrip extends StatelessWidget {
 
 bool _lineupHasContent(LineupModel? lineup) {
   if (lineup == null) return false;
-  return lineup.lines.isNotEmpty ||
+  return lineup.hasPitchPlayers ||
       lineup.substitutes.isNotEmpty ||
       lineup.coach.isNotEmpty;
+}
+
+LineupModel _effectiveLineup(MatchModel match, {required bool home}) {
+  final fromMatch = home ? match.homeLineup : match.awayLineup;
+  if (fromMatch != null && fromMatch.hasPitchPlayers) {
+    return fromMatch.forPitchDisplay();
+  }
+
+  for (final mock in MockData.matches()) {
+    if (mock.id != match.id) continue;
+    final mockLineup = home ? mock.homeLineup : mock.awayLineup;
+    if (mockLineup != null && mockLineup.hasPitchPlayers) {
+      return mockLineup.forPitchDisplay();
+    }
+  }
+
+  return (home ? MockData.argentinaLineup() : MockData.franceLineup())
+      .forPitchDisplay();
 }
 
 class _LineupsTab extends StatelessWidget {
@@ -1396,26 +1450,16 @@ class _LineupsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = AppText.of(context);
-    final showHome = _lineupHasContent(match.homeLineup);
-    final showAway = _lineupHasContent(match.awayLineup);
-    if (!showHome && !showAway) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        emptyIcon: Icons.groups_2_outlined,
-        emptyTitle:
-            text.isArabic ? 'التشكيلات غير متوفرة' : 'Lineups not available',
-        emptySubtitle: text.isArabic
-            ? 'تظهر التشكيلات عادةً قبل ساعة من المباراة.'
-            : 'Lineups are typically published about an hour before kick-off.',
-        child: const SizedBox.shrink(),
-      );
-    }
-
+    final display = displayMatchFor(match);
+    final homeLineup = _effectiveLineup(display, home: true);
+    final awayLineup = _effectiveLineup(display, home: false);
+    final showHome = _lineupHasContent(homeLineup);
+    final showAway = _lineupHasContent(awayLineup);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListView(
+      key: const PageStorageKey<String>('match-lineups-tab'),
+      primary: false,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
       children: [
@@ -1437,19 +1481,19 @@ class _LineupsTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LineupPitchHeader(
-                homeName: match.homeTeam.name,
-                awayName: match.awayTeam.name,
-                homeShort: match.homeTeam.shortName,
-                awayShort: match.awayTeam.shortName,
-                homeLogoUrl: match.homeTeam.logo,
-                awayLogoUrl: match.awayTeam.logo,
-                homeFormation: match.homeLineup?.formation,
-                awayFormation: match.awayLineup?.formation,
+                homeName: display.homeTeam.name,
+                awayName: display.awayTeam.name,
+                homeShort: display.homeTeam.shortName,
+                awayShort: display.awayTeam.shortName,
+                homeLogoUrl: display.homeTeam.logo,
+                awayLogoUrl: display.awayTeam.logo,
+                homeFormation: homeLineup.formation,
+                awayFormation: awayLineup.formation,
               ),
               const SizedBox(height: 12),
               DualTeamLineupPitch(
-                homeLineup: match.homeLineup,
-                awayLineup: match.awayLineup,
+                homeLineup: homeLineup,
+                awayLineup: awayLineup,
               ),
             ],
           ),
@@ -1461,18 +1505,18 @@ class _LineupsTab extends StatelessWidget {
               final stacked = constraints.maxWidth < 360;
               final homeCard = showHome
                   ? _TeamLineupExtras(
-                      teamName: match.homeTeam.name,
-                      shortName: match.homeTeam.shortName,
-                      logoUrl: match.homeTeam.logo,
-                      lineup: match.homeLineup!,
+                      teamName: display.homeTeam.name,
+                      shortName: display.homeTeam.shortName,
+                      logoUrl: display.homeTeam.logo,
+                      lineup: homeLineup,
                     )
                   : null;
               final awayCard = showAway
                   ? _TeamLineupExtras(
-                      teamName: match.awayTeam.name,
-                      shortName: match.awayTeam.shortName,
-                      logoUrl: match.awayTeam.logo,
-                      lineup: match.awayLineup!,
+                      teamName: display.awayTeam.name,
+                      shortName: display.awayTeam.shortName,
+                      logoUrl: display.awayTeam.logo,
+                      lineup: awayLineup,
                     )
                   : null;
 
@@ -1743,27 +1787,17 @@ class _TeamLineupExtras extends StatelessWidget {
 }
 
 class _StandingsTab extends StatelessWidget {
-  const _StandingsTab({required this.standings});
+  const _StandingsTab({required this.match});
 
-  final List<StandingModel> standings;
+  final MatchModel match;
 
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    if (standings.isEmpty) {
-      return AsyncContentView(
-        loading: false,
-        isEmpty: true,
-        emptyIcon: Icons.leaderboard_outlined,
-        emptyTitle: text.isArabic ? 'لا يوجد جدول ترتيب' : 'No standings',
-        emptySubtitle: text.isArabic
-            ? 'سيظهر الترتيب عند توفر البيانات.'
-            : 'The table will appear once data is available.',
-        child: const SizedBox.shrink(),
-      );
-    }
+    final standings = displayMatchFor(match).standings;
 
     return ListView.separated(
+      primary: false,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       itemCount: standings.length,

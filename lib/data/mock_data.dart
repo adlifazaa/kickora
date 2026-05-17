@@ -11,6 +11,13 @@ class MockData {
 
   static bool isMockMatchId(int id) => mockMatchIds.contains(id);
 
+  static MatchModel? matchById(int id) {
+    for (final match in matches()) {
+      if (match.id == id) return match;
+    }
+    return null;
+  }
+
   static const teams = [
     TeamModel(id: 1, name: 'Argentina', shortName: 'ARG', logo: 'ARG', countryName: 'Argentina', countryCode: 'AR'),
     TeamModel(id: 2, name: 'Brazil', shortName: 'BRA', logo: 'BRA', countryName: 'Brazil', countryCode: 'BR'),
