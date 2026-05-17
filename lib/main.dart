@@ -10,6 +10,7 @@ import 'core/firebase/firebase_service.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/providers/football_data_provider_factory.dart';
 import 'data/services/api_football/api_football_service.dart';
+import 'data/services/backend_proxy/backend_proxy_service.dart';
 import 'ads/ad_service.dart';
 import 'subscription/premium_subscription_service.dart';
 import 'core/refresh/match_refresh_service.dart';
@@ -38,6 +39,7 @@ Future<void> main() async {
   final footballData = FootballDataProviderFactory.create(cache: cache);
   footballData.logConfiguration();
   ApiFootballService().logStatus();
+  BackendProxyService(cache: cache).logStatus();
   final footballRepository = FootballRepository(
     dataProvider: footballData,
     cache: cache,
