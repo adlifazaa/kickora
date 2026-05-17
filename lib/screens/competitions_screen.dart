@@ -138,7 +138,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
             ),
           ),
           SizedBox(
-            height: 40,
+            height: 44,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -374,7 +374,7 @@ class _CategoryChip extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               gradient: selected
@@ -396,6 +396,7 @@ class _CategoryChip extends StatelessWidget {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(icon,
@@ -407,9 +408,14 @@ class _CategoryChip extends StatelessWidget {
                 ],
                 Text(
                   label,
+                  textHeightBehavior: const TextHeightBehavior(
+                    applyHeightToFirstAscent: true,
+                    applyHeightToLastDescent: true,
+                  ),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 12.5,
+                    height: 1.2,
                     color: selected
                         ? Colors.black
                         : Theme.of(context).colorScheme.onSurface,

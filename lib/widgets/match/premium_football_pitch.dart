@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
-import '../../app/app_scope.dart';
 import '../../app/app_text.dart';
 import '../../app/routes.dart';
-import '../../core/player/player_photo_resolver.dart';
 import '../../models/lineup_model.dart';
 import '../../models/player_model.dart';
 import '../player_avatar.dart';
@@ -348,10 +346,6 @@ class _PlayerPitchNodeState extends State<_PlayerPitchNode>
   @override
   Widget build(BuildContext context) {
     final p = widget.player;
-    final allowCdn = AppScope.footballRepositoryOf(context).usesLiveApi;
-    final photoUrl =
-        PlayerPhotoResolver.resolve(p, allowCdnFallback: allowCdn);
-    final hasPhoto = photoUrl != null;
     final rating =
         p.matchRating > 0 ? p.matchRating.toStringAsFixed(1) : null;
 
@@ -379,9 +373,8 @@ class _PlayerPitchNodeState extends State<_PlayerPitchNode>
                     size: widget.avatarSize,
                     jerseyTop: widget.jerseyTop,
                     jerseyBottom: widget.jerseyBottom,
-                    showJerseyNumber: !hasPhoto,
                   ),
-                  if (hasPhoto && p.number > 0)
+                  if (p.number > 0)
                     Positioned(
                       bottom: 0,
                       child: _NumberPill(
@@ -397,7 +390,7 @@ class _PlayerPitchNodeState extends State<_PlayerPitchNode>
                     ),
                   if (rating != null)
                     Positioned(
-                      bottom: hasPhoto ? 14 : -3,
+                      bottom: p.number > 0 ? 14 : -3,
                       right: -4,
                       child: _RatingBadge(
                         rating: rating,

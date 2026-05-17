@@ -1,13 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../app/app_scope.dart';
 import '../core/player/player_photo_resolver.dart';
 import '../data/models/player_model.dart';
 import 'api_display_text.dart';
-import 'network_logo_image.dart';
 
-/// Player image for lineups: photo → shirt/position → initials.
+/// Player image for lineups: photo → shirt icon → initials circle.
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,
@@ -71,25 +69,21 @@ class PlayerAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final allowCdn =
-        AppScope.footballRepositoryOf(context).usesLiveApi;
-    final url = PlayerPhotoResolver.resolve(
-      player,
-      allowCdnFallback: allowCdn,
-    );
+    final url = PlayerPhotoResolver.resolve(player);
     final border = borderColor ?? Colors.white.withValues(alpha: 0.95);
 
     Widget child;
-    if (isNetworkImageUrl(url)) {
+    if (url != null) {
       child = _PhotoAvatar(
-        url: url!,
+        playerId: player.id,
+        url: url,
         size: size,
         fit: fit,
-        errorBuilder: (_) => _fallbackAvatar(context),
-        placeholder: _fallbackAvatar(context),
+        onError: () => PlayerPhotoResolver.markLoadFailed(player.id),
+        fallback: _fallbackAvatar(),
       );
     } else {
-      child = _fallbackAvatar(context);
+      child = _fallbackAvatar();
     }
 
     return SizedBox(
@@ -112,59 +106,73 @@ class PlayerAvatar extends StatelessWidget {
     );
   }
 
-  Widget _fallbackAvatar(BuildContext context) {
-    if (_hasJerseyFallback) {
+  /// Photo → shirt icon → initials (optional numbered shirt for compact chips).
+  Widget _fallbackAvatar() {
+    if (showJerseyNumber && player.number > 0) {
       return _JerseyBadge(
         number: player.number,
         top: jerseyTop ?? const Color(0xFFF5F7FA),
         bottom: jerseyBottom ?? const Color(0xFFD7DDE8),
         isGoalkeeper: player.position.toUpperCase() == 'GK',
-        showNumber: showJerseyNumber,
+        showNumber: true,
         size: size,
       );
     }
-    if (_hasPositionFallback) {
-      return _PositionBadge(
-        position: player.position,
-        size: size,
+
+    final hasName =
+        player.name.trim().isNotEmpty || player.shortName.trim().isNotEmpty;
+    if (!hasName) {
+      return _InitialsBadge(
+        initials: _initials,
         palette: _palette(),
+        size: size,
       );
     }
-    return _InitialsBadge(initials: _initials, palette: _palette(), size: size);
+
+    return _ShirtIconBadge(
+      size: size,
+      palette: _palette(),
+      isGoalkeeper: player.position.toUpperCase() == 'GK',
+    );
   }
-
-  bool get _hasJerseyFallback =>
-      showJerseyNumber && player.number > 0;
-
-  bool get _hasPositionFallback =>
-      player.position.trim().isNotEmpty;
 }
 
 class _PhotoAvatar extends StatelessWidget {
   const _PhotoAvatar({
+    required this.playerId,
     required this.url,
     required this.size,
     required this.fit,
-    required this.errorBuilder,
-    required this.placeholder,
+    required this.onError,
+    required this.fallback,
   });
 
+  final int playerId;
   final String url;
   final double size;
   final BoxFit fit;
-  final WidgetBuilder errorBuilder;
-  final Widget placeholder;
+  final VoidCallback onError;
+  final Widget fallback;
 
   @override
   Widget build(BuildContext context) {
+    final pixelSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
+
     return CachedNetworkImage(
       imageUrl: url,
+      cacheKey: 'player-photo-$playerId',
       width: size,
       height: size,
       fit: fit,
       filterQuality: FilterQuality.medium,
-      placeholder: (_, _) => placeholder,
-      errorWidget: (_, _, _) => errorBuilder(context),
+      memCacheWidth: pixelSize,
+      memCacheHeight: pixelSize,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (_, _) => fallback,
+      errorWidget: (_, _, _) {
+        onError();
+        return fallback;
+      },
     );
   }
 }
@@ -222,47 +230,16 @@ class _JerseyBadge extends StatelessWidget {
   }
 }
 
-class _PositionBadge extends StatelessWidget {
-  const _PositionBadge({
-    required this.position,
+class _ShirtIconBadge extends StatelessWidget {
+  const _ShirtIconBadge({
     required this.size,
     required this.palette,
+    required this.isGoalkeeper,
   });
 
-  final String position;
   final double size;
   final List<Color> palette;
-
-  IconData get _icon {
-    final pos = position.toUpperCase();
-    if (pos == 'GK' || pos == 'G') return Icons.sports_soccer_rounded;
-    if (pos.contains('B') ||
-        pos == 'CB' ||
-        pos == 'LB' ||
-        pos == 'RB' ||
-        pos == 'DF' ||
-        pos == 'DEF') {
-      return Icons.shield_outlined;
-    }
-    if (pos.contains('M') ||
-        pos == 'CM' ||
-        pos == 'DM' ||
-        pos == 'AM' ||
-        pos == 'MF' ||
-        pos == 'MID') {
-      return Icons.hub_outlined;
-    }
-    if (pos.contains('F') ||
-        pos.contains('W') ||
-        pos == 'ST' ||
-        pos == 'LW' ||
-        pos == 'RW' ||
-        pos == 'CF' ||
-        pos == 'FW') {
-      return Icons.bolt_rounded;
-    }
-    return Icons.checkroom_outlined;
-  }
+  final bool isGoalkeeper;
 
   @override
   Widget build(BuildContext context) {
@@ -276,9 +253,11 @@ class _PositionBadge extends StatelessWidget {
         ),
       ),
       child: Icon(
-        _icon,
-        size: size * 0.44,
-        color: Colors.white.withValues(alpha: 0.95),
+        Icons.checkroom_outlined,
+        size: size * 0.46,
+        color: isGoalkeeper
+            ? Colors.black.withValues(alpha: 0.85)
+            : Colors.white.withValues(alpha: 0.95),
       ),
     );
   }

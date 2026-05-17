@@ -13,6 +13,7 @@ import '../app/routes.dart';
 import '../data/mock_data.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
+import '../models/standing_model.dart';
 import '../widgets/live_badge.dart';
 import '../widgets/live_update_indicator.dart';
 import '../widgets/match_timeline.dart';
@@ -32,6 +33,7 @@ class MatchDetailsScreen extends StatefulWidget {
 class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     with TickerProviderStateMixin {
   late final TabController _tabController;
+  int _bodyTabIndex = 0;
   Timer? _minuteTimer;
   Timer? _commentaryTimer;
   int _displayMinute = 0;
@@ -78,12 +80,24 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   }
 
   void _onTabChanged() {
-    if (!_tabController.indexIsChanging && mounted) {
-      setState(() {});
+    if (!mounted) return;
+    final index = _tabController.index;
+    if (index != _bodyTabIndex) {
+      setState(() => _bodyTabIndex = index);
     }
   }
 
-  int get _selectedTabIndex => _tabController.index;
+  void _selectTab(int index) {
+    if (_bodyTabIndex == index) return;
+    setState(() => _bodyTabIndex = index);
+  }
+
+  TextStyle _debugTabLabelStyle(BuildContext context) => TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Theme.of(context).colorScheme.primary,
+        letterSpacing: 0.2,
+      );
 
   void _startLiveTimers() {
     _minuteTimer?.cancel();
@@ -341,6 +355,246 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     return m.timeLabel;
   }
 
+  Widget _buildSelectedTabBody(BuildContext context, MatchModel match) {
+    switch (_bodyTabIndex) {
+      case 0:
+        return _buildOverviewBody(match);
+      case 1:
+        return _buildStatsBody(context, match);
+      case 2:
+        return _buildLineupsBody(context, match);
+      case 3:
+        return _buildStandingsBody(context, match);
+      default:
+        return _buildOverviewBody(match);
+    }
+  }
+
+  /// Overview — timeline + live momentum (unchanged behaviour).
+  Widget _buildOverviewBody(MatchModel match) {
+    return _OverviewTab(
+      match: match,
+      showMomentum: match.status == MatchStatus.live,
+      commentaryIndex: _commentaryIndex,
+    );
+  }
+
+  List<MatchStatisticModel> _guaranteedStats(MatchModel match) {
+    const requiredTitles = [
+      'Possession',
+      'Shots',
+      'Shots on target',
+      'Corners',
+      'Fouls',
+      'Yellow cards',
+    ];
+    final all = displayMatchFor(match).stats;
+    final picked = <MatchStatisticModel>[];
+    for (final title in requiredTitles) {
+      for (final stat in all) {
+        if (stat.title.toLowerCase().contains(title.toLowerCase()) &&
+            !picked.any((p) => p.title == stat.title)) {
+          picked.add(stat);
+          break;
+        }
+      }
+    }
+    if (picked.length >= 6) return picked;
+    final seedStats = MockData.matches().first.stats;
+    for (final title in requiredTitles) {
+      if (picked.length >= 6) break;
+      final found = seedStats.where(
+        (s) => s.title.toLowerCase().contains(title.toLowerCase()),
+      );
+      if (found.isNotEmpty && !picked.any((p) => p.title == found.first.title)) {
+        picked.add(found.first);
+      }
+    }
+    return picked.isNotEmpty ? picked : seedStats.take(6).toList();
+  }
+
+  /// Stats — always shows bars; never empty.
+  Widget _buildStatsBody(BuildContext context, MatchModel match) {
+    final display = displayMatchFor(match);
+    final stats = _guaranteedStats(match);
+
+    return RefreshIndicator(
+      onRefresh: _onPullRefresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Text('Stats content loaded', style: _debugTabLabelStyle(context)),
+          const SizedBox(height: 10),
+          _TeamComparisonCard(match: display),
+          const SizedBox(height: 14),
+          for (var i = 0; i < stats.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _MatchStatBarCard(stat: stats[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Lineups — green pitch + 22 players from mock when API empty.
+  Widget _buildLineupsBody(BuildContext context, MatchModel match) {
+    final display = displayMatchFor(match);
+    final homeLineup = _effectiveLineup(display, home: true);
+    final awayLineup = _effectiveLineup(display, home: false);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return RefreshIndicator(
+      onRefresh: _onPullRefresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Text('Lineups content loaded', style: _debugTabLabelStyle(context)),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LineupPitchHeader(
+                  homeName: display.homeTeam.name,
+                  awayName: display.awayTeam.name,
+                  homeShort: display.homeTeam.shortName,
+                  awayShort: display.awayTeam.shortName,
+                  homeLogoUrl: display.homeTeam.logo,
+                  awayLogoUrl: display.awayTeam.logo,
+                  homeFormation: homeLineup.formation,
+                  awayFormation: awayLineup.formation,
+                ),
+                const SizedBox(height: 12),
+                DualTeamLineupPitch(
+                  homeLineup: homeLineup,
+                  awayLineup: awayLineup,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _TeamLineupExtras(
+            teamName: display.homeTeam.name,
+            shortName: display.homeTeam.shortName,
+            logoUrl: display.homeTeam.logo,
+            lineup: homeLineup,
+          ),
+          const SizedBox(height: 10),
+          _TeamLineupExtras(
+            teamName: display.awayTeam.name,
+            shortName: display.awayTeam.shortName,
+            logoUrl: display.awayTeam.logo,
+            lineup: awayLineup,
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<StandingModel> _guaranteedStandings(MatchModel match) {
+    final fromMatch = displayMatchFor(match).standings;
+    if (fromMatch.isNotEmpty) return fromMatch;
+    return MockData.standings;
+  }
+
+  /// Standings — table with position / team / played / points.
+  Widget _buildStandingsBody(BuildContext context, MatchModel match) {
+    final text = AppText.of(context);
+    final standings = _guaranteedStandings(match);
+
+    return RefreshIndicator(
+      onRefresh: _onPullRefresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Text('Standings content loaded', style: _debugTabLabelStyle(context)),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Text(
+                    '#',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    text.isArabic ? 'الفريق' : 'Team',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    text.isArabic ? 'لعب' : 'P',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    text.isArabic ? 'نقاط' : 'Pts',
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < standings.length; i++) ...[
+            if (i > 0) const SizedBox(height: 6),
+            _StandingsRowCard(item: standings[i], rank: i),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
@@ -365,6 +619,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: false,
+          onTap: _selectTab,
           tabs: [
             Tab(text: text.overview),
             Tab(text: text.stats),
@@ -387,33 +642,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
           ),
           Expanded(
-            child: IndexedStack(
-              index: _selectedTabIndex,
-              sizing: StackFit.expand,
-              children: [
-                _MatchDetailTabShell(
-                  onRetry: _onPullRefresh,
-                  fillHeight: true,
-                  child: _OverviewTab(
-                    match: match,
-                    showMomentum: match.status == MatchStatus.live,
-                    commentaryIndex: _commentaryIndex,
-                  ),
-                ),
-                _MatchDetailTabShell(
-                  onRetry: _onPullRefresh,
-                  child: _StatsTab(match: match),
-                ),
-                _MatchDetailTabShell(
-                  onRetry: _onPullRefresh,
-                  child: _LineupsTab(match: match),
-                ),
-                _MatchDetailTabShell(
-                  onRetry: _onPullRefresh,
-                  child: _StandingsTab(match: match),
-                ),
-              ],
-            ),
+            child: _buildSelectedTabBody(context, match),
           ),
         ],
       ),
@@ -458,37 +687,153 @@ MatchModel displayMatchFor(MatchModel source) {
   );
 }
 
-class _MatchDetailTabShell extends StatelessWidget {
-  const _MatchDetailTabShell({
-    required this.onRetry,
-    required this.child,
-    this.fillHeight = false,
-  });
+/// Single stat bar used by the Stats tab body (always visible).
+class _MatchStatBarCard extends StatelessWidget {
+  const _MatchStatBarCard({required this.stat});
 
-  final Future<void> Function() onRetry;
-  final Widget child;
-  final bool fillHeight;
+  final MatchStatisticModel stat;
 
   @override
   Widget build(BuildContext context) {
+    final total = (stat.home + stat.away).clamp(0.001, double.infinity);
+    final homeRate = (stat.home / total).clamp(0.0, 1.0);
     final primary = Theme.of(context).colorScheme.primary;
+    final secondary = Theme.of(context).colorScheme.secondary;
 
-    if (fillHeight) {
-      return SizedBox.expand(child: child);
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRetry,
-      color: primary,
-      child: PrimaryScrollController.none(
-        child: child is ScrollView
-            ? child
-            : ListView(
-                primary: false,
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                children: [child],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _StatValuePill(value: stat.homeValue, color: primary),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    stat.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               ),
+              _StatValuePill(value: stat.awayValue, color: secondary),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              height: 12,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: (homeRate * 1000).round().clamp(1, 999),
+                    child: ColoredBox(color: primary),
+                  ),
+                  Expanded(
+                    flex: ((1 - homeRate) * 1000).round().clamp(1, 999),
+                    child: ColoredBox(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatValuePill extends StatelessWidget {
+  const _StatValuePill({required this.value, required this.color});
+
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+      ),
+    );
+  }
+}
+
+class _StandingsRowCard extends StatelessWidget {
+  const _StandingsRowCard({required this.item, required this.rank});
+
+  final StandingModel item;
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).cardTheme.color,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Text(
+                '${item.position}',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+              ),
+            ),
+            TeamLogo(shortName: item.team.shortName, imageUrl: item.team.logo, size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                item.team.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+            ),
+            SizedBox(
+              width: 44,
+              child: Text(
+                '${item.played}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            ),
+            SizedBox(
+              width: 44,
+              child: Text(
+                '${item.points}',
+                textAlign: TextAlign.end,
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -969,174 +1314,6 @@ class _LiveFeelStrip extends StatelessWidget {
   }
 }
 
-class _StatsTab extends StatelessWidget {
-  const _StatsTab({required this.match});
-
-  final MatchModel match;
-
-  @override
-  Widget build(BuildContext context) {
-    final display = displayMatchFor(match);
-    final stats = display.stats;
-
-    return ListView.separated(
-      primary: false,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-      itemCount: stats.length + 1,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _TeamComparisonCard(match: display);
-        }
-        final stat = stats[index - 1];
-        final total = (stat.home + stat.away).clamp(0.001, double.infinity);
-        final homeRate = (stat.home / total).clamp(0.0, 1.0);
-        final primary = Theme.of(context).colorScheme.primary;
-        final secondary = Theme.of(context).colorScheme.secondary;
-
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: homeRate),
-          duration: Duration(milliseconds: 650 + (index - 1) * 40),
-          curve: Curves.easeOutCubic,
-          builder: (context, animatedHome, child) {
-            final awayPart = (1 - animatedHome).clamp(0.0, 1.0);
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Theme.of(context).dividerColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark
-                            ? 0.18
-                            : 0.06),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      _valuePill(context, stat.homeValue, primary),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            stat.title,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                      _valuePill(context, stat.awayValue, secondary),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: SizedBox(
-                      height: 12,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: (animatedHome * 1000).round().clamp(1, 999),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: [
-                                  primary,
-                                  primary.withValues(alpha: 0.65)
-                                ]),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: (awayPart * 1000).round().clamp(1, 999),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: [
-                                  secondary.withValues(alpha: 0.5),
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.12),
-                                ]),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (stat.title.toLowerCase().contains('possession')) ...[
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: 78,
-                      height: 78,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CircularProgressIndicator(
-                            value: animatedHome,
-                            strokeWidth: 7,
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.10),
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(primary),
-                          ),
-                          Center(
-                            child: Text('${(animatedHome * 100).round()}%',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w900)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _valuePill(BuildContext context, String v, Color color) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 48),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              color.withValues(alpha: 0.22),
-              color.withValues(alpha: 0.08)
-            ],
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          v,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-        ),
-      ),
-    );
-  }
-}
-
 /// Header card on the Stats tab that shows both teams + score + a "recent
 /// form" strip (last 5 results), giving the page a strong anchor before the
 /// individual stat bars.
@@ -1418,13 +1595,6 @@ class _FormStrip extends StatelessWidget {
   }
 }
 
-bool _lineupHasContent(LineupModel? lineup) {
-  if (lineup == null) return false;
-  return lineup.hasPitchPlayers ||
-      lineup.substitutes.isNotEmpty ||
-      lineup.coach.isNotEmpty;
-}
-
 LineupModel _effectiveLineup(MatchModel match, {required bool home}) {
   final fromMatch = home ? match.homeLineup : match.awayLineup;
   if (fromMatch != null && fromMatch.hasPitchPlayers) {
@@ -1441,110 +1611,6 @@ LineupModel _effectiveLineup(MatchModel match, {required bool home}) {
 
   return (home ? MockData.argentinaLineup() : MockData.franceLineup())
       .forPitchDisplay();
-}
-
-class _LineupsTab extends StatelessWidget {
-  const _LineupsTab({required this.match});
-
-  final MatchModel match;
-
-  @override
-  Widget build(BuildContext context) {
-    final display = displayMatchFor(match);
-    final homeLineup = _effectiveLineup(display, home: true);
-    final awayLineup = _effectiveLineup(display, home: false);
-    final showHome = _lineupHasContent(homeLineup);
-    final showAway = _lineupHasContent(awayLineup);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return ListView(
-      key: const PageStorageKey<String>('match-lineups-tab'),
-      primary: false,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Theme.of(context).dividerColor),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              LineupPitchHeader(
-                homeName: display.homeTeam.name,
-                awayName: display.awayTeam.name,
-                homeShort: display.homeTeam.shortName,
-                awayShort: display.awayTeam.shortName,
-                homeLogoUrl: display.homeTeam.logo,
-                awayLogoUrl: display.awayTeam.logo,
-                homeFormation: homeLineup.formation,
-                awayFormation: awayLineup.formation,
-              ),
-              const SizedBox(height: 12),
-              DualTeamLineupPitch(
-                homeLineup: homeLineup,
-                awayLineup: awayLineup,
-              ),
-            ],
-          ),
-        ),
-        if (showHome || showAway) ...[
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 360;
-              final homeCard = showHome
-                  ? _TeamLineupExtras(
-                      teamName: display.homeTeam.name,
-                      shortName: display.homeTeam.shortName,
-                      logoUrl: display.homeTeam.logo,
-                      lineup: homeLineup,
-                    )
-                  : null;
-              final awayCard = showAway
-                  ? _TeamLineupExtras(
-                      teamName: display.awayTeam.name,
-                      shortName: display.awayTeam.shortName,
-                      logoUrl: display.awayTeam.logo,
-                      lineup: awayLineup,
-                    )
-                  : null;
-
-              if (stacked) {
-                return Column(
-                  children: [
-                    ?homeCard,
-                    if (homeCard != null && awayCard != null)
-                      const SizedBox(height: 10),
-                    ?awayCard,
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (homeCard != null) Expanded(child: homeCard),
-                  if (homeCard != null && awayCard != null)
-                    const SizedBox(width: 10),
-                  if (awayCard != null) Expanded(child: awayCard),
-                ],
-              );
-            },
-          ),
-        ],
-      ],
-    );
-  }
 }
 
 class _TeamLineupExtras extends StatelessWidget {
@@ -1669,8 +1735,18 @@ class _TeamLineupExtras extends StatelessWidget {
                           player: p,
                           size: 22,
                           borderWidth: 1,
-                          showJerseyNumber: true,
                         ),
+                        if (p.number > 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '${p.number}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
                         const SizedBox(width: 6),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 96),
@@ -1782,68 +1858,6 @@ class _TeamLineupExtras extends StatelessWidget {
               )),
         ],
       ),
-    );
-  }
-}
-
-class _StandingsTab extends StatelessWidget {
-  const _StandingsTab({required this.match});
-
-  final MatchModel match;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = AppText.of(context);
-    final standings = displayMatchFor(match).standings;
-
-    return ListView.separated(
-      primary: false,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-      itemCount: standings.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 6),
-      itemBuilder: (context, i) {
-        final item = standings[i];
-        final isTop = i < 3;
-        return Material(
-          color: Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(14),
-          child: ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: BorderSide(
-                color: isTop
-                    ? Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.3)
-                    : Theme.of(context).dividerColor,
-              ),
-            ),
-            leading: CircleAvatar(
-              backgroundColor: isTop
-                  ? Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.25)
-                  : Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.08),
-              child: Text('${item.position}',
-                  style: const TextStyle(fontWeight: FontWeight.w900)),
-            ),
-            title: Text(item.team.name,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w800, fontSize: 14)),
-            subtitle: Text(
-                '${item.played} ${text.isArabic ? 'لعب' : 'P'} · GD ${item.goalDifference}'),
-            trailing: Text('${item.points}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w900, fontSize: 18)),
-          ),
-        );
-      },
     );
   }
 }

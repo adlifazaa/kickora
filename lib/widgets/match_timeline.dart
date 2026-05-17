@@ -171,8 +171,23 @@ class _EventRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isHome = event.isHome;
-    final card = _EventCard(event: event, text: text);
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardMaxWidth =
+            (constraints.maxWidth * 0.42).clamp(132.0, 188.0);
+        final card = _EventCard(
+          event: event,
+          text: text,
+          maxWidth: cardMaxWidth,
+        );
+
+        return _buildAnimatedRow(context, isHome, card);
+      },
+    );
+  }
+
+  Widget _buildAnimatedRow(BuildContext context, bool isHome, Widget card) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 280 + (index * 40)),
@@ -186,25 +201,23 @@ class _EventRow extends StatelessWidget {
           ),
         );
       },
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: isHome ? card : const SizedBox.shrink(),
-              ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: isHome ? card : const SizedBox.shrink(),
             ),
-            _CenterAxis(minute: event.minute, type: event.type),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: !isHome ? card : const SizedBox.shrink(),
-              ),
+          ),
+          _CenterAxis(minute: event.minute, type: event.type),
+          Expanded(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: !isHome ? card : const SizedBox.shrink(),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -222,6 +235,7 @@ class _CenterAxis extends StatelessWidget {
     return SizedBox(
       width: 52,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 34,
@@ -237,22 +251,13 @@ class _CenterAxis extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5),
             ),
           ),
-          Expanded(
-            child: Container(
-              width: 2,
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    color.withValues(alpha: 0.05),
-                    color.withValues(alpha: 0.45),
-                    color.withValues(alpha: 0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(2),
-              ),
+          Container(
+            width: 2,
+            height: 12,
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
         ],
@@ -262,87 +267,130 @@ class _CenterAxis extends StatelessWidget {
 }
 
 class _EventCard extends StatelessWidget {
-  const _EventCard({required this.event, required this.text});
+  const _EventCard({
+    required this.event,
+    required this.text,
+    required this.maxWidth,
+  });
 
   final MatchEvent event;
   final AppText text;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     final color = _eventColor(event.type);
     final icon = _eventIcon(event.type);
-    final title = _eventTitle(text, event);
-    final subLines = <String>[];
+    final typeLabel = _eventTypeLabel(text, event.type);
+    final playerName = event.playerName.trim();
+    final detailLines = <String>[];
 
     if (event.assistName != null && event.assistName!.isNotEmpty) {
-      subLines.add(text.timelineAssist(event.assistName!));
+      detailLines.add(text.timelineAssist(event.assistName!));
     }
     if (event.type == MatchEventType.substitution) {
       final subDetail = _substitutionDetail(text, event);
-      if (subDetail != null) subLines.add(subDetail);
-    }
-    if (event.description.isNotEmpty &&
-        event.type != MatchEventType.substitution) {
-      subLines.add(event.description);
+      if (subDetail != null) detailLines.add(subDetail);
+    } else if (event.description.isNotEmpty) {
+      detailLines.add(event.description);
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      constraints: const BoxConstraints(maxWidth: 168),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.42)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(10),
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.42)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 16, color: color),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.5,
-                  ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                for (final line in subLines)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      line,
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      typeLabel,
                       style: TextStyle(
-                        color: Theme.of(context).hintColor,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        color: color,
+                        height: 1.2,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-              ],
-            ),
+                    if (playerName.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        playerName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12.5,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    for (final line in detailLines) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        line,
+                        style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
+  }
+}
+
+String _eventTypeLabel(AppText text, MatchEventType type) {
+  switch (type) {
+    case MatchEventType.goal:
+      return text.isArabic ? 'هدف' : 'Goal';
+    case MatchEventType.ownGoal:
+      return text.isArabic ? 'هدف ذاتي' : 'Own goal';
+    case MatchEventType.penalty:
+      return text.isArabic ? 'ركلة جزاء' : 'Penalty';
+    case MatchEventType.yellowCard:
+      return text.isArabic ? 'بطاقة صفراء' : 'Yellow card';
+    case MatchEventType.redCard:
+      return text.isArabic ? 'بطاقة حمراء' : 'Red card';
+    case MatchEventType.substitution:
+      return text.isArabic ? 'تبديل' : 'Substitution';
+    case MatchEventType.varDecision:
+      return text.isArabic ? 'تقنية VAR' : 'VAR';
   }
 }
 
@@ -407,22 +455,3 @@ Color _eventColor(MatchEventType type) {
   }
 }
 
-String _eventTitle(AppText text, MatchEvent e) {
-  final name = e.playerName;
-  switch (e.type) {
-    case MatchEventType.goal:
-      return text.timelineGoal(name);
-    case MatchEventType.ownGoal:
-      return text.timelineOwnGoal(name);
-    case MatchEventType.penalty:
-      return text.timelinePenalty(name);
-    case MatchEventType.yellowCard:
-      return text.timelineYellowCard(name);
-    case MatchEventType.redCard:
-      return text.timelineRedCard(name);
-    case MatchEventType.substitution:
-      return text.timelineSubstitutionIn(name);
-    case MatchEventType.varDecision:
-      return text.timelineVar(name);
-  }
-}

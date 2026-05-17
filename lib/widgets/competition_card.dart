@@ -34,7 +34,7 @@ class CompetitionCard extends StatelessWidget {
             dense || (maxH.isFinite && maxH > 0 && maxH < 155);
         final padH = compact ? 10.0 : 12.0;
         final padV = compact ? 9.0 : 11.0;
-        final logoSize = compact ? 40.0 : 44.0;
+        final logoSize = dense ? 100.0 : (compact ? 40.0 : 44.0);
         final nameSize = compact ? 12.5 : 13.5;
         final metaSize = compact ? 10.0 : 10.5;
         final rowGap = compact ? 6.0 : 8.0;
@@ -44,78 +44,68 @@ class CompetitionCard extends StatelessWidget {
         final matchesLabel =
             text.competitionMatchesToday(competition.matchesToday);
 
-        final content = Column(
+        final bookmark = InkWell(
+          onTap: () => app.toggleCompetitionFavorite(competition.id),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Icon(
+              isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+              size: compact ? 18 : 20,
+              color: isFav
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).hintColor,
+            ),
+          ),
+        );
+
+        final nameRow = Row(
+          children: [
+            Expanded(
+              child: Text(
+                competition.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: nameSize,
+                  letterSpacing: -0.2,
+                  height: 1.12,
+                ),
+              ),
+            ),
+            if (competition.isFeatured) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 5 : 6,
+                  vertical: compact ? 2 : 2.5,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.teal, AppColors.neonGreen],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  text.featuredBadge,
+                  style: TextStyle(
+                    fontSize: compact ? 7.5 : 8,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final metaSection = Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CompetitionBadge.fromCompetition(
-                  competition,
-                  size: logoSize,
-                ),
-                const Spacer(),
-                InkWell(
-                  onTap: () => app.toggleCompetitionFavorite(competition.id),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Icon(
-                      isFav
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
-                      size: compact ? 18 : 20,
-                      color: isFav
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).hintColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: rowGap),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    competition.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: nameSize,
-                      letterSpacing: -0.2,
-                      height: 1.12,
-                    ),
-                  ),
-                ),
-                if (competition.isFeatured) ...[
-                  const SizedBox(width: 5),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 5 : 6,
-                      vertical: compact ? 2 : 2.5,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.teal, AppColors.neonGreen],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      text.featuredBadge,
-                      style: TextStyle(
-                        fontSize: compact ? 7.5 : 8,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            nameRow,
             if (competition.teamCount > 0) ...[
               SizedBox(height: metaGap),
               Text(
@@ -149,6 +139,50 @@ class CompetitionCard extends StatelessWidget {
             ],
           ],
         );
+
+        final Widget content;
+        if (dense) {
+          content = Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: CompetitionBadge.fromCompetition(
+                      competition,
+                      size: logoSize,
+                    ),
+                  ),
+                  SizedBox(height: rowGap),
+                  metaSection,
+                ],
+              ),
+              Positioned(top: 0, right: 0, child: bookmark),
+            ],
+          );
+        } else {
+          content = Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CompetitionBadge.fromCompetition(
+                    competition,
+                    size: logoSize,
+                  ),
+                  const Spacer(),
+                  bookmark,
+                ],
+              ),
+              SizedBox(height: rowGap),
+              metaSection,
+            ],
+          );
+        }
 
         return Material(
           color: Colors.transparent,
