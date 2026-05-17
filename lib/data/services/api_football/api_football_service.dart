@@ -102,6 +102,24 @@ class ApiFootballService {
         return FootballApiMapper.matchesByDate(envelope);
       });
 
+  Future<List<MatchModel>> getFinishedMatches({
+    DateTime? date,
+    int? competitionId,
+  }) =>
+      safe(() async {
+        final route = ApiFootballRoutes.matchesByDate(
+          date: date ?? DateTime.now(),
+          competitionId: competitionId,
+          status: MatchStatus.finished,
+          season: _season,
+        );
+        final envelope = await _get(route);
+        final matches = FootballApiMapper.matchesByDate(envelope);
+        return matches
+            .where((m) => m.status == MatchStatus.finished)
+            .toList(growable: false);
+      });
+
   Future<List<CompetitionModel>> getCompetitions() => safe(() async {
         final envelope = await _get(ApiFootballRoutes.competitions);
         return FootballApiMapper.competitions(envelope);

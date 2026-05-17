@@ -130,6 +130,27 @@ class BackendProxyService {
         return matches;
       });
 
+  Future<List<MatchModel>> getFinishedMatches({
+    DateTime? date,
+    int? competitionId,
+  }) =>
+      safe(() async {
+        final cacheKey =
+            _cacheKey('finished', date: date, league: competitionId);
+        final cached = _readMatches(cacheKey, CacheBucket.finishedMatches);
+        if (cached != null) return cached;
+
+        final route = BackendProxyRoutes.finishedMatches(
+          date: date,
+          competitionId: competitionId,
+          season: _season,
+        );
+        final envelope = await _get(route);
+        final matches = FootballApiMapper.matchesByDate(envelope);
+        await _writeMatches(cacheKey, matches, CacheBucket.finishedMatches);
+        return matches;
+      });
+
   Future<List<CompetitionModel>> getCompetitions() => safe(() async {
         const cacheKey = 'backend_cache_competitions';
         final cached = _readCompetitions(cacheKey);

@@ -1,4 +1,5 @@
 import '../../core/cache/cache_manager.dart';
+import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_cache_policy.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/api_mode.dart';
@@ -20,7 +21,7 @@ import '../providers/football_data_provider.dart';
 import '../providers/football_data_provider_factory.dart';
 import '../providers/remote_football_data_provider.dart';
 import '../services/football_api_service.dart';
-import '../sources/live_matches_source.dart';
+import '../sources/remote_football_source.dart';
 
 /// Single entry point for football data. Uses API when configured; otherwise mock.
 class FootballRepository {
@@ -42,9 +43,9 @@ class FootballRepository {
   final FootballDataProvider _provider;
   final CacheManager? _cache;
   final RepositoryMemoryCache _memory = RepositoryMemoryCache();
-  LiveMatchesSource? _liveMatchesSource;
+  RemoteFootballSource? _remoteSource;
 
-  bool get usesLiveApi => _provider.isRemote;
+  bool get usesLiveApi => RemoteFootballSource.isRemoteActive;
 
   // --- Matches ---
 
@@ -63,8 +64,8 @@ class FootballRepository {
         date: date,
         competitionId: competitionId,
       );
-      if (LiveMatchesSource.isRemoteLiveActive) {
-        await _liveSource.invalidate(competitionId: competitionId);
+      if (RemoteFootballSource.isRemoteActive) {
+        await _remote.invalidateLiveMatches(competitionId: competitionId);
       }
     }
     final result = await _loadLiveMatches(
@@ -94,18 +95,20 @@ class FootballRepository {
         competitionId: competitionId,
       );
     }
-    final result = await _loadMatches(
+    final result = await _loadRemoteMatchList(
       operation: 'getUpcomingMatches',
-      cacheKey: 'cache_upcoming_matches',
-      fetch: () => _provider.fetchUpcomingMatches(
+      kind: 'upcoming',
+      date: date,
+      competitionId: competitionId,
+      forceRefresh: forceRefresh,
+      mock: () => MockData.matches()
+          .where((m) => m.status == MatchStatus.upcoming)
+          .toList(),
+      fetch: () => _remote.fetchUpcomingMatches(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
       ),
-      mock: () => MockData.matches()
-          .where((m) => m.status == MatchStatus.upcoming)
-          .toList(),
-      filterCompetition: competitionId,
     );
     _storeMemory(memKey, result, forceRefresh);
     return result;
@@ -129,18 +132,20 @@ class FootballRepository {
         competitionId: competitionId,
       );
     }
-    final result = await _loadMatches(
+    final result = await _loadRemoteMatchList(
       operation: 'getFinishedMatches',
-      cacheKey: 'cache_finished_matches',
-      fetch: () => _provider.fetchFinishedMatches(
+      kind: 'finished',
+      date: date,
+      competitionId: competitionId,
+      forceRefresh: forceRefresh,
+      mock: () => MockData.matches()
+          .where((m) => m.status == MatchStatus.finished)
+          .toList(),
+      fetch: () => _remote.fetchFinishedMatches(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
       ),
-      mock: () => MockData.matches()
-          .where((m) => m.status == MatchStatus.finished)
-          .toList(),
-      filterCompetition: competitionId,
     );
     _storeMemory(memKey, result, forceRefresh);
     return result;
@@ -163,16 +168,18 @@ class FootballRepository {
         competitionId: competitionId,
       );
     }
-    final result = await _loadMatches(
+    final result = await _loadRemoteMatchList(
       operation: 'getMatches',
-      cacheKey: 'cache_all_matches',
-      fetch: () => _provider.fetchMatches(
+      kind: 'today',
+      date: date,
+      competitionId: competitionId,
+      forceRefresh: forceRefresh,
+      mock: () => MockData.matches(),
+      fetch: () => _remote.fetchMatchesToday(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
       ),
-      mock: () => MockData.matches(),
-      filterCompetition: competitionId,
     );
     _storeMemory(memKey, result, forceRefresh);
     return result;
@@ -185,15 +192,23 @@ class FootballRepository {
     final fid = _resolvedFixtureId(fixtureId, id);
     final allowMock = _allowMockFallback(fid);
 
+    if (!RemoteFootballSource.isRemoteActive) {
+      return DataState.success(_mockMatchById(id), fromMock: true);
+    }
     try {
-      if (!_provider.isRemote) {
-        return DataState.success(_mockMatchById(id), fromMock: true);
-      }
-      final remote = await _provider.fetchMatchById(fid);
+      final remote = await _remote.fetchMatchDetails(fid);
       if (remote != null) {
         return DataState.success(
           remote.copyWith(fixtureId: fid),
           fromMock: false,
+        );
+      }
+      final stale = _remote.readCachedMatchDetails(fid);
+      if (stale != null) {
+        return DataState.success(
+          stale.copyWith(fixtureId: fid),
+          fromMock: false,
+          fromCache: true,
         );
       }
       if (allowMock) {
@@ -201,15 +216,23 @@ class FootballRepository {
       }
       return const DataState.success(null, fromMock: false);
     } on ApiException catch (e) {
+      final stale = _remote.readCachedMatchDetails(fid);
+      if (stale != null) {
+        return DataState.success(
+          stale.copyWith(fixtureId: fid),
+          fromMock: false,
+          fromCache: true,
+        );
+      }
       if (e.isNotConfigured || allowMock) {
         return DataState.success(_mockMatchById(id), fromMock: true);
       }
-      return const DataState.success(null, fromMock: false);
-    } catch (_) {
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
       if (allowMock) {
         return DataState.success(_mockMatchById(id), fromMock: true);
       }
-      return const DataState.success(null, fromMock: false);
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 
@@ -218,10 +241,11 @@ class FootballRepository {
     int? fixtureId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
-    return _loadFixtureDetail(
+    return _loadRemoteFixtureDetail(
+      operation: 'getMatchEvents',
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _provider.fetchMatchEvents(fid),
+      fetch: () => _remote.fetchMatchEvents(fid),
       mockValue: () => _mockMatchById(matchId)?.events ?? const [],
       emptyValue: () => const <MatchEventModel>[],
     );
@@ -232,10 +256,11 @@ class FootballRepository {
     int? fixtureId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
-    return _loadFixtureDetail(
+    return _loadRemoteFixtureDetail(
+      operation: 'getMatchStatistics',
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _provider.fetchMatchStatistics(fid),
+      fetch: () => _remote.fetchMatchStatistics(fid),
       mockValue: () => _mockMatchById(matchId)?.stats ?? const [],
       emptyValue: () => const <MatchStatisticModel>[],
     );
@@ -247,10 +272,11 @@ class FootballRepository {
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
-    return _loadFixtureDetail(
+    return _loadRemoteFixtureDetail(
+      operation: 'getMatchLineups',
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _provider.fetchMatchLineups(fid),
+      fetch: () => _remote.fetchLineups(fid),
       mockValue: () => (home: match?.homeLineup, away: match?.awayLineup),
       emptyValue: () => (home: null, away: null),
     );
@@ -264,10 +290,11 @@ class FootballRepository {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
     final lineup = isHome ? match?.homeLineup : match?.awayLineup;
-    return _loadFixtureDetail(
+    return _loadRemoteFixtureDetail(
+      operation: 'getFormation',
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _provider.fetchFormation(fid, isHome: isHome),
+      fetch: () => _remote.fetchFormation(fid, isHome: isHome),
       mockValue: () => lineup?.resolvedFormation,
       emptyValue: () => null,
     );
@@ -278,7 +305,7 @@ class FootballRepository {
     bool allowMockFallback = true,
     bool forceRefresh = false,
   }) async {
-    if (!_provider.isRemote) {
+    if (!RemoteFootballSource.isRemoteActive || leagueId == null) {
       return DataState.success(MockData.standings, fromMock: true);
     }
     final memKey = 'mem_standings_$leagueId';
@@ -290,11 +317,18 @@ class FootballRepository {
       _memory.remove(memKey);
     }
     try {
-      final data = await _provider.fetchStandings(leagueId: leagueId);
+      final data = await _remote.fetchStandings(
+        leagueId: leagueId,
+        skipCache: forceRefresh,
+      );
       final result = DataState.success(data, fromMock: false);
       _storeMemory(memKey, result, forceRefresh);
       return result;
     } on ApiException catch (e) {
+      final stale = _remote.readCachedStandings(leagueId);
+      if (stale != null && stale.isNotEmpty) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
       if (e.isNotConfigured || allowMockFallback) {
         return DataState.success(MockData.standings, fromMock: true);
       }
@@ -313,12 +347,13 @@ class FootballRepository {
     bool forceRefresh = false,
   }) async {
     const operation = 'getCompetitions';
-    if (!_provider.isRemote) {
+    if (!RemoteFootballSource.isRemoteActive) {
       final list = MockData.competitions;
       ApiDebugLog.dataSource(
         operation: operation,
         source: 'mock',
         count: list.length,
+        message: 'mode=${ApiConstants.apiMode.name}',
       );
       return DataState.success(list, fromMock: true);
     }
@@ -333,30 +368,18 @@ class FootballRepository {
       _memory.remove(memKey);
     }
     try {
-      final data = await _provider.fetchCompetitions();
-      await _cache?.setJson('cache_competitions', {'ok': true});
-      final source = data.isEmpty ? 'empty' : 'api';
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: source,
-        count: data.length,
-      );
+      final data =
+          await _remote.fetchCompetitions(skipCache: forceRefresh);
       final result = DataState.success(data, fromMock: false);
       _storeMemory(memKey, result, forceRefresh);
       return result;
     } on ApiException catch (e) {
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: 'error',
-        message: 'status=${e.statusCode} ${e.code ?? e.message}',
-      );
+      final stale = _remote.readCachedCompetitions();
+      if (stale != null && stale.isNotEmpty) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
       return DataState.failure(_friendlyError(e));
     } catch (e) {
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: 'error',
-        message: '$e',
-      );
       return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
@@ -378,20 +401,52 @@ class FootballRepository {
     bool forceRefresh = false,
   }) async {
     final memKey = 'mem_teams_$competitionId';
-    if (!forceRefresh && _provider.isRemote) {
+    if (!forceRefresh && RemoteFootballSource.isRemoteActive) {
       final hit = _readMemory<List<TeamModel>>(memKey, ApiCachePolicy.teams);
       if (hit != null) return hit;
     } else if (forceRefresh) {
       _memory.remove(memKey);
     }
-    final result = await _loadSimple(
-      fetch: () => _provider.fetchTeams(competitionId: competitionId),
-      mock: () => MockData.competitionTeams(competitionId),
+    final result = await _loadRemoteTeams(
+      competitionId: competitionId,
+      forceRefresh: forceRefresh,
     );
     if (!result.hasError) {
       _storeMemory(memKey, result, forceRefresh);
     }
     return result;
+  }
+
+  Future<DataState<List<PlayerModel>>> searchPlayers(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      return const DataState.success(<PlayerModel>[]);
+    }
+    if (!RemoteFootballSource.isRemoteActive) {
+      final lower = trimmed.toLowerCase();
+      final list = MockData.players
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(lower) ||
+                p.team.toLowerCase().contains(lower),
+          )
+          .toList();
+      ApiDebugLog.dataSource(
+        operation: 'searchPlayers',
+        source: 'mock',
+        count: list.length,
+        message: 'mode=${ApiConstants.apiMode.name}',
+      );
+      return DataState.success(list, fromMock: true);
+    }
+    try {
+      final data = await _remote.searchPlayers(trimmed);
+      return DataState.success(data, fromMock: false);
+    } on ApiException catch (e) {
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+    }
   }
 
   Future<DataState<List<PlayerModel>>> getTopScorers(int competitionId) async {
@@ -427,18 +482,40 @@ class FootballRepository {
 
   // --- Helpers ---
 
-  LiveMatchesSource get _liveSource =>
-      _liveMatchesSource ??= LiveMatchesSource(cache: _cache);
+  RemoteFootballSource get _remote =>
+      _remoteSource ??= RemoteFootballSource(cache: _cache);
 
   Future<DataState<List<MatchModel>>> _loadLiveMatches({
     DateTime? date,
     int? competitionId,
     bool forceRefresh = false,
-  }) async {
-    if (!LiveMatchesSource.isRemoteLiveActive) {
-      final list = _filterMatches(_mockLiveMatches(), competitionId);
-      ApiDebugLog.dataSource(
+  }) =>
+      _loadRemoteMatchList(
         operation: 'getLiveMatches',
+        kind: 'live',
+        date: date,
+        competitionId: competitionId,
+        forceRefresh: forceRefresh,
+        mock: _mockLiveMatches,
+        fetch: () => _remote.fetchLiveMatches(
+          competitionId: competitionId,
+          skipCache: forceRefresh,
+        ),
+      );
+
+  Future<DataState<List<MatchModel>>> _loadRemoteMatchList({
+    required String operation,
+    required String kind,
+    DateTime? date,
+    int? competitionId,
+    bool forceRefresh = false,
+    required List<MatchModel> Function() mock,
+    required Future<List<MatchModel>> Function() fetch,
+  }) async {
+    if (!RemoteFootballSource.isRemoteActive) {
+      final list = _filterMatches(mock(), competitionId);
+      ApiDebugLog.dataSource(
+        operation: operation,
         source: 'mock',
         count: list.length,
         message: 'mode=${ApiConstants.apiMode.name}',
@@ -447,19 +524,20 @@ class FootballRepository {
     }
 
     try {
-      final data = await _liveSource.fetch(
-        competitionId: competitionId,
-        skipCache: forceRefresh,
-      );
+      final data = await fetch();
       final filtered = _filterMatches(data, competitionId);
-      await _cache?.setJson('cache_live_matches', {'ok': true});
       return DataState.success(filtered, fromMock: false);
     } on ApiException catch (e) {
-      final stale = _liveSource.readCached(competitionId: competitionId);
+      final stale = _remote.readCachedMatches(
+        kind: kind,
+        date: date,
+        competitionId: competitionId,
+        bucket: _bucketForMatchKind(kind),
+      );
       if (stale != null && stale.isNotEmpty) {
         final filtered = _filterMatches(stale, competitionId);
         ApiDebugLog.dataSource(
-          operation: 'getLiveMatches',
+          operation: operation,
           source: 'cache',
           count: filtered.length,
           message:
@@ -467,76 +545,95 @@ class FootballRepository {
         );
         return DataState.success(filtered, fromMock: false, fromCache: true);
       }
-      ApiDebugLog.dataSource(
-        operation: 'getLiveMatches',
-        source: 'error',
-        message:
-            'mode=${ApiConstants.apiMode.name} status=${e.statusCode} ${e.code ?? e.message}',
-      );
       return DataState.failure(_friendlyError(e));
     } catch (e) {
-      final stale = _liveSource.readCached(competitionId: competitionId);
+      final stale = _remote.readCachedMatches(
+        kind: kind,
+        date: date,
+        competitionId: competitionId,
+        bucket: _bucketForMatchKind(kind),
+      );
       if (stale != null && stale.isNotEmpty) {
         final filtered = _filterMatches(stale, competitionId);
         ApiDebugLog.dataSource(
-          operation: 'getLiveMatches',
+          operation: operation,
           source: 'cache',
           count: filtered.length,
           message: 'fallback mode=${ApiConstants.apiMode.name}',
         );
         return DataState.success(filtered, fromMock: false, fromCache: true);
       }
-      ApiDebugLog.dataSource(
-        operation: 'getLiveMatches',
-        source: 'error',
-        message: 'mode=${ApiConstants.apiMode.name} $e',
-      );
       return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 
-  Future<DataState<List<MatchModel>>> _loadMatches({
-    required String operation,
-    required String cacheKey,
-    required Future<List<MatchModel>> Function() fetch,
-    required List<MatchModel> Function() mock,
-    int? filterCompetition,
+  Future<DataState<List<TeamModel>>> _loadRemoteTeams({
+    required int competitionId,
+    bool forceRefresh = false,
   }) async {
-    if (!_provider.isRemote) {
-      final list = _filterMatches(mock(), filterCompetition);
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: 'mock',
-        count: list.length,
+    if (!RemoteFootballSource.isRemoteActive) {
+      return DataState.success(
+        MockData.competitionTeams(competitionId),
+        fromMock: true,
       );
-      return DataState.success(list, fromMock: true);
     }
-
     try {
-      final data = await fetch();
-      final filtered = _filterMatches(data, filterCompetition);
-      await _cache?.setJson(cacheKey, {'ok': true});
-      final source = filtered.isEmpty ? 'empty' : 'api';
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: source,
-        count: filtered.length,
+      final data = await _remote.fetchTeams(
+        competitionId: competitionId,
+        skipCache: forceRefresh,
       );
-      return DataState.success(filtered, fromMock: false);
+      return DataState.success(data, fromMock: false);
     } on ApiException catch (e) {
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: 'error',
-        message: 'status=${e.statusCode} ${e.code ?? e.message}',
-      );
+      final stale = _remote.readCachedTeams(competitionId);
+      if (stale != null && stale.isNotEmpty) {
+        return DataState.success(stale, fromMock: false, fromCache: true);
+      }
       return DataState.failure(_friendlyError(e));
     } catch (e) {
-      ApiDebugLog.dataSource(
-        operation: operation,
-        source: 'error',
-        message: '$e',
-      );
       return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+    }
+  }
+
+  Future<DataState<T>> _loadRemoteFixtureDetail<T>({
+    required String operation,
+    required int fixtureId,
+    required bool allowMock,
+    required Future<T> Function() fetch,
+    required T Function() mockValue,
+    required T Function() emptyValue,
+  }) async {
+    if (!RemoteFootballSource.isRemoteActive) {
+      return DataState.success(mockValue(), fromMock: true);
+    }
+    try {
+      final data = await fetch();
+      return DataState.success(data, fromMock: false);
+    } on ApiException catch (e) {
+      if (e.isNotConfigured || allowMock) {
+        return DataState.success(mockValue(), fromMock: true);
+      }
+      if (e.isRateLimited) {
+        return DataState.failure(_friendlyError(e));
+      }
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
+      if (allowMock) {
+        return DataState.success(mockValue(), fromMock: true);
+      }
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+    }
+  }
+
+  CacheBucket _bucketForMatchKind(String kind) {
+    switch (kind) {
+      case 'live':
+        return CacheBucket.liveMatches;
+      case 'upcoming':
+        return CacheBucket.upcomingMatches;
+      case 'finished':
+        return CacheBucket.finishedMatches;
+      default:
+        return CacheBucket.todayMatches;
     }
   }
 
@@ -585,37 +682,8 @@ class FootballRepository {
   }
 
   bool _allowMockFallback(int fixtureId) {
-    if (!_provider.isRemote) return true; // mock fallback allowed
+    if (!RemoteFootballSource.isRemoteActive) return true;
     return MockData.isMockMatchId(fixtureId);
-  }
-
-  Future<DataState<T>> _loadFixtureDetail<T>({
-    required int fixtureId,
-    required bool allowMock,
-    required Future<T> Function() fetch,
-    required T Function() mockValue,
-    required T Function() emptyValue,
-  }) async {
-    if (!_provider.isRemote) {
-      return DataState.success(mockValue(), fromMock: true);
-    }
-    try {
-      final data = await fetch();
-      return DataState.success(data, fromMock: false);
-    } on ApiException catch (e) {
-      if (e.isNotConfigured || allowMock) {
-        return DataState.success(mockValue(), fromMock: true);
-      }
-      if (e.isRateLimited) {
-        return DataState.failure(_friendlyError(e));
-      }
-      return DataState.success(emptyValue(), fromMock: false);
-    } catch (_) {
-      if (allowMock) {
-        return DataState.success(mockValue(), fromMock: true);
-      }
-      return DataState.success(emptyValue(), fromMock: false);
-    }
   }
 
   Future<DataState<T>> _loadSimple<T>({

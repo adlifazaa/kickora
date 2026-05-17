@@ -47,6 +47,20 @@ class BackendProxyRoutes {
         ),
       );
 
+  static ApiRouteRequest finishedMatches({
+    DateTime? date,
+    int? competitionId,
+    required int season,
+  }) =>
+      ApiRouteRequest(
+        path: ApiConstants.backendMatchesFinished,
+        queryParameters: _matchQuery(
+          date: date,
+          competitionId: competitionId,
+          season: season,
+        ),
+      );
+
   static const ApiRouteRequest competitions = ApiRouteRequest(
     path: ApiConstants.backendCompetitions,
   );
