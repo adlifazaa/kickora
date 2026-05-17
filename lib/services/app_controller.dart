@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../data/repositories/football_repository.dart';
 import '../notifications/services/kickora_notification_service.dart';
+import '../subscription/premium_service.dart';
 import '../subscription/premium_subscription_service.dart';
 import 'favorite_manager.dart';
 
@@ -15,6 +16,7 @@ class AppController extends ChangeNotifier {
     FavoriteManager? favoriteManager,
     MatchRefreshService? matchRefreshService,
     PremiumSubscriptionService? premiumSubscriptionService,
+    PremiumService? premiumService,
   })  : footballRepository = footballRepository ?? FootballRepository(),
         notificationService = notificationService ??
             KickoraNotificationService.createMock(_preferences),
@@ -29,7 +31,12 @@ class AppController extends ChangeNotifier {
               footballRepository ?? FootballRepository(),
             ),
         premiumSubscriptionService = premiumSubscriptionService ??
-            PremiumSubscriptionService(_preferences) {
+            PremiumSubscriptionService(_preferences),
+        premiumService = premiumService ??
+            PremiumService(
+              premiumSubscriptionService ??
+                  PremiumSubscriptionService(_preferences),
+            ) {
     this.favoriteManager.addListener(notifyListeners);
     this.premiumSubscriptionService.addListener(notifyListeners);
   }
@@ -39,6 +46,7 @@ class AppController extends ChangeNotifier {
   final FavoriteManager favoriteManager;
   final MatchRefreshService matchRefreshService;
   final PremiumSubscriptionService premiumSubscriptionService;
+  final PremiumService premiumService;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
@@ -173,6 +181,7 @@ class AppController extends ChangeNotifier {
   void dispose() {
     favoriteManager.removeListener(notifyListeners);
     premiumSubscriptionService.removeListener(notifyListeners);
+    premiumService.dispose();
     super.dispose();
   }
 }

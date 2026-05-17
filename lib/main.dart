@@ -14,6 +14,7 @@ import 'data/providers/football_data_provider_factory.dart';
 import 'data/services/api_football/api_football_service.dart';
 import 'data/services/backend_proxy/backend_proxy_service.dart';
 import 'ads/ad_service.dart';
+import 'subscription/premium_service.dart';
 import 'subscription/premium_subscription_service.dart';
 import 'core/refresh/match_refresh_service.dart';
 import 'notifications/services/kickora_notification_service.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
   final preferences = await SharedPreferences.getInstance();
   final premiumSubscriptionService = PremiumSubscriptionService(preferences);
   await premiumSubscriptionService.load();
+  final premiumService = PremiumService(premiumSubscriptionService);
   AdService.instance.bindPremium(premiumSubscriptionService);
   await AdService.instance.initialize();
   final notificationService =
@@ -59,6 +61,7 @@ Future<void> main() async {
     favoriteManager: favoriteManager,
     matchRefreshService: matchRefreshService,
     premiumSubscriptionService: premiumSubscriptionService,
+    premiumService: premiumService,
   );
   await controller.load();
   runApp(KickoraApp(controller: controller));

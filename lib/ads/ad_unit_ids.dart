@@ -1,3 +1,5 @@
+import 'ad_placement.dart';
+
 /// Demo AdMob unit IDs — replace with real IDs before release.
 ///
 /// Never commit production ad unit IDs to public repos; prefer `--dart-define`
@@ -14,6 +16,36 @@ class AdUnitIds {
     'KICKORA_AD_NATIVE',
     defaultValue: 'ca-app-pub-3940256099942544/2247696110',
   );
+
+  static const String nativeMatchList = String.fromEnvironment(
+    'KICKORA_AD_NATIVE_MATCH_LIST',
+    defaultValue: 'ca-app-pub-3940256099942544/2247696110',
+  );
+
+  static const String nativeCompetition = String.fromEnvironment(
+    'KICKORA_AD_NATIVE_COMPETITION',
+    defaultValue: 'ca-app-pub-3940256099942544/2247696110',
+  );
+
+  static const String nativeScrollBottom = String.fromEnvironment(
+    'KICKORA_AD_NATIVE_SCROLL_BOTTOM',
+    defaultValue: 'ca-app-pub-3940256099942544/2247696110',
+  );
+
+  static String nativeFor(AdPlacement placement) {
+    switch (placement) {
+      case AdPlacement.matchListNative:
+      case AdPlacement.feedNative:
+        return nativeMatchList;
+      case AdPlacement.competitionListNative:
+      case AdPlacement.competitionsNative:
+        return nativeCompetition;
+      case AdPlacement.scrollBottomNative:
+        return nativeScrollBottom;
+      default:
+        return native;
+    }
+  }
 
   static const String interstitial = String.fromEnvironment(
     'KICKORA_AD_INTERSTITIAL',
