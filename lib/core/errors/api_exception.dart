@@ -43,6 +43,18 @@ class ApiException implements Exception {
           code: 'rate_limit',
         );
 
+  const ApiException.timeout([String? detail])
+      : this(
+          detail ?? 'Request timed out.',
+          code: 'timeout',
+        );
+
+  const ApiException.unknown([String? detail])
+      : this(
+          detail ?? 'An unexpected error occurred.',
+          code: 'unknown',
+        );
+
   final String message;
   final int? statusCode;
   final String? code;
@@ -54,10 +66,18 @@ class ApiException implements Exception {
 
   bool get isBackendUnavailable => code == 'backend_unavailable';
 
-  bool get isNetwork =>
-      code == 'network' || code == 'timeout';
+  bool get isTimeout => code == 'timeout';
+
+  bool get isNetwork => code == 'network';
 
   bool get isEmptyResponse => code == 'empty_response';
+
+  bool get isUnknown =>
+      code == null ||
+      code == 'unknown' ||
+      code == 'http_error' ||
+      code == 'api_error' ||
+      code == 'parse';
 
   @override
   String toString() {

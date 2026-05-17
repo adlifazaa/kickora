@@ -1,6 +1,7 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/constants/api_cache_policy.dart';
 import '../../core/player/player_photo_resolver.dart';
+import '../../core/errors/api_error_messages.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_debug_log.dart';
 import '../../core/state/data_state.dart';
@@ -142,7 +143,7 @@ class FootballRepository {
     final memKey = _matchMemKey('all', date: date, competitionId: competitionId);
     if (!forceRefresh) {
       final hit =
-          _readMemory<List<MatchModel>>(memKey, ApiCachePolicy.fixturesByDate);
+          _readMemory<List<MatchModel>>(memKey, ApiCachePolicy.todayMatches);
       if (hit != null) return hit;
     } else {
       _memory.remove(memKey);
@@ -291,7 +292,7 @@ class FootballRepository {
       if (allowMockFallback) {
         return DataState.success(MockData.standings, fromMock: true);
       }
-      return DataState.failure(e.toString());
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 
@@ -345,7 +346,7 @@ class FootballRepository {
         source: 'error',
         message: '$e',
       );
-      return DataState.failure(e.toString());
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 
@@ -456,17 +457,26 @@ class FootballRepository {
         source: 'error',
         message: '$e',
       );
-      return DataState.failure(e.toString());
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 
   DataState<T>? _readMemory<T>(String key, Duration ttl) {
     final cached = _memory.get<DataState<T>>(key, ttl);
-    if (cached == null) return null;
-    ApiDebugLog.dataSource(
-      operation: key,
-      source: 'memory',
-      count: cached.data is List ? (cached.data as List).length : null,
+    if (cached == null) {
+      ApiDebugLog.cache(
+        key: key,
+        hit: false,
+        bucket: 'memory',
+        layer: 'memory',
+      );
+      return null;
+    }
+    ApiDebugLog.cache(
+      key: key,
+      hit: true,
+      bucket: 'memory',
+      layer: 'memory',
     );
     return cached.copyWith(fromCache: true);
   }
@@ -488,7 +498,7 @@ class FootballRepository {
   }
 
   String _friendlyError(ApiException e, {bool isArabic = false}) =>
-      ApiCachePolicy.friendlyMessage(e, isArabic: isArabic);
+      ApiErrorMessages.friendly(e, isArabic: isArabic);
 
   int _resolvedFixtureId(int? fixtureId, int matchId) {
     if (fixtureId != null && fixtureId > 0) return fixtureId;
@@ -550,12 +560,12 @@ class FootballRepository {
       if (e.isRateLimited) {
         return DataState.failure(_friendlyError(e));
       }
-      return DataState.failure(e.message);
+      return DataState.failure(_friendlyError(e));
     } catch (e) {
       if (!_api.isLive) {
         return DataState.success(mock(), fromMock: true);
       }
-      return DataState.failure(e.toString());
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
 

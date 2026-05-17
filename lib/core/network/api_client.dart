@@ -133,11 +133,7 @@ class ApiClient {
           errorCode: 'http_error',
           dataSource: 'error',
         );
-        throw ApiException(
-          'Request failed',
-          statusCode: response.statusCode,
-          code: 'http_error',
-        );
+        throw ApiException.unknown('HTTP ${response.statusCode}');
       }
 
       if (decoded is! Map<String, dynamic>) {
@@ -167,10 +163,7 @@ class ApiClient {
       throw ApiException.parse(e.message);
     } on TimeoutException catch (_) {
       ApiDebugLog.failure(path, 'timeout');
-      throw const ApiException(
-        'Request timed out.',
-        code: 'timeout',
-      );
+      throw const ApiException.timeout();
     } catch (e) {
       ApiDebugLog.failure(path, 'network');
       throw ApiException.network(e.toString());

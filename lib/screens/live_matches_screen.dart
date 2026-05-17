@@ -4,7 +4,7 @@ import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
-import '../core/constants/api_cache_policy.dart';
+import '../core/errors/api_error_messages.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
@@ -73,7 +73,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
       String? loadError;
       if (repo.usesLiveApi && state.hasError && matches.isEmpty) {
         loadError = state.errorMessage ??
-            ApiCachePolicy.rateLimitMessage(isArabic: text.isArabic);
+            ApiErrorMessages.rateLimitMessage(isArabic: text.isArabic);
       }
       setState(() {
         _loading = false;

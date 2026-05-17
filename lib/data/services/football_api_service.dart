@@ -1,5 +1,5 @@
 import '../../core/cache/cache_manager.dart';
-import '../../core/constants/api_cache_policy.dart';
+import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_client.dart';
@@ -35,11 +35,11 @@ class FootballApiService {
                   : '',
               mode: ApiConstants.apiMode,
             ),
-        _cache = cache,
+        _cacheService = cache != null ? CacheService(cache) : null,
         provider = provider ?? _defaultProvider();
 
   final ApiClient _client;
-  final CacheManager? _cache;
+  final CacheService? _cacheService;
   final ApiProvider provider;
 
   static ApiProvider _defaultProvider() {
@@ -79,7 +79,7 @@ class FootballApiService {
 
     final cacheKey = _cacheKey('live', date: date, league: competitionId);
     if (!skipCache) {
-      final cached = _readMatchCache(cacheKey);
+      final cached = _readMatchCache(cacheKey, CacheBucket.liveMatches);
       if (cached != null) return cached;
     }
 
@@ -102,11 +102,7 @@ class FootballApiService {
       );
     }
 
-    await _writeMatchCache(
-      cacheKey,
-      matches,
-      ttl: ApiCachePolicy.liveMatches,
-    );
+    await _writeMatchCache(cacheKey, matches, CacheBucket.liveMatches);
     return matches;
   }
 
@@ -147,8 +143,9 @@ class FootballApiService {
       date: date,
       league: competitionId,
     );
+    final bucket = _matchCacheBucket(status);
     if (!skipCache) {
-      final cached = _readMatchCache(cacheKey);
+      final cached = _readMatchCache(cacheKey, bucket);
       if (cached != null) {
         return status == null ? cached : _filterStatus(cached, status);
       }
@@ -167,13 +164,7 @@ class FootballApiService {
       matches = _filterStatus(matches, status);
     }
 
-    final ttl = switch (status) {
-      MatchStatus.live => ApiCachePolicy.liveMatches,
-      MatchStatus.upcoming => ApiCachePolicy.fixturesUpcoming,
-      MatchStatus.finished => ApiCachePolicy.fixturesFinished,
-      null => ApiCachePolicy.todayMatches,
-    };
-    await _writeMatchCache(cacheKey, matches, ttl: ttl);
+    await _writeMatchCache(cacheKey, matches, bucket);
     return matches;
   }
 
@@ -182,7 +173,7 @@ class FootballApiService {
     DateTime? date,
     int? competitionId,
   }) async {
-    if (_cache == null) return;
+    if (_cacheService == null) return;
     final prefixes = <String>[
       _cacheKey('live', date: date, league: competitionId),
       _cacheKey('fixtures_live', date: date, league: competitionId),
@@ -191,7 +182,7 @@ class FootballApiService {
       _cacheKey('fixtures_all', date: date, league: competitionId),
     ];
     for (final key in prefixes) {
-      await _cache.remove(key);
+      await _cacheService.remove(key);
     }
   }
 
@@ -203,18 +194,14 @@ class FootballApiService {
 
     final cacheKey = 'cache_fixture_$id';
     if (!skipCache) {
-      final cached = _readMatchCache(cacheKey);
+      final cached = _readMatchCache(cacheKey, CacheBucket.matchDetails);
       if (cached != null && cached.isNotEmpty) return cached.first;
     }
 
     final response = await _getRoute(FootballApiRoutes.matchById(id));
     final list = ApiFootballParser.parseFixtures(response);
     if (list.isNotEmpty) {
-      await _writeMatchCache(
-        cacheKey,
-        list,
-        ttl: ApiCachePolicy.matchDetails,
-      );
+      await _writeMatchCache(cacheKey, list, CacheBucket.matchDetails);
     }
     return list.isEmpty ? null : list.first;
   }
@@ -223,7 +210,7 @@ class FootballApiService {
     if (!isLive) throw const ApiException.notConfigured();
 
     final cacheKey = 'cache_events_$matchId';
-    final cached = _cache?.getJsonList(cacheKey);
+    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.matchDetails);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -240,10 +227,10 @@ class FootballApiService {
       awayTeamId: fixture?.awayTeam.id,
     );
 
-    await _cache?.setJsonList(
+    await _cacheService?.writeJsonList(
       cacheKey,
       events.map(_eventToJson).toList(),
-      ttl: ApiCachePolicy.matchDetails,
+      CacheBucket.matchDetails,
     );
     return events;
   }
@@ -252,7 +239,7 @@ class FootballApiService {
     if (!isLive) throw const ApiException.notConfigured();
 
     final cacheKey = 'cache_stats_$matchId';
-    final cached = _cache?.getJsonList(cacheKey);
+    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.matchDetails);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -267,7 +254,7 @@ class FootballApiService {
       homeTeamId: fixture?.homeTeam.id,
     );
 
-    await _cache?.setJsonList(
+    await _cacheService?.writeJsonList(
       cacheKey,
       stats
           .map(
@@ -280,7 +267,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: ApiCachePolicy.matchDetails,
+      CacheBucket.matchDetails,
     );
     return stats;
   }
@@ -314,7 +301,8 @@ class FootballApiService {
     if (!isLive) throw const ApiException.notConfigured();
 
     const cacheKey = 'cache_competitions_list';
-    final cached = _cache?.getJsonList(cacheKey);
+    final cached =
+        _cacheService?.readJsonList(cacheKey, CacheBucket.competitions);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -325,10 +313,10 @@ class FootballApiService {
     final response = await _getRoute(FootballApiRoutes.competitions());
     final leagues = ApiFootballParser.parseLeagues(response);
 
-    await _cache?.setJsonList(
+    await _cacheService?.writeJsonList(
       cacheKey,
       leagues.map((c) => c.toJson()).toList(),
-      ttl: ApiCachePolicy.competitions,
+      CacheBucket.competitions,
     );
     return leagues;
   }
@@ -350,7 +338,7 @@ class FootballApiService {
     }
 
     final cacheKey = 'cache_teams_${competitionId ?? 'all'}';
-    final cached = _cache?.getJsonList(cacheKey);
+    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.teams);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -363,10 +351,10 @@ class FootballApiService {
     );
     final teams = ApiFootballParser.parseTeams(response);
 
-    await _cache?.setJsonList(
+    await _cacheService?.writeJsonList(
       cacheKey,
       teams.map((t) => t.toJson()).toList(),
-      ttl: ApiCachePolicy.teams,
+      CacheBucket.teams,
     );
     return teams;
   }
@@ -376,7 +364,7 @@ class FootballApiService {
     if (leagueId == null) return const [];
 
     final cacheKey = 'cache_standings_$leagueId';
-    final cached = _cache?.getJsonList(cacheKey);
+    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.standings);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -389,7 +377,7 @@ class FootballApiService {
     );
     final standings = ApiFootballParser.parseStandings(response);
 
-    await _cache?.setJsonList(
+    await _cacheService?.writeJsonList(
       cacheKey,
       standings
           .map(
@@ -406,7 +394,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: ApiCachePolicy.standings,
+      CacheBucket.standings,
     );
     return standings;
   }
@@ -418,7 +406,8 @@ class FootballApiService {
     }
 
     final cacheKey = 'cache_scorers_$competitionId';
-    final cached = _cache?.getJsonList(cacheKey);
+    final cached =
+        _cacheService?.readJsonList(cacheKey, CacheBucket.playerProfile);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -431,7 +420,7 @@ class FootballApiService {
     );
     final players = ApiFootballParser.parseTopScorers(response);
 
-    await _cache?.setJsonList(
+    await _cacheService?.writeJsonList(
       cacheKey,
       players
           .map(
@@ -451,7 +440,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: const Duration(hours: 1),
+      CacheBucket.playerProfile,
     );
     return players;
   }
@@ -486,8 +475,21 @@ class FootballApiService {
     return 'cache_${prefix}_${league ?? 'all'}_$d';
   }
 
-  List<MatchModel>? _readMatchCache(String key) {
-    final list = _cache?.getJsonList(key);
+  CacheBucket _matchCacheBucket(MatchStatus? status) {
+    switch (status) {
+      case MatchStatus.live:
+        return CacheBucket.liveMatches;
+      case MatchStatus.upcoming:
+        return CacheBucket.upcomingMatches;
+      case MatchStatus.finished:
+        return CacheBucket.finishedMatches;
+      case null:
+        return CacheBucket.todayMatches;
+    }
+  }
+
+  List<MatchModel>? _readMatchCache(String key, CacheBucket bucket) {
+    final list = _cacheService?.readJsonList(key, bucket);
     if (list == null) return null;
     return list
         .whereType<Map>()
@@ -497,10 +499,10 @@ class FootballApiService {
 
   Future<void> _writeMatchCache(
     String key,
-    List<MatchModel> matches, {
-    Duration ttl = const Duration(minutes: 3),
-  }) async {
-    await _cache?.setJsonList(
+    List<MatchModel> matches,
+    CacheBucket bucket,
+  ) async {
+    await _cacheService?.writeJsonList(
       key,
       matches
           .map(
@@ -525,7 +527,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      ttl: ttl,
+      bucket,
     );
   }
 

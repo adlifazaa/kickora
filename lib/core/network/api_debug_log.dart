@@ -34,7 +34,8 @@ class ApiDebugLog {
     final query = uri.query.isEmpty ? '' : '?${_redactQuery(uri.query)}';
     final total = ApiRequestCoordinator.instance.requestCount;
     debugPrint(
-      '[Kickora] request#$requestId (total=$total) → $method $path$query',
+      '[Kickora] apiMode=${ApiModeService.mode.name} '
+      'request#$requestId (total=$total) → $method $path$query',
     );
   }
 
@@ -50,8 +51,34 @@ class ApiDebugLog {
     final count = results != null ? ' resultCount=$results' : '';
     final err = errorCode != null ? ' error=$errorCode' : '';
     debugPrint(
-      '[Kickora] request#$requestId ← HTTP $statusCode $path '
+      '[Kickora] apiMode=${ApiModeService.mode.name} '
+      'request#$requestId ← HTTP $statusCode $path '
       'dataSource=$dataSource$count$err',
+    );
+  }
+
+  static void cache({
+    required String key,
+    required bool hit,
+    required String bucket,
+    String layer = 'disk',
+  }) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[Kickora] apiMode=${ApiModeService.mode.name} '
+      'cache ${hit ? 'HIT' : 'MISS'} layer=$layer bucket=$bucket key=$key',
+    );
+  }
+
+  static void cacheWrite({
+    required String key,
+    required String bucket,
+    String layer = 'disk',
+  }) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[Kickora] apiMode=${ApiModeService.mode.name} '
+      'cache WRITE layer=$layer bucket=$bucket key=$key',
     );
   }
 
@@ -67,7 +94,9 @@ class ApiDebugLog {
 
   static void failure(String path, String code) {
     if (!kDebugMode) return;
-    debugPrint('[Kickora] ✗ $path [$code]');
+    debugPrint(
+      '[Kickora] apiMode=${ApiModeService.mode.name} ✗ $path [$code]',
+    );
   }
 
   /// Repository layer: api vs mock, never logs secrets.
@@ -81,8 +110,8 @@ class ApiDebugLog {
     final n = count != null ? ' resultCount=$count' : '';
     final msg = message != null ? ' $message' : '';
     debugPrint(
-      '[Kickora] apiMode=${ApiConstants.apiMode.name} '
-      'remote=${ApiConstants.hasRemoteApi} '
+      '[Kickora] apiMode=${ApiModeService.mode.name} '
+      'remote=${ApiModeService.usesRemoteApi} '
       '$operation dataSource=$source$n$msg',
     );
   }
@@ -95,7 +124,8 @@ class ApiDebugLog {
           if (eq <= 0) return part;
           final key = part.substring(0, eq);
           if (key.toLowerCase().contains('key') ||
-              key.toLowerCase().contains('token')) {
+              key.toLowerCase().contains('token') ||
+              key.toLowerCase().contains('secret')) {
             return '$key=***';
           }
           return part;
