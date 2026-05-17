@@ -383,6 +383,12 @@ class _HomeHeader extends StatelessWidget {
           ),
         ),
         IconButton(
+          tooltip: text.globalSearchTitle,
+          onPressed: () =>
+              Navigator.pushNamed(context, AppRoutes.globalSearch),
+          icon: const Icon(Icons.search_rounded),
+        ),
+        IconButton(
           tooltip: text.about,
           onPressed: () =>
               Navigator.pushNamed(context, AppRoutes.about),

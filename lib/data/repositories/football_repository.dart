@@ -547,9 +547,15 @@ class FootballRepository {
       if (e.isNotConfigured) {
         return DataState.success(mock(), fromMock: true);
       }
-      return DataState.success(mock(), fromMock: true);
-    } catch (_) {
-      return DataState.success(mock(), fromMock: true);
+      if (e.isRateLimited) {
+        return DataState.failure(_friendlyError(e));
+      }
+      return DataState.failure(e.message);
+    } catch (e) {
+      if (!_api.isLive) {
+        return DataState.success(mock(), fromMock: true);
+      }
+      return DataState.failure(e.toString());
     }
   }
 

@@ -62,6 +62,10 @@ class MatchCard extends StatelessWidget {
     final headerTeamGap = compact ? 8.0 : 10.0;
     final teamStadiumGap = compact ? 4.0 : 6.0;
 
+    Widget buildLiveBadge() => featuredSlot
+        ? _StaticLiveChip(label: text.live)
+        : ClipRect(child: LiveBadge(label: text.live, dense: true));
+
     final card = Material(
         color: Colors.transparent,
         child: InkWell(
@@ -93,125 +97,151 @@ class MatchCard extends StatelessWidget {
             ),
           child: SizedBox(
             width: double.infinity,
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: compact ? 22 : 24,
-                    height: compact ? 22 : 24,
-                    child: CompetitionBadge.fromCompetition(
-                      match.competition,
-                      size: compact ? 22 : 24,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ApiDisplayText(
-                      match.competition.name,
-                      maxLines: 1,
-                      style: (Theme.of(context).textTheme.bodySmall ??
-                              const TextStyle(fontSize: 12))
-                          .copyWith(
-                            color: Theme.of(context).hintColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  if (isLive)
-                    Flexible(
-                      fit: FlexFit.loose,
-                      child: featuredSlot
-                          ? _StaticLiveChip(label: text.live)
-                          : ClipRect(
-                              child: LiveBadge(label: text.live, dense: true),
-                            ),
-                    )
-                  else
-                    Flexible(
-                      fit: FlexFit.loose,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _statusColor(context, match.status)
-                              .withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: ApiDisplayText(
-                          match.timeLabel,
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: _statusColor(context, match.status),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  FavoriteToggle(
-                    value: isFav,
-                    onChanged: (_) => app.toggleMatchFavorite(match.id),
-                  ),
-                ],
-              ),
-              SizedBox(height: headerTeamGap),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: _TeamView(
-                      team: match.homeTeam,
-                      compact: compact,
-                    ),
-                  ),
-                  Flexible(
-                    fit: FlexFit.loose,
-                    child: _ScoreBlock(
-                      match: match,
-                      compact: compact,
-                      staticDisplay: featuredSlot,
-                    ),
-                  ),
-                  Expanded(
-                    child: _TeamView(
-                      team: match.awayTeam,
-                      compact: compact,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: teamStadiumGap),
-              if (sanitizeApiDisplayText(match.stadium).isNotEmpty)
-                Row(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: compact ? 11 : 12,
-                      color: Theme.of(context).hintColor,
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: compact ? 22 : 24,
+                          height: compact ? 22 : 24,
+                          child: CompetitionBadge.fromCompetition(
+                            match.competition,
+                            size: compact ? 22 : 24,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ApiDisplayText(
+                            match.competition.name,
+                            maxLines: 1,
+                            style: (Theme.of(context).textTheme.bodySmall ??
+                                    const TextStyle(fontSize: 12))
+                                .copyWith(
+                                  color: Theme.of(context).hintColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        if (isLive)
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Opacity(
+                              opacity: 0,
+                              child: IgnorePointer(child: buildLiveBadge()),
+                            ),
+                          )
+                        else
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _statusColor(context, match.status)
+                                    .withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: ApiDisplayText(
+                                match.timeLabel,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: _statusColor(context, match.status),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        FavoriteToggle(
+                          value: isFav,
+                          onChanged: (_) => app.toggleMatchFavorite(match.id),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: ApiDisplayText(
-                        match.stadium,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Theme.of(context).hintColor,
-                          fontSize: compact ? 10.5 : 11,
-                          fontWeight: FontWeight.w600,
+                    SizedBox(height: headerTeamGap),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: _TeamView(
+                              team: match.homeTeam,
+                              compact: compact,
+                            ),
+                          ),
+                        ),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: _ScoreBlock(
+                              match: match,
+                              compact: compact,
+                              staticDisplay: featuredSlot,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: _TeamView(
+                              team: match.awayTeam,
+                              compact: compact,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: teamStadiumGap),
+                    if (sanitizeApiDisplayText(match.stadium).isNotEmpty)
+                      Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: compact ? 11 : 12,
+                              color: Theme.of(context).hintColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: ApiDisplayText(
+                                match.stadium,
+                                maxLines: 1,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Theme.of(context).hintColor,
+                                  fontSize: compact ? 10.5 : 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
                   ],
                 ),
-            ],
-          ),
+                if (isLive)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: buildLiveBadge(),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         ),
@@ -436,11 +466,9 @@ class _TeamView extends StatelessWidget {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Center(
-          child: TeamLogo.fromTeam(team, size: logoSize),
-        ),
+        TeamLogo.fromTeam(team, size: logoSize),
         SizedBox(height: logoNameGap),
         ApiDisplayText(
           team.name,

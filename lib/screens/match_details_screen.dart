@@ -11,9 +11,11 @@ import '../core/refresh/match_refresh_category.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../app/routes.dart';
 import '../data/mock_data.dart';
+import '../data/repositories/football_repository.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/standing_model.dart';
+import '../widgets/async_content_view.dart';
 import '../widgets/live_badge.dart';
 import '../widgets/live_update_indicator.dart';
 import '../widgets/match_timeline.dart';
@@ -41,6 +43,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   late MatchModel _match;
   bool _refreshingDetails = false;
   DateTime? _lastUpdated;
+  String? _detailsError;
   MatchRefreshService? _refresh;
 
   MatchModel get m => _match;
@@ -52,7 +55,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   @override
   void initState() {
     super.initState();
-    _match = displayMatchFor(widget.match);
+    _match = displayMatchFor(
+      widget.match,
+      allowMockFill: !widget.match.isApiFixture,
+    );
     logMatchDetails(
       'open match id=${widget.match.id} fixtureId=$_fixtureId '
       'apiFixture=$_isApiFixture '
@@ -92,12 +98,15 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     setState(() => _bodyTabIndex = index);
   }
 
-  TextStyle _debugTabLabelStyle(BuildContext context) => TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: Theme.of(context).colorScheme.primary,
-        letterSpacing: 0.2,
-      );
+  bool _allowMockFill(FootballRepository repo) =>
+      !repo.usesLiveApi || MockData.isMockMatchId(_fixtureId);
+
+  void _noteDetailsError<T>(DataState<T> state, FootballRepository repo) {
+    if (!repo.usesLiveApi || !_isApiFixture) return;
+    if (state.hasError && _detailsError == null) {
+      _detailsError = state.errorMessage;
+    }
+  }
 
   void _startLiveTimers() {
     _minuteTimer?.cancel();
@@ -124,7 +133,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
 
   Future<void> _loadDetails({bool silent = false}) async {
     if (mounted) {
-      setState(() => _refreshingDetails = true);
+      setState(() {
+        _refreshingDetails = true;
+        if (!silent) _detailsError = null;
+      });
     }
 
     final repo = AppScope.footballRepositoryOf(context);
@@ -178,6 +190,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         'events fixture=$fixtureId source=${eventsState.fromMock ? "mock-fallback" : "api"} '
         'count=${eventsState.data?.length ?? 0}',
       );
+      _noteDetailsError(eventsState, repo);
       if (_acceptRepositoryResult(eventsState)) {
         final data = eventsState.data;
         if (data != null) events = data;
@@ -193,6 +206,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         'stats fixture=$fixtureId source=${statsState.fromMock ? "mock-fallback" : "api"} '
         'count=${statsState.data?.length ?? 0}',
       );
+      _noteDetailsError(statsState, repo);
       if (_acceptRepositoryResult(statsState)) {
         final data = statsState.data;
         if (data != null) stats = data;
@@ -208,6 +222,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         'lineups fixture=$fixtureId source=${lineupsState.fromMock ? "mock-fallback" : "api"} '
         'home=${lineupsState.data?.home != null} away=${lineupsState.data?.away != null}',
       );
+      _noteDetailsError(lineupsState, repo);
       if (_acceptRepositoryResult(lineupsState)) {
         final data = lineupsState.data;
         if (data != null) {
@@ -258,6 +273,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         'source=${standingsState.fromMock ? "mock-fallback" : "api"} '
         'count=${standingsState.data?.length ?? 0}',
       );
+      _noteDetailsError(standingsState, repo);
       if (_acceptRepositoryResult(standingsState)) {
         final data = standingsState.data;
         if (data != null) standings = data;
@@ -266,6 +282,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       logMatchDetails('standings error: $e');
     }
 
+    final allowMock = _allowMockFill(repo);
     final momentum = _momentumFromStats(stats) ??
         (_isApiFixture ? 0.5 : base.momentumHome);
 
@@ -287,6 +304,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
                   ? const []
                   : base.liveCommentary,
         ),
+        allowMockFill: allowMock,
       );
       _displayMinute = _parseMinute(_match);
     });
@@ -355,19 +373,45 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     return m.timeLabel;
   }
 
-  Widget _buildSelectedTabBody(BuildContext context, MatchModel match) {
+  Widget _buildSelectedTabBody(
+    BuildContext context,
+    MatchModel match,
+    bool allowMock,
+  ) {
     switch (_bodyTabIndex) {
       case 0:
         return _buildOverviewBody(match);
       case 1:
-        return _buildStatsBody(context, match);
+        return _buildStatsBody(context, match, allowMock: allowMock);
       case 2:
-        return _buildLineupsBody(context, match);
+        return _buildLineupsBody(context, match, allowMock: allowMock);
       case 3:
-        return _buildStandingsBody(context, match);
+        return _buildStandingsBody(context, match, allowMock: allowMock);
       default:
         return _buildOverviewBody(match);
     }
+  }
+
+  Widget _tabEmptyScroll(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+  }) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        AsyncContentView(
+          loading: false,
+          isEmpty: true,
+          onRetry: _onPullRefresh,
+          emptyIcon: icon,
+          emptyTitle: title,
+          emptySubtitle: subtitle ?? _detailsError,
+          child: const SizedBox.shrink(),
+        ),
+      ],
+    );
   }
 
   /// Overview — timeline + live momentum (unchanged behaviour).
@@ -379,7 +423,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     );
   }
 
-  List<MatchStatisticModel> _guaranteedStats(MatchModel match) {
+  List<MatchStatisticModel> _guaranteedStats(
+    MatchModel match, {
+    required bool allowMockFill,
+  }) {
     const requiredTitles = [
       'Possession',
       'Shots',
@@ -388,7 +435,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       'Fouls',
       'Yellow cards',
     ];
-    final all = displayMatchFor(match).stats;
+    final all = allowMockFill
+        ? displayMatchFor(match, allowMockFill: true).stats
+        : match.stats;
     final picked = <MatchStatisticModel>[];
     for (final title in requiredTitles) {
       for (final stat in all) {
@@ -399,7 +448,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         }
       }
     }
-    if (picked.length >= 6) return picked;
+    if (picked.length >= 6 || !allowMockFill) return picked;
     final seedStats = MockData.matches().first.stats;
     for (final title in requiredTitles) {
       if (picked.length >= 6) break;
@@ -413,20 +462,39 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     return picked.isNotEmpty ? picked : seedStats.take(6).toList();
   }
 
-  /// Stats — always shows bars; never empty.
-  Widget _buildStatsBody(BuildContext context, MatchModel match) {
-    final display = displayMatchFor(match);
-    final stats = _guaranteedStats(match);
+  /// Stats — mock-filled offline; real API data when configured.
+  Widget _buildStatsBody(
+    BuildContext context,
+    MatchModel match, {
+    required bool allowMock,
+  }) {
+    final text = AppText.of(context);
+    final display =
+        allowMock ? displayMatchFor(match, allowMockFill: true) : match;
+    final stats = _guaranteedStats(match, allowMockFill: allowMock);
+
+    if (stats.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _onPullRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        child: _tabEmptyScroll(
+          context,
+          icon: Icons.bar_chart_rounded,
+          title: text.isArabic
+              ? 'الإحصائيات غير متوفرة بعد'
+              : 'Statistics not available yet',
+          subtitle: _detailsError,
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _onPullRefresh,
       color: Theme.of(context).colorScheme.primary,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Text('Stats content loaded', style: _debugTabLabelStyle(context)),
-          const SizedBox(height: 10),
           _TeamComparisonCard(match: display),
           const SizedBox(height: 14),
           for (var i = 0; i < stats.length; i++) ...[
@@ -438,22 +506,45 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     );
   }
 
-  /// Lineups — green pitch + 22 players from mock when API empty.
-  Widget _buildLineupsBody(BuildContext context, MatchModel match) {
-    final display = displayMatchFor(match);
-    final homeLineup = _effectiveLineup(display, home: true);
-    final awayLineup = _effectiveLineup(display, home: false);
+  /// Lineups — green pitch; mock XI when offline.
+  Widget _buildLineupsBody(
+    BuildContext context,
+    MatchModel match, {
+    required bool allowMock,
+  }) {
+    final text = AppText.of(context);
+    final display =
+        allowMock ? displayMatchFor(match, allowMockFill: true) : match;
+    final homeLineup =
+        _effectiveLineup(display, home: true, allowMockFill: allowMock);
+    final awayLineup =
+        _effectiveLineup(display, home: false, allowMockFill: allowMock);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasPitch =
+        homeLineup.hasPitchPlayers || awayLineup.hasPitchPlayers;
+
+    if (!hasPitch) {
+      return RefreshIndicator(
+        onRefresh: _onPullRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        child: _tabEmptyScroll(
+          context,
+          icon: Icons.groups_rounded,
+          title: text.isArabic
+              ? 'التشكيلة غير متوفرة بعد'
+              : 'Lineups not available yet',
+          subtitle: _detailsError,
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _onPullRefresh,
       color: Theme.of(context).colorScheme.primary,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 24),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Text('Lineups content loaded', style: _debugTabLabelStyle(context)),
-          const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
@@ -508,26 +599,49 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     );
   }
 
-  List<StandingModel> _guaranteedStandings(MatchModel match) {
-    final fromMatch = displayMatchFor(match).standings;
+  List<StandingModel> _guaranteedStandings(
+    MatchModel match, {
+    required bool allowMockFill,
+  }) {
+    final fromMatch = allowMockFill
+        ? displayMatchFor(match, allowMockFill: true).standings
+        : match.standings;
     if (fromMatch.isNotEmpty) return fromMatch;
+    if (!allowMockFill) return const [];
     return MockData.standings;
   }
 
   /// Standings — table with position / team / played / points.
-  Widget _buildStandingsBody(BuildContext context, MatchModel match) {
+  Widget _buildStandingsBody(
+    BuildContext context,
+    MatchModel match, {
+    required bool allowMock,
+  }) {
     final text = AppText.of(context);
-    final standings = _guaranteedStandings(match);
+    final standings = _guaranteedStandings(match, allowMockFill: allowMock);
+
+    if (standings.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _onPullRefresh,
+        color: Theme.of(context).colorScheme.primary,
+        child: _tabEmptyScroll(
+          context,
+          icon: Icons.leaderboard_rounded,
+          title: text.isArabic
+              ? 'الترتيب غير متوفر بعد'
+              : 'Standings not available yet',
+          subtitle: _detailsError,
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _onPullRefresh,
       color: Theme.of(context).colorScheme.primary,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Text('Standings content loaded', style: _debugTabLabelStyle(context)),
-          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -598,7 +712,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    final match = displayMatchFor(m);
+    final repo = AppScope.footballRepositoryOf(context);
+    final allowMock = _allowMockFill(repo);
+    final match = displayMatchFor(m, allowMockFill: allowMock);
     return Scaffold(
       appBar: AppBar(
         title: Text(text.matchDetails),
@@ -642,7 +758,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
           ),
           Expanded(
-            child: _buildSelectedTabBody(context, match),
+            child: _buildSelectedTabBody(context, match, allowMock),
           ),
         ],
       ),
@@ -656,8 +772,13 @@ LineupModel? _lineupOrSeed(LineupModel? value, LineupModel? seed, LineupModel fa
   return fallback;
 }
 
-/// Fills missing tab data from mock seeds so tabs are never blank offline.
-MatchModel displayMatchFor(MatchModel source) {
+/// Fills missing tab data from mock seeds when [allowMockFill] is true (demo/offline).
+MatchModel displayMatchFor(
+  MatchModel source, {
+  bool allowMockFill = true,
+}) {
+  if (!allowMockFill) return source;
+
   final seed = MockData.matchById(source.id) ?? MockData.matches().first;
 
   var momentum = source.momentumHome;
@@ -1595,10 +1716,25 @@ class _FormStrip extends StatelessWidget {
   }
 }
 
-LineupModel _effectiveLineup(MatchModel match, {required bool home}) {
+LineupModel _effectiveLineup(
+  MatchModel match, {
+  required bool home,
+  bool allowMockFill = true,
+}) {
   final fromMatch = home ? match.homeLineup : match.awayLineup;
   if (fromMatch != null && fromMatch.hasPitchPlayers) {
     return fromMatch.forPitchDisplay();
+  }
+
+  if (!allowMockFill) {
+    return LineupModel(
+      formation: fromMatch?.formation ?? '',
+      coach: fromMatch?.coach ?? '',
+      lines: const [],
+      substitutes: fromMatch?.substitutes ?? const [],
+      injured: fromMatch?.injured ?? const [],
+      missing: fromMatch?.missing ?? const [],
+    );
   }
 
   for (final mock in MockData.matches()) {

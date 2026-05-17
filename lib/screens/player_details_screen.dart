@@ -6,6 +6,7 @@ import '../app/app_colors.dart';
 import '../app/app_text.dart';
 import '../data/mock_data.dart';
 import '../models/player_model.dart';
+import '../widgets/player_avatar.dart';
 import '../widgets/team_logo.dart';
 
 class PlayerDetailsScreen extends StatelessWidget {
@@ -109,35 +110,25 @@ class _HeroHeader extends StatelessWidget {
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
-                    width: 96,
-                    height: 96,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.95),
-                          const Color(0xFFD0D5DD),
-                        ],
-                      ),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          width: 2.4),
                       boxShadow: [
                         BoxShadow(
-                            color: primary.withValues(alpha: 0.45),
-                            blurRadius: 24,
-                            spreadRadius: 2),
+                          color: primary.withValues(alpha: 0.45),
+                          blurRadius: 24,
+                          spreadRadius: 2,
+                        ),
                       ],
                     ),
-                    alignment: Alignment.center,
-                    child: Text('${player.number}',
-                        style: const TextStyle(
-                            fontSize: 38,
-                            color: Color(0xFF0E1822),
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -2)),
+                    child: PlayerAvatar(
+                      player: player,
+                      size: 96,
+                      showJerseyNumber: true,
+                      borderColor: Colors.white.withValues(alpha: 0.9),
+                      borderWidth: 2.4,
+                      jerseyTop: Colors.white.withValues(alpha: 0.95),
+                      jerseyBottom: const Color(0xFFD7DDE8),
+                    ),
                   ),
                 ),
               ),

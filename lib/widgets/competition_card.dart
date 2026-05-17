@@ -101,44 +101,120 @@ class CompetitionCard extends StatelessWidget {
           ],
         );
 
-        final metaSection = Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            nameRow,
-            if (competition.teamCount > 0) ...[
-              SizedBox(height: metaGap),
-              Text(
-                teamsLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Theme.of(context).hintColor,
-                  fontSize: metaSize,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                ),
-              ),
-            ],
-            if (competition.matchesToday > 0) ...[
-              SizedBox(height: metaGap),
-              Text(
-                matchesLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.9),
-                  fontSize: metaSize,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                ),
-              ),
-            ],
-          ],
-        );
+        final metaSection = dense
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    competition.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: nameSize,
+                      letterSpacing: -0.2,
+                      height: 1.12,
+                    ),
+                  ),
+                  if (competition.isFeatured) ...[
+                    SizedBox(height: metaGap),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 5 : 6,
+                        vertical: compact ? 2 : 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.teal, AppColors.neonGreen],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        text.featuredBadge,
+                        style: TextStyle(
+                          fontSize: compact ? 7.5 : 8,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (competition.teamCount > 0) ...[
+                    SizedBox(height: metaGap),
+                    Text(
+                      teamsLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).hintColor,
+                        fontSize: metaSize,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                  if (competition.matchesToday > 0) ...[
+                    SizedBox(height: metaGap),
+                    Text(
+                      matchesLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.9),
+                        fontSize: metaSize,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ],
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  nameRow,
+                  if (competition.teamCount > 0) ...[
+                    SizedBox(height: metaGap),
+                    Text(
+                      teamsLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).hintColor,
+                        fontSize: metaSize,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                  if (competition.matchesToday > 0) ...[
+                    SizedBox(height: metaGap),
+                    Text(
+                      matchesLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.9),
+                        fontSize: metaSize,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ],
+              );
 
         final Widget content;
         if (dense) {

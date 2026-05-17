@@ -260,6 +260,19 @@ class AppText {
   String timelineVar(String label) =>
       _isArabic ? 'قرار VAR — $label' : 'VAR — $label';
 
+  String get globalSearchTitle => _isArabic ? 'بحث' : 'Search';
+  String get globalSearchHint => _isArabic
+      ? 'ابحث عن فريق، لاعب، بطولة، أو مباراة…'
+      : 'Search teams, players, competitions, matches…';
+  String get globalSearchEmptySubtitle => _isArabic
+      ? 'ابحث عن الفرق واللاعبين والبطولات والمباريات'
+      : 'Search teams, players, competitions, and matches';
+  String get searchFilterPlayers => _isArabic ? 'لاعبون' : 'Players';
+  String get searchTypeTeam => _isArabic ? 'فريق' : 'Team';
+  String get searchTypePlayer => _isArabic ? 'لاعب' : 'Player';
+  String get searchTypeCompetition => _isArabic ? 'بطولة' : 'Competition';
+  String get searchTypeMatch => _isArabic ? 'مباراة' : 'Match';
+
   String get retry => _isArabic ? 'إعادة المحاولة' : 'Retry';
   String get errorTitle => _isArabic ? 'حدث خطأ' : 'Something went wrong';
   String get errorSub => _isArabic
