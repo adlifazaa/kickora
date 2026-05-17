@@ -20,6 +20,7 @@ import '../providers/football_data_provider.dart';
 import '../providers/football_data_provider_factory.dart';
 import '../providers/remote_football_data_provider.dart';
 import '../services/football_api_service.dart';
+import '../sources/live_matches_source.dart';
 
 /// Single entry point for football data. Uses API when configured; otherwise mock.
 class FootballRepository {
@@ -41,6 +42,7 @@ class FootballRepository {
   final FootballDataProvider _provider;
   final CacheManager? _cache;
   final RepositoryMemoryCache _memory = RepositoryMemoryCache();
+  LiveMatchesSource? _liveMatchesSource;
 
   bool get usesLiveApi => _provider.isRemote;
 
@@ -61,19 +63,14 @@ class FootballRepository {
         date: date,
         competitionId: competitionId,
       );
+      if (LiveMatchesSource.isRemoteLiveActive) {
+        await _liveSource.invalidate(competitionId: competitionId);
+      }
     }
-    final result = await _loadMatches(
-      operation: 'getLiveMatches',
-      cacheKey: 'cache_live_matches',
-      fetch: () => _provider.fetchLiveMatches(
-        date: date,
-        competitionId: competitionId,
-        skipCache: forceRefresh,
-      ),
-      mock: () => MockData.matches()
-          .where((m) => m.status == MatchStatus.live)
-          .toList(),
-      filterCompetition: competitionId,
+    final result = await _loadLiveMatches(
+      date: date,
+      competitionId: competitionId,
+      forceRefresh: forceRefresh,
     );
     _storeMemory(memKey, result, forceRefresh);
     return result;
@@ -430,6 +427,74 @@ class FootballRepository {
 
   // --- Helpers ---
 
+  LiveMatchesSource get _liveSource =>
+      _liveMatchesSource ??= LiveMatchesSource(cache: _cache);
+
+  Future<DataState<List<MatchModel>>> _loadLiveMatches({
+    DateTime? date,
+    int? competitionId,
+    bool forceRefresh = false,
+  }) async {
+    if (!LiveMatchesSource.isRemoteLiveActive) {
+      final list = _filterMatches(_mockLiveMatches(), competitionId);
+      ApiDebugLog.dataSource(
+        operation: 'getLiveMatches',
+        source: 'mock',
+        count: list.length,
+        message: 'mode=${ApiConstants.apiMode.name}',
+      );
+      return DataState.success(list, fromMock: true);
+    }
+
+    try {
+      final data = await _liveSource.fetch(
+        competitionId: competitionId,
+        skipCache: forceRefresh,
+      );
+      final filtered = _filterMatches(data, competitionId);
+      await _cache?.setJson('cache_live_matches', {'ok': true});
+      return DataState.success(filtered, fromMock: false);
+    } on ApiException catch (e) {
+      final stale = _liveSource.readCached(competitionId: competitionId);
+      if (stale != null && stale.isNotEmpty) {
+        final filtered = _filterMatches(stale, competitionId);
+        ApiDebugLog.dataSource(
+          operation: 'getLiveMatches',
+          source: 'cache',
+          count: filtered.length,
+          message:
+              'fallback mode=${ApiConstants.apiMode.name} after ${e.code ?? 'error'}',
+        );
+        return DataState.success(filtered, fromMock: false, fromCache: true);
+      }
+      ApiDebugLog.dataSource(
+        operation: 'getLiveMatches',
+        source: 'error',
+        message:
+            'mode=${ApiConstants.apiMode.name} status=${e.statusCode} ${e.code ?? e.message}',
+      );
+      return DataState.failure(_friendlyError(e));
+    } catch (e) {
+      final stale = _liveSource.readCached(competitionId: competitionId);
+      if (stale != null && stale.isNotEmpty) {
+        final filtered = _filterMatches(stale, competitionId);
+        ApiDebugLog.dataSource(
+          operation: 'getLiveMatches',
+          source: 'cache',
+          count: filtered.length,
+          message: 'fallback mode=${ApiConstants.apiMode.name}',
+        );
+        return DataState.success(filtered, fromMock: false, fromCache: true);
+      }
+      ApiDebugLog.dataSource(
+        operation: 'getLiveMatches',
+        source: 'error',
+        message: 'mode=${ApiConstants.apiMode.name} $e',
+      );
+      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+    }
+  }
+
   Future<DataState<List<MatchModel>>> _loadMatches({
     required String operation,
     required String cacheKey,
@@ -582,6 +647,10 @@ class FootballRepository {
       return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
   }
+
+  List<MatchModel> _mockLiveMatches() => MockData.matches()
+      .where((m) => m.status == MatchStatus.live)
+      .toList();
 
   List<MatchModel> _filterMatches(List<MatchModel> list, int? competitionId) {
     if (competitionId == null) return list;
