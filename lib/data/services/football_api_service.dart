@@ -2,9 +2,13 @@ import '../../core/cache/cache_manager.dart';
 import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
-import '../../core/network/api_client.dart';
 import '../../core/network/api_debug_log.dart';
+import '../api/clients/football_remote_client.dart';
+import '../api/clients/football_remote_client_factory.dart';
+import '../api/football_api_envelope.dart';
+import '../api/mappers/football_api_mapper.dart';
 import '../mock_data.dart';
+import 'api_football_parser.dart';
 import 'football_api_routes.dart';
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
@@ -13,7 +17,6 @@ import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../models/standing_model.dart';
 import '../models/team_model.dart';
-import 'api_football_parser.dart';
 
 /// Remote football data via API-Football (direct) or Kickora backend (proxy).
 ///
@@ -23,22 +26,14 @@ import 'api_football_parser.dart';
 /// TODO(production): Use [ApiMode.backendProxy] for Play Store — do not ship API keys in Flutter.
 class FootballApiService {
   FootballApiService({
-    ApiClient? client,
+    FootballRemoteClient? remoteClient,
     ApiProvider? provider,
-    String? apiKey,
     CacheManager? cache,
-  })  : _client = client ??
-            ApiClient(
-              baseUrl: ApiConstants.effectiveBaseUrl,
-              apiKey: ApiConstants.isDirectApi
-                  ? (apiKey ?? ApiConstants.apiKey)
-                  : '',
-              mode: ApiConstants.apiMode,
-            ),
+  })  : _remote = remoteClient ?? FootballRemoteClientFactory.create(),
         _cacheService = cache != null ? CacheService(cache) : null,
         provider = provider ?? _defaultProvider();
 
-  final ApiClient _client;
+  final FootballRemoteClient _remote;
   final CacheService? _cacheService;
   final ApiProvider provider;
 
@@ -53,20 +48,19 @@ class FootballApiService {
 
   int get _season => ApiConstants.currentSeason();
 
-  bool get isLive =>
-      _client.isConfigured && provider != ApiProvider.mock;
+  bool get isLive => _remote.isConfigured && provider != ApiProvider.mock;
 
   void logApiMode() {
     ApiDebugLog.dataSource(
       operation: 'FootballApiService',
       source: isLive ? 'api' : 'mock',
       message:
-          'mode=${ApiConstants.apiMode.name} configured=${_client.isConfigured} provider=$provider',
+          'mode=${ApiConstants.apiMode.name} configured=${_remote.isConfigured} provider=$provider',
     );
   }
 
-  Future<Map<String, dynamic>> _getRoute(ApiRouteRequest route) =>
-      _client.get(route.path, queryParameters: route.queryParameters);
+  Future<FootballApiEnvelope> _fetchEnvelope(ApiRouteRequest route) =>
+      _remote.get(route.path, queryParameters: route.queryParameters);
 
   // --- Matches ---
 
@@ -88,10 +82,10 @@ class FootballApiService {
       competitionId: competitionId,
       season: _season,
     );
-    final response = await _getRoute(route);
+    final response = await _fetchEnvelope(route);
 
     // `live=all` already scopes to in-play fixtures — do not drop rows here.
-    var matches = ApiFootballParser.parseFixtures(response);
+    var matches = FootballApiMapper.liveMatches(response);
 
     if (matches.isEmpty && date != null) {
       matches = await fetchMatches(
@@ -157,9 +151,9 @@ class FootballApiService {
       status: status,
       season: _season,
     );
-    final response = await _getRoute(route);
+    final response = await _fetchEnvelope(route);
 
-    var matches = ApiFootballParser.parseFixtures(response);
+    var matches = FootballApiMapper.matchesByDate(response);
     if (status != null) {
       matches = _filterStatus(matches, status);
     }
@@ -198,8 +192,9 @@ class FootballApiService {
       if (cached != null && cached.isNotEmpty) return cached.first;
     }
 
-    final response = await _getRoute(FootballApiRoutes.matchById(id));
-    final list = ApiFootballParser.parseFixtures(response);
+    final response = await _fetchEnvelope(FootballApiRoutes.matchById(id));
+    final match = FootballApiMapper.matchDetails(response);
+    final list = match == null ? <MatchModel>[] : [match];
     if (list.isNotEmpty) {
       await _writeMatchCache(cacheKey, list, CacheBucket.matchDetails);
     }
@@ -219,9 +214,9 @@ class FootballApiService {
     }
 
     final fixture = await fetchMatchById(matchId);
-    final response = await _getRoute(FootballApiRoutes.matchEvents(matchId));
+    final response = await _fetchEnvelope(FootballApiRoutes.matchEvents(matchId));
 
-    final events = ApiFootballParser.parseEvents(
+    final events = FootballApiMapper.matchEvents(
       response,
       homeTeamId: fixture?.homeTeam.id,
       awayTeamId: fixture?.awayTeam.id,
@@ -247,9 +242,10 @@ class FootballApiService {
           .toList();
     }
 
-    final response = await _getRoute(FootballApiRoutes.matchStatistics(matchId));
+    final response =
+        await _fetchEnvelope(FootballApiRoutes.matchStatistics(matchId));
     final fixture = await fetchMatchById(matchId);
-    final stats = ApiFootballParser.parseStatistics(
+    final stats = FootballApiMapper.matchStatistics(
       response,
       homeTeamId: fixture?.homeTeam.id,
     );
@@ -277,9 +273,9 @@ class FootballApiService {
   ) async {
     if (!isLive) throw const ApiException.notConfigured();
 
-    final response = await _getRoute(FootballApiRoutes.matchLineups(matchId));
+    final response = await _fetchEnvelope(FootballApiRoutes.matchLineups(matchId));
     final fixture = await fetchMatchById(matchId);
-    return ApiFootballParser.parseLineups(
+    return FootballApiMapper.matchLineups(
       response,
       homeTeamId: fixture?.homeTeam.id,
       awayTeamId: fixture?.awayTeam.id,
@@ -310,8 +306,8 @@ class FootballApiService {
           .toList();
     }
 
-    final response = await _getRoute(FootballApiRoutes.competitions());
-    final leagues = ApiFootballParser.parseLeagues(response);
+    final response = await _fetchEnvelope(FootballApiRoutes.competitions());
+    final leagues = FootballApiMapper.competitions(response);
 
     await _cacheService?.writeJsonList(
       cacheKey,
@@ -324,11 +320,10 @@ class FootballApiService {
   Future<CompetitionModel?> fetchCompetitionById(int id) async {
     if (!isLive) throw const ApiException.notConfigured();
 
-    final response = await _getRoute(
+    final response = await _fetchEnvelope(
       FootballApiRoutes.competitionById(id, season: _season),
     );
-    final list = ApiFootballParser.parseLeagues(response);
-    return list.isEmpty ? null : list.first;
+    return FootballApiMapper.competitionById(response);
   }
 
   Future<List<TeamModel>> fetchTeams({int? competitionId}) async {
@@ -346,10 +341,10 @@ class FootballApiService {
           .toList();
     }
 
-    final response = await _getRoute(
+    final response = await _fetchEnvelope(
       FootballApiRoutes.teams(competitionId: competitionId, season: _season),
     );
-    final teams = ApiFootballParser.parseTeams(response);
+    final teams = FootballApiMapper.teams(response);
 
     await _cacheService?.writeJsonList(
       cacheKey,
@@ -372,10 +367,10 @@ class FootballApiService {
           .toList();
     }
 
-    final response = await _getRoute(
+    final response = await _fetchEnvelope(
       FootballApiRoutes.standings(leagueId: leagueId, season: _season),
     );
-    final standings = ApiFootballParser.parseStandings(response);
+    final standings = FootballApiMapper.standings(response);
 
     await _cacheService?.writeJsonList(
       cacheKey,
@@ -415,10 +410,10 @@ class FootballApiService {
           .toList();
     }
 
-    final response = await _getRoute(
+    final response = await _fetchEnvelope(
       FootballApiRoutes.topScorers(competitionId: competitionId, season: _season),
     );
-    final players = ApiFootballParser.parseTopScorers(response);
+    final players = FootballApiMapper.players(response);
 
     await _cacheService?.writeJsonList(
       cacheKey,
@@ -451,10 +446,10 @@ class FootballApiService {
       return null;
     }
 
-    final response = await _getRoute(
+    final response = await _fetchEnvelope(
       FootballApiRoutes.playerById(id: id, season: _season),
     );
-    return ApiFootballParser.parsePlayer(response);
+    return FootballApiMapper.playerById(response);
   }
 
   /// Rebuild client when credentials become available at runtime.

@@ -1,20 +1,22 @@
 import '../../core/cache/cache_manager.dart';
-import '../services/football_api_service.dart';
+import '../providers/football_data_provider.dart';
+import '../providers/football_data_provider_factory.dart';
 import 'football_repository.dart';
 
-/// Bundles repositories for dependency injection (UI → repository → service).
+/// Bundles repositories for dependency injection (UI → repository → provider).
 class AppRepositories {
   AppRepositories({
-    FootballApiService? api,
+    FootballDataProvider? dataProvider,
     FootballRepository? football,
     CacheManager? cache,
-  }) : api = api ?? FootballApiService(),
+  }) : dataProvider =
+            dataProvider ?? FootballDataProviderFactory.create(cache: cache),
        football = football ??
            FootballRepository(
-             api: api,
+             dataProvider: dataProvider,
              cache: cache,
            );
 
-  final FootballApiService api;
+  final FootballDataProvider dataProvider;
   final FootballRepository football;
 }

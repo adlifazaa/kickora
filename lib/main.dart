@@ -8,7 +8,7 @@ import 'core/constants/api_dev_mode.dart';
 import 'core/constants/api_mode_service.dart';
 import 'core/firebase/firebase_service.dart';
 import 'data/repositories/football_repository.dart';
-import 'data/services/football_api_service.dart';
+import 'data/providers/football_data_provider_factory.dart';
 import 'ads/ad_service.dart';
 import 'subscription/premium_subscription_service.dart';
 import 'core/refresh/match_refresh_service.dart';
@@ -34,10 +34,10 @@ Future<void> main() async {
     notificationService: notificationService,
   );
   final cache = CacheManager(preferences);
-  final footballApi = FootballApiService(cache: cache);
-  footballApi.logApiMode();
+  final footballData = FootballDataProviderFactory.create(cache: cache);
+  footballData.logConfiguration();
   final footballRepository = FootballRepository(
-    api: footballApi,
+    dataProvider: footballData,
     cache: cache,
   );
   final matchRefreshService = MatchRefreshService(

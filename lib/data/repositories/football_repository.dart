@@ -1,5 +1,7 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/constants/api_cache_policy.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/constants/api_mode.dart';
 import '../../core/player/player_photo_resolver.dart';
 import '../../core/errors/api_error_messages.dart';
 import '../../core/errors/api_exception.dart';
@@ -14,21 +16,33 @@ import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../models/standing_model.dart';
 import '../models/team_model.dart';
+import '../providers/football_data_provider.dart';
+import '../providers/football_data_provider_factory.dart';
+import '../providers/remote_football_data_provider.dart';
 import '../services/football_api_service.dart';
 
 /// Single entry point for football data. Uses API when configured; otherwise mock.
 class FootballRepository {
   FootballRepository({
+    FootballDataProvider? dataProvider,
     FootballApiService? api,
     CacheManager? cache,
-  })  : _api = api ?? FootballApiService(),
+  })  : _provider = dataProvider ??
+            (api != null
+                ? RemoteFootballDataProvider(
+                    api,
+                    mode: ApiConstants.isBackendProxy
+                        ? ApiMode.backendProxy
+                        : ApiMode.directApi,
+                  )
+                : FootballDataProviderFactory.create(cache: cache)),
         _cache = cache;
 
-  final FootballApiService _api;
+  final FootballDataProvider _provider;
   final CacheManager? _cache;
   final RepositoryMemoryCache _memory = RepositoryMemoryCache();
 
-  bool get usesLiveApi => _api.isLive;
+  bool get usesLiveApi => _provider.isRemote;
 
   // --- Matches ---
 
@@ -43,7 +57,7 @@ class FootballRepository {
       if (hit != null) return hit;
     } else {
       _memory.remove(memKey);
-      await _api.invalidateMatchCaches(
+      await _provider.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
@@ -51,7 +65,7 @@ class FootballRepository {
     final result = await _loadMatches(
       operation: 'getLiveMatches',
       cacheKey: 'cache_live_matches',
-      fetch: () => _api.fetchLiveMatches(
+      fetch: () => _provider.fetchLiveMatches(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
@@ -78,7 +92,7 @@ class FootballRepository {
       if (hit != null) return hit;
     } else {
       _memory.remove(memKey);
-      await _api.invalidateMatchCaches(
+      await _provider.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
@@ -86,7 +100,7 @@ class FootballRepository {
     final result = await _loadMatches(
       operation: 'getUpcomingMatches',
       cacheKey: 'cache_upcoming_matches',
-      fetch: () => _api.fetchUpcomingMatches(
+      fetch: () => _provider.fetchUpcomingMatches(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
@@ -113,7 +127,7 @@ class FootballRepository {
       if (hit != null) return hit;
     } else {
       _memory.remove(memKey);
-      await _api.invalidateMatchCaches(
+      await _provider.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
@@ -121,7 +135,7 @@ class FootballRepository {
     final result = await _loadMatches(
       operation: 'getFinishedMatches',
       cacheKey: 'cache_finished_matches',
-      fetch: () => _api.fetchFinishedMatches(
+      fetch: () => _provider.fetchFinishedMatches(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
@@ -147,7 +161,7 @@ class FootballRepository {
       if (hit != null) return hit;
     } else {
       _memory.remove(memKey);
-      await _api.invalidateMatchCaches(
+      await _provider.invalidateMatchCaches(
         date: date,
         competitionId: competitionId,
       );
@@ -155,7 +169,7 @@ class FootballRepository {
     final result = await _loadMatches(
       operation: 'getMatches',
       cacheKey: 'cache_all_matches',
-      fetch: () => _api.fetchMatches(
+      fetch: () => _provider.fetchMatches(
         date: date,
         competitionId: competitionId,
         skipCache: forceRefresh,
@@ -175,10 +189,10 @@ class FootballRepository {
     final allowMock = _allowMockFallback(fid);
 
     try {
-      if (!_api.isLive) {
+      if (!_provider.isRemote) {
         return DataState.success(_mockMatchById(id), fromMock: true);
       }
-      final remote = await _api.fetchMatchById(fid);
+      final remote = await _provider.fetchMatchById(fid);
       if (remote != null) {
         return DataState.success(
           remote.copyWith(fixtureId: fid),
@@ -210,7 +224,7 @@ class FootballRepository {
     return _loadFixtureDetail(
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _api.fetchMatchEvents(fid),
+      fetch: () => _provider.fetchMatchEvents(fid),
       mockValue: () => _mockMatchById(matchId)?.events ?? const [],
       emptyValue: () => const <MatchEventModel>[],
     );
@@ -224,7 +238,7 @@ class FootballRepository {
     return _loadFixtureDetail(
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _api.fetchMatchStatistics(fid),
+      fetch: () => _provider.fetchMatchStatistics(fid),
       mockValue: () => _mockMatchById(matchId)?.stats ?? const [],
       emptyValue: () => const <MatchStatisticModel>[],
     );
@@ -239,7 +253,7 @@ class FootballRepository {
     return _loadFixtureDetail(
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _api.fetchMatchLineups(fid),
+      fetch: () => _provider.fetchMatchLineups(fid),
       mockValue: () => (home: match?.homeLineup, away: match?.awayLineup),
       emptyValue: () => (home: null, away: null),
     );
@@ -256,7 +270,7 @@ class FootballRepository {
     return _loadFixtureDetail(
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      fetch: () => _api.fetchFormation(fid, isHome: isHome),
+      fetch: () => _provider.fetchFormation(fid, isHome: isHome),
       mockValue: () => lineup?.resolvedFormation,
       emptyValue: () => null,
     );
@@ -267,7 +281,7 @@ class FootballRepository {
     bool allowMockFallback = true,
     bool forceRefresh = false,
   }) async {
-    if (!_api.isLive) {
+    if (!_provider.isRemote) {
       return DataState.success(MockData.standings, fromMock: true);
     }
     final memKey = 'mem_standings_$leagueId';
@@ -279,7 +293,7 @@ class FootballRepository {
       _memory.remove(memKey);
     }
     try {
-      final data = await _api.fetchStandings(leagueId: leagueId);
+      final data = await _provider.fetchStandings(leagueId: leagueId);
       final result = DataState.success(data, fromMock: false);
       _storeMemory(memKey, result, forceRefresh);
       return result;
@@ -302,7 +316,7 @@ class FootballRepository {
     bool forceRefresh = false,
   }) async {
     const operation = 'getCompetitions';
-    if (!_api.isLive) {
+    if (!_provider.isRemote) {
       final list = MockData.competitions;
       ApiDebugLog.dataSource(
         operation: operation,
@@ -322,7 +336,7 @@ class FootballRepository {
       _memory.remove(memKey);
     }
     try {
-      final data = await _api.fetchCompetitions();
+      final data = await _provider.fetchCompetitions();
       await _cache?.setJson('cache_competitions', {'ok': true});
       final source = data.isEmpty ? 'empty' : 'api';
       ApiDebugLog.dataSource(
@@ -352,10 +366,10 @@ class FootballRepository {
 
   Future<DataState<CompetitionModel?>> getCompetitionById(int id) async {
     try {
-      if (!_api.isLive) {
+      if (!_provider.isRemote) {
         return DataState.success(_mockCompetitionById(id), fromMock: true);
       }
-      final remote = await _api.fetchCompetitionById(id);
+      final remote = await _provider.fetchCompetitionById(id);
       return DataState.success(remote ?? _mockCompetitionById(id), fromMock: remote == null);
     } catch (_) {
       return DataState.success(_mockCompetitionById(id), fromMock: true);
@@ -367,14 +381,14 @@ class FootballRepository {
     bool forceRefresh = false,
   }) async {
     final memKey = 'mem_teams_$competitionId';
-    if (!forceRefresh && _api.isLive) {
+    if (!forceRefresh && _provider.isRemote) {
       final hit = _readMemory<List<TeamModel>>(memKey, ApiCachePolicy.teams);
       if (hit != null) return hit;
     } else if (forceRefresh) {
       _memory.remove(memKey);
     }
     final result = await _loadSimple(
-      fetch: () => _api.fetchTeams(competitionId: competitionId),
+      fetch: () => _provider.fetchTeams(competitionId: competitionId),
       mock: () => MockData.competitionTeams(competitionId),
     );
     if (!result.hasError) {
@@ -385,14 +399,14 @@ class FootballRepository {
 
   Future<DataState<List<PlayerModel>>> getTopScorers(int competitionId) async {
     return _loadSimple(
-      fetch: () => _api.fetchTopScorers(competitionId),
+      fetch: () => _provider.fetchTopScorers(competitionId),
       mock: () => MockData.topScorers(competitionId),
     );
   }
 
   Future<DataState<PlayerModel?>> getPlayerById(int id) async {
     final memKey = 'player_profile_$id';
-    if (!_api.isLive) {
+    if (!_provider.isRemote) {
       return DataState.success(_mockPlayerById(id), fromMock: true);
     }
     final cached =
@@ -402,7 +416,7 @@ class FootballRepository {
       return DataState.success(cached, fromMock: false);
     }
     try {
-      final remote = await _api.fetchPlayerById(id);
+      final remote = await _provider.fetchPlayerById(id);
       final player = remote ?? _mockPlayerById(id);
       if (remote != null) {
         _memory.put(memKey, remote);
@@ -423,7 +437,7 @@ class FootballRepository {
     required List<MatchModel> Function() mock,
     int? filterCompetition,
   }) async {
-    if (!_api.isLive) {
+    if (!_provider.isRemote) {
       final list = _filterMatches(mock(), filterCompetition);
       ApiDebugLog.dataSource(
         operation: operation,
@@ -506,7 +520,7 @@ class FootballRepository {
   }
 
   bool _allowMockFallback(int fixtureId) {
-    if (!_api.isLive) return true;
+    if (!_provider.isRemote) return true; // mock fallback allowed
     return MockData.isMockMatchId(fixtureId);
   }
 
@@ -517,7 +531,7 @@ class FootballRepository {
     required T Function() mockValue,
     required T Function() emptyValue,
   }) async {
-    if (!_api.isLive) {
+    if (!_provider.isRemote) {
       return DataState.success(mockValue(), fromMock: true);
     }
     try {
@@ -545,7 +559,7 @@ class FootballRepository {
     required T Function() mock,
   }) async {
     try {
-      if (!_api.isLive) {
+      if (!_provider.isRemote) {
         return DataState.success(mock(), fromMock: true);
       }
       final data = await fetch();
@@ -562,7 +576,7 @@ class FootballRepository {
       }
       return DataState.failure(_friendlyError(e));
     } catch (e) {
-      if (!_api.isLive) {
+      if (!_provider.isRemote) {
         return DataState.success(mock(), fromMock: true);
       }
       return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
