@@ -30,10 +30,18 @@ void main() {
     await controller.toggleTeamFavorite(7);
     expect(controller.isTeamFavorite(7), true);
 
+    await controller.toggleCompetitionFavorite(39);
+    expect(controller.isCompetitionFavorite(39), true);
+
+    await controller.toggleMatchFavorite(1001);
+    expect(controller.isMatchFavorite(1001), true);
+
     final controller2 = AppController(preferences);
     await controller2.load();
     expect(controller2.notificationsEnabled, true);
     expect(controller2.isTeamFavorite(7), true);
+    expect(controller2.isCompetitionFavorite(39), true);
+    expect(controller2.isMatchFavorite(1001), true);
   });
 
   test('Premium defaults: ads enabled, trial available', () async {

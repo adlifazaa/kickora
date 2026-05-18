@@ -4,130 +4,94 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/match_model.dart';
 import '../notifications/models/notification_type.dart';
 import '../notifications/services/kickora_notification_service.dart';
+import 'favorites_service.dart';
 
-/// Persists favorite teams, competitions, and matches via [SharedPreferences].
+/// UI-facing favorites state: persists via [FavoritesService], syncs notification topics.
 class FavoriteManager extends ChangeNotifier {
   FavoriteManager(
-    this._prefs, {
+    SharedPreferences prefs, {
     KickoraNotificationService? notificationService,
-  }) : _notifications = notificationService;
+    FavoritesService? favoritesService,
+  })  : _notifications = notificationService,
+        _favorites = favoritesService ?? FavoritesService(prefs);
 
-  final SharedPreferences _prefs;
   final KickoraNotificationService? _notifications;
+  final FavoritesService _favorites;
 
-  static const String teamsKey = 'favorite_teams';
-  static const String competitionsKey = 'favorite_competitions';
-  static const String matchesKey = 'favorite_matches';
+  FavoritesService get favoritesService => _favorites;
 
   bool _isLoading = false;
-  bool _isLoaded = false;
-  Set<int> _teamIds = {};
-  Set<int> _competitionIds = {};
-  Set<int> _matchIds = {};
 
   bool get isLoading => _isLoading;
-  bool get isLoaded => _isLoaded;
+  bool get isLoaded => _favorites.isLoaded;
 
-  Set<int> get teamIds => Set.unmodifiable(_teamIds);
-  Set<int> get competitionIds => Set.unmodifiable(_competitionIds);
-  Set<int> get matchIds => Set.unmodifiable(_matchIds);
+  Set<int> get teamIds => _favorites.getFavorites(FavoriteType.team);
+  Set<int> get competitionIds =>
+      _favorites.getFavorites(FavoriteType.competition);
+  Set<int> get matchIds => _favorites.getFavorites(FavoriteType.match);
 
   int get totalCount =>
-      _teamIds.length + _competitionIds.length + _matchIds.length;
+      teamIds.length + competitionIds.length + matchIds.length;
 
-  bool isTeamFavorite(int id) => _teamIds.contains(id);
-  bool isCompetitionFavorite(int id) => _competitionIds.contains(id);
-  bool isMatchFavorite(int id) => _matchIds.contains(id);
+  bool isTeamFavorite(int id) =>
+      _favorites.isFavorite(FavoriteType.team, id);
+  bool isCompetitionFavorite(int id) =>
+      _favorites.isFavorite(FavoriteType.competition, id);
+  bool isMatchFavorite(int id) =>
+      _favorites.isFavorite(FavoriteType.match, id);
 
   bool isMatchInvolvingFavoriteTeam(MatchModel match) =>
-      _teamIds.contains(match.homeTeam.id) ||
-      _teamIds.contains(match.awayTeam.id);
+      isTeamFavorite(match.homeTeam.id) || isTeamFavorite(match.awayTeam.id);
 
-  /// Loads persisted favorites (survives app restart and device reboot).
+  /// Loads persisted favorites (survives app restart).
   Future<void> load() async {
-    if (_isLoaded) return;
+    if (_favorites.isLoaded) return;
     _isLoading = true;
     notifyListeners();
 
-    _teamIds = _readSet(teamsKey);
-    _competitionIds = _readSet(competitionsKey);
-    _matchIds = _readSet(matchesKey);
+    await _favorites.load();
 
     _isLoading = false;
-    _isLoaded = true;
     notifyListeners();
 
     await _syncNotificationTopics();
   }
 
-  Future<bool> addTeam(int id) async {
-    if (_teamIds.contains(id)) return false;
-    _teamIds.add(id);
-    await _persist(teamsKey, _teamIds);
+  Future<bool> addTeam(int id) =>
+      _mutate(() => _favorites.addFavorite(FavoriteType.team, id));
+
+  Future<bool> removeTeam(int id) =>
+      _mutate(() => _favorites.removeFavorite(FavoriteType.team, id));
+
+  Future<bool> toggleTeam(int id) =>
+      _mutate(() => _favorites.toggleFavorite(FavoriteType.team, id));
+
+  Future<bool> addCompetition(int id) =>
+      _mutate(() => _favorites.addFavorite(FavoriteType.competition, id));
+
+  Future<bool> removeCompetition(int id) =>
+      _mutate(() => _favorites.removeFavorite(FavoriteType.competition, id));
+
+  Future<bool> toggleCompetition(int id) =>
+      _mutate(() => _favorites.toggleFavorite(FavoriteType.competition, id));
+
+  Future<bool> addMatch(int id) =>
+      _mutate(() => _favorites.addFavorite(FavoriteType.match, id));
+
+  Future<bool> removeMatch(int id) =>
+      _mutate(() => _favorites.removeFavorite(FavoriteType.match, id));
+
+  Future<bool> toggleMatch(int id) =>
+      _mutate(() => _favorites.toggleFavorite(FavoriteType.match, id));
+
+  Future<bool> _mutate(Future<bool> Function() action) async {
+    await _favorites.load();
+    final changed = await action();
+    if (!changed) return false;
+    // Future push: FavoriteTopicNames.team|competition|match(id) via FCM subscribe.
     notifyListeners();
     await _syncNotificationTopics();
     return true;
-  }
-
-  Future<bool> removeTeam(int id) async {
-    if (!_teamIds.remove(id)) return false;
-    await _persist(teamsKey, _teamIds);
-    notifyListeners();
-    await _syncNotificationTopics();
-    return true;
-  }
-
-  Future<bool> toggleTeam(int id) async {
-    if (_teamIds.contains(id)) {
-      return removeTeam(id);
-    }
-    return addTeam(id);
-  }
-
-  Future<bool> addCompetition(int id) async {
-    if (_competitionIds.contains(id)) return false;
-    _competitionIds.add(id);
-    await _persist(competitionsKey, _competitionIds);
-    notifyListeners();
-    return true;
-  }
-
-  Future<bool> removeCompetition(int id) async {
-    if (!_competitionIds.remove(id)) return false;
-    await _persist(competitionsKey, _competitionIds);
-    notifyListeners();
-    return true;
-  }
-
-  Future<bool> toggleCompetition(int id) async {
-    if (_competitionIds.contains(id)) {
-      return removeCompetition(id);
-    }
-    return addCompetition(id);
-  }
-
-  Future<bool> addMatch(int id) async {
-    if (_matchIds.contains(id)) return false;
-    _matchIds.add(id);
-    await _persist(matchesKey, _matchIds);
-    notifyListeners();
-    await _syncNotificationTopics();
-    return true;
-  }
-
-  Future<bool> removeMatch(int id) async {
-    if (!_matchIds.remove(id)) return false;
-    await _persist(matchesKey, _matchIds);
-    notifyListeners();
-    await _syncNotificationTopics();
-    return true;
-  }
-
-  Future<bool> toggleMatch(int id) async {
-    if (_matchIds.contains(id)) {
-      return removeMatch(id);
-    }
-    return addMatch(id);
   }
 
   /// Delivers match alerts when [home]/[away] team is favorited and notifications are on.
@@ -191,7 +155,7 @@ class FavoriteManager extends ChangeNotifier {
           isArabic: isArabic,
         );
       case NotificationType.favoriteTeamUpdate:
-        final teamId = _teamIds.contains(match.homeTeam.id)
+        final teamId = isTeamFavorite(match.homeTeam.id)
             ? match.homeTeam.id
             : match.awayTeam.id;
         await notifications.notifyFavoriteTeamReminder(
@@ -210,27 +174,14 @@ class FavoriteManager extends ChangeNotifier {
   Future<void> _syncNotificationTopics() async {
     final notifications = _notifications;
     if (notifications == null || !notifications.isEnabled) return;
-    await notifications.syncFavoriteTeams(_teamIds);
-    await notifications.syncFavoriteMatches(_matchIds);
+    await notifications.syncFavoriteTeams(teamIds);
+    await notifications.syncFavoriteMatches(matchIds);
+    await notifications.syncFavoriteCompetitions(competitionIds);
   }
 
   Future<void> onNotificationsEnabledChanged(bool enabled) async {
     if (enabled) {
       await _syncNotificationTopics();
     }
-  }
-
-  Set<int> _readSet(String key) {
-    final values = _prefs.getStringList(key) ?? <String>[];
-    final out = <int>{};
-    for (final s in values) {
-      final v = int.tryParse(s);
-      if (v != null) out.add(v);
-    }
-    return out;
-  }
-
-  Future<void> _persist(String key, Set<int> ids) async {
-    await _prefs.setStringList(key, ids.map((e) => '$e').toList());
   }
 }
