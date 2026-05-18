@@ -205,12 +205,12 @@ class ApiClient {
   void _throwIfResponseErrors(Object? decoded, int statusCode) {
     if (decoded is! Map<String, dynamic>) return;
 
-    // API-Football / proxy: prefer usable rows when present.
+    // API-Football / proxy: empty `response` / `data` arrays are valid (e.g. no lineups yet).
     final response = decoded['response'];
-    if (response is List && response.isNotEmpty) return;
+    if (response is List) return;
 
     final data = decoded['data'];
-    if (data is List && data.isNotEmpty) return;
+    if (data is List) return;
 
     final errors = decoded['errors'] ?? decoded['error'];
     if (errors == null) return;

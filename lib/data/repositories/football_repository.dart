@@ -6,6 +6,7 @@ import '../../core/constants/api_mode.dart';
 import '../../core/player/player_photo_resolver.dart';
 import '../../core/errors/api_error_messages.dart';
 import '../../core/errors/api_exception.dart';
+import '../../core/debug/match_details_log.dart';
 import '../../core/network/api_debug_log.dart';
 import '../../core/state/data_state.dart';
 import '../mock_data.dart';
@@ -239,10 +240,13 @@ class FootballRepository {
   Future<DataState<List<MatchEventModel>>> getMatchEvents(
     int matchId, {
     int? fixtureId,
+    int? leagueId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     return _loadRemoteFixtureDetail(
       operation: 'getMatchEvents',
+      endpoint: '/events',
+      leagueId: leagueId ?? _mockMatchById(matchId)?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
       fetch: () => _remote.fetchMatchEvents(fid),
@@ -254,10 +258,13 @@ class FootballRepository {
   Future<DataState<List<MatchStatisticModel>>> getMatchStatistics(
     int matchId, {
     int? fixtureId,
+    int? leagueId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     return _loadRemoteFixtureDetail(
       operation: 'getMatchStatistics',
+      endpoint: '/statistics',
+      leagueId: leagueId ?? _mockMatchById(matchId)?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
       fetch: () => _remote.fetchMatchStatistics(fid),
@@ -269,11 +276,14 @@ class FootballRepository {
   Future<DataState<({LineupModel? home, LineupModel? away})>> getMatchLineups(
     int matchId, {
     int? fixtureId,
+    int? leagueId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
     return _loadRemoteFixtureDetail(
       operation: 'getMatchLineups',
+      endpoint: '/lineups',
+      leagueId: leagueId ?? match?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
       fetch: () => _remote.fetchLineups(fid),
@@ -662,27 +672,90 @@ class FootballRepository {
     required Future<T> Function() fetch,
     required T Function() mockValue,
     required T Function() emptyValue,
+    String? endpoint,
+    int? leagueId,
+    bool Function(T value)? isEmpty,
   }) async {
     if (!RemoteFootballSource.isRemoteActive) {
       return DataState.success(mockValue(), fromMock: true);
     }
+    final path = endpoint ?? operation;
+    final leagueLabel = leagueId?.toString() ?? 'unknown';
     try {
       final data = await fetch();
+      final empty = isEmpty?.call(data) ?? _isEmptyDetailValue(data);
+      logMatchDetailsEndpoint(
+        matchId: fixtureId,
+        league: leagueLabel,
+        endpoint: path,
+        statusCode: 200,
+        itemCount: _detailItemCount(data),
+        empty: empty,
+        failed: false,
+      );
       return DataState.success(data, fromMock: false);
     } on ApiException catch (e) {
       if (e.isNotConfigured || allowMock) {
         return DataState.success(mockValue(), fromMock: true);
       }
+      if (e.isEmptyResponse) {
+        final empty = emptyValue();
+        logMatchDetailsEndpoint(
+          matchId: fixtureId,
+          league: leagueLabel,
+          endpoint: path,
+          statusCode: 200,
+          itemCount: 0,
+          empty: true,
+          failed: false,
+        );
+        return DataState.success(empty, fromMock: false);
+      }
+      logMatchDetailsEndpoint(
+        matchId: fixtureId,
+        league: leagueLabel,
+        endpoint: path,
+        statusCode: e.statusCode ?? 0,
+        itemCount: 0,
+        empty: false,
+        failed: true,
+      );
       if (e.isRateLimited) {
         return DataState.failure(_friendlyError(e));
       }
       return DataState.failure(_friendlyError(e));
     } catch (e) {
+      logMatchDetailsEndpoint(
+        matchId: fixtureId,
+        league: leagueLabel,
+        endpoint: path,
+        statusCode: 0,
+        itemCount: 0,
+        empty: false,
+        failed: true,
+      );
       if (allowMock) {
         return DataState.success(mockValue(), fromMock: true);
       }
       return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
     }
+  }
+
+  bool _isEmptyDetailValue(Object? value) {
+    if (value == null) return true;
+    if (value is List) return value.isEmpty;
+    if (value is ({LineupModel? home, LineupModel? away})) {
+      return value.home == null && value.away == null;
+    }
+    return false;
+  }
+
+  int _detailItemCount(Object? value) {
+    if (value is List) return value.length;
+    if (value is ({LineupModel? home, LineupModel? away})) {
+      return (value.home != null ? 1 : 0) + (value.away != null ? 1 : 0);
+    }
+    return value == null ? 0 : 1;
   }
 
   CacheBucket _bucketForMatchKind(String kind) {

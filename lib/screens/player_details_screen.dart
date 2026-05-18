@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
 import '../app/app_text.dart';
+import '../core/display/player_profile_display.dart';
 import '../data/mock_data.dart';
 import '../models/player_model.dart';
 import '../widgets/player_avatar.dart';
@@ -82,9 +83,7 @@ class _HeroHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = AppText.of(context);
     final primary = Theme.of(context).colorScheme.primary;
-    final ratingValue = player.matchRating > 0
-        ? player.matchRating
-        : (double.tryParse(player.seasonRating) ?? 7.0);
+    final ratingValue = PlayerProfileDisplay.ratingValue(player);
 
     return Container(
       decoration: BoxDecoration(
@@ -184,7 +183,7 @@ class _HeroHeader extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Flexible(
-                          child: Text(player.team,
+                          child: Text(player.displayTeam(isArabic: text.isArabic),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -198,12 +197,14 @@ class _HeroHeader extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        _chip(context, player.position, primary),
-                        _chip(context, player.nationality,
+                        _chip(context, player.displayPosition(isArabic: text.isArabic), primary),
+                        _chip(
+                            context,
+                            player.displayNationality(isArabic: text.isArabic),
                             Theme.of(context).colorScheme.onSurface),
                         _chip(
                             context,
-                            '${player.age} ${text.isArabic ? 'سنة' : 'yrs'}',
+                            player.displayAge(isArabic: text.isArabic),
                             Theme.of(context).colorScheme.onSurface),
                       ],
                     ),
@@ -211,9 +212,10 @@ class _HeroHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _RatingDial(
-                  value: ratingValue,
-                  color: _ratingColor(context, ratingValue)),
+              if (ratingValue != null)
+                _RatingDial(
+                    value: ratingValue,
+                    color: _ratingColor(context, ratingValue)),
             ],
           ),
         ),
@@ -293,25 +295,25 @@ class _StatsTab extends StatelessWidget {
             children: [
               _InfoRow(
                   label: text.isArabic ? 'الجنسية' : 'Nationality',
-                  value: player.nationality),
+                  value: player.displayNationality(isArabic: text.isArabic)),
               _InfoRow(
                   label: text.isArabic ? 'العمر' : 'Age',
-                  value: '${player.age}'),
+                  value: player.displayAge(isArabic: text.isArabic)),
               _InfoRow(
                   label: text.isArabic ? 'الطول' : 'Height',
-                  value: '${player.height} cm'),
+                  value: player.displayHeight(isArabic: text.isArabic)),
               _InfoRow(
                   label: text.isArabic ? 'الوزن' : 'Weight',
-                  value: '${player.weight} kg'),
+                  value: player.displayWeight(isArabic: text.isArabic)),
               _InfoRow(
                   label: text.isArabic ? 'القدم المفضلة' : 'Preferred foot',
-                  value: player.preferredFoot),
+                  value: player.displayPreferredFoot(isArabic: text.isArabic)),
               _InfoRow(
                   label: text.isArabic ? 'رقم القميص' : 'Shirt number',
-                  value: '${player.number}'),
+                  value: player.displayShirtNumber(isArabic: text.isArabic)),
               _InfoRow(
                   label: text.isArabic ? 'التقييم (موسم)' : 'Season rating',
-                  value: player.seasonRating),
+                  value: player.displaySeasonRating(isArabic: text.isArabic)),
             ],
           ),
         ),
@@ -332,37 +334,37 @@ class _StatsTab extends StatelessWidget {
           children: [
             _StatTile(
               title: text.isArabic ? 'المشاركات' : 'Apps',
-              value: '${player.appearances}',
+              value: player.displayAppearances(isArabic: text.isArabic),
               icon: Icons.event_available_rounded,
               color: AppColors.teal,
             ),
             _StatTile(
               title: text.isArabic ? 'الدقائق' : 'Minutes',
-              value: '${player.minutesPlayed}',
+              value: player.displayMinutes(isArabic: text.isArabic),
               icon: Icons.timer_outlined,
               color: AppColors.subBlue,
             ),
             _StatTile(
               title: text.isArabic ? 'الأهداف' : 'Goals',
-              value: '${player.goals}',
+              value: player.displayGoals(isArabic: text.isArabic),
               icon: Icons.sports_soccer_rounded,
               color: AppColors.goalGreen,
             ),
             _StatTile(
               title: text.isArabic ? 'التمريرات' : 'Assists',
-              value: '${player.assists}',
+              value: player.displayAssists(isArabic: text.isArabic),
               icon: Icons.add_road_rounded,
               color: AppColors.neonGreen,
             ),
             _StatTile(
               title: text.isArabic ? 'صفراء' : 'Yellow',
-              value: '${player.yellowCards}',
+              value: player.displayYellowCards(isArabic: text.isArabic),
               icon: Icons.square_rounded,
               color: AppColors.cardYellow,
             ),
             _StatTile(
               title: text.isArabic ? 'حمراء' : 'Red',
-              value: '${player.redCards}',
+              value: player.displayRedCards(isArabic: text.isArabic),
               icon: Icons.crop_square_rounded,
               color: AppColors.cardRed,
             ),
@@ -377,7 +379,9 @@ class _StatsTab extends StatelessWidget {
         const SizedBox(height: 8),
         _PremiumCard(
           padding: const EdgeInsets.all(10),
-          child: _HeatmapPlaceholder(position: player.position),
+          child: _HeatmapPlaceholder(
+            position: player.displayPosition(isArabic: text.isArabic),
+          ),
         ),
       ],
     );
@@ -538,7 +542,11 @@ class _RecentTab extends StatelessWidget {
     final text = AppText.of(context);
     if (matches.isEmpty) {
       return Center(
-          child: Text(text.isArabic ? 'لا توجد مباريات' : 'No matches'));
+        child: Text(
+          PlayerProfileDisplay.notAvailable(isArabic: text.isArabic),
+          style: TextStyle(color: Theme.of(context).hintColor),
+        ),
+      );
     }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
@@ -546,7 +554,11 @@ class _RecentTab extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final m = matches[i];
-        final color = _ratingColor(m.rating);
+        final ratingLabel =
+            PlayerProfileDisplay.recentMatchRating(m.rating, isArabic: text.isArabic);
+        final color = ratingLabel == PlayerProfileDisplay.dash(isArabic: text.isArabic)
+            ? Theme.of(context).hintColor
+            : _ratingColor(m.rating);
         return _PremiumCard(
           child: Row(
             children: [
@@ -562,7 +574,7 @@ class _RecentTab extends StatelessWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Text(m.rating,
+                child: Text(ratingLabel,
                     style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         color: Colors.black87)),
@@ -629,7 +641,14 @@ class _CareerTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
-    final clubs = player.career.isEmpty ? <String>[player.team] : player.career;
+    final teamLabel = player.displayTeam(isArabic: text.isArabic);
+    final clubs = player.career.isEmpty
+        ? <String>[
+            teamLabel == PlayerProfileDisplay.unknownText(isArabic: text.isArabic)
+                ? PlayerProfileDisplay.notAvailable(isArabic: text.isArabic)
+                : teamLabel,
+          ]
+        : player.career;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
@@ -818,25 +837,43 @@ class _AchievementsGrid extends StatelessWidget {
       (
         Icons.emoji_events_rounded,
         text.isArabic ? 'بطولات' : 'Trophies',
-        '${(player.appearances ~/ 12).clamp(0, 24)}',
+        PlayerProfileDisplay.achievementValue(
+          player.appearances,
+          12,
+          isArabic: text.isArabic,
+        ),
         AppColors.cardYellow,
       ),
       (
         Icons.workspace_premium_rounded,
         text.isArabic ? 'جوائز فردية' : 'Awards',
-        '${(player.goals ~/ 20).clamp(0, 18)}',
+        PlayerProfileDisplay.achievementValue(
+          player.goals,
+          20,
+          isArabic: text.isArabic,
+          allowZero: true,
+        ),
         AppColors.varPurple,
       ),
       (
         Icons.military_tech_rounded,
         text.isArabic ? 'ميداليات' : 'Medals',
-        '${(player.assists ~/ 8).clamp(0, 22)}',
+        PlayerProfileDisplay.achievementValue(
+          player.assists,
+          8,
+          isArabic: text.isArabic,
+          allowZero: true,
+        ),
         AppColors.teal,
       ),
       (
         Icons.public_rounded,
         text.isArabic ? 'منتخب' : 'Caps',
-        '${(player.appearances ~/ 6).clamp(0, 120)}',
+        PlayerProfileDisplay.achievementValue(
+          player.appearances,
+          6,
+          isArabic: text.isArabic,
+        ),
         AppColors.subBlue,
       ),
     ];

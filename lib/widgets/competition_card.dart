@@ -33,39 +33,49 @@ class CompetitionCard extends StatelessWidget {
         final compact =
             dense || (maxH.isFinite && maxH > 0 && maxH < 155);
         final padH = compact ? 10.0 : 12.0;
-        final padV = dense ? 8.0 : (compact ? 9.0 : 11.0);
-        final logoSize = dense ? 88.0 : (compact ? 40.0 : 44.0);
+        final padV = compact ? 10.0 : 11.0;
+        final logoSlot = dense ? 76.0 : (compact ? 44.0 : 48.0);
+        final badgeSize = logoSlot * 0.92;
         final nameSize = compact ? 12.5 : 13.5;
         final metaSize = compact ? 10.0 : 10.5;
-        final rowGap = dense ? 4.0 : (compact ? 6.0 : 8.0);
-        final metaGap = dense ? 1.0 : 2.0;
+        final rowGap = dense ? 6.0 : (compact ? 6.0 : 8.0);
+        final metaGap = dense ? 3.0 : 2.0;
 
         final teamsLabel = text.competitionTeamsCount(competition.teamCount);
         final matchesLabel =
             text.competitionMatchesToday(competition.matchesToday);
 
-        final bookmark = InkWell(
-          onTap: () => app.toggleCompetitionFavorite(competition.id),
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: Icon(
-              isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-              size: compact ? 18 : 20,
-              color: isFav
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).hintColor,
+        final bookmark = Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => app.toggleCompetitionFavorite(competition.id),
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                size: compact ? 18 : 20,
+                color: isFav
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).hintColor,
+              ),
             ),
           ),
         );
 
-        final nameRow = Row(
-          children: [
-            Expanded(
-              child: Text(
+        Widget centeredMeta({
+          required bool showTeams,
+          required bool showMatches,
+        }) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
                 competition.name,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: nameSize,
@@ -73,192 +83,146 @@ class CompetitionCard extends StatelessWidget {
                   height: 1.12,
                 ),
               ),
-            ),
-            if (competition.isFeatured) ...[
-              const SizedBox(width: 5),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 5 : 6,
-                  vertical: compact ? 2 : 2.5,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.teal, AppColors.neonGreen],
+              if (competition.isFeatured) ...[
+                SizedBox(height: metaGap),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 5 : 6,
+                    vertical: compact ? 2 : 2.5,
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.teal, AppColors.neonGreen],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    text.featuredBadge,
+                    style: TextStyle(
+                      fontSize: compact ? 7.5 : 8,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                 ),
-                child: Text(
-                  text.featuredBadge,
+              ],
+              if (showTeams) ...[
+                SizedBox(height: metaGap),
+                Text(
+                  teamsLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: compact ? 7.5 : 8,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: 0.4,
+                    color: Theme.of(context).hintColor,
+                    fontSize: metaSize,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
                   ),
                 ),
-              ),
+              ],
+              if (showMatches) ...[
+                SizedBox(height: metaGap),
+                Text(
+                  matchesLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.9),
+                    fontSize: metaSize,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+              ],
             ],
-          ],
-        );
-
-        final metaSection = dense
-            ? LayoutBuilder(
-                builder: (context, metaConstraints) {
-                  return FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: metaConstraints.maxWidth,
-                        maxHeight: metaConstraints.maxHeight,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            competition.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: nameSize,
-                              letterSpacing: -0.2,
-                              height: 1.12,
-                            ),
-                          ),
-                          if (competition.isFeatured) ...[
-                            SizedBox(height: metaGap),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: compact ? 5 : 6,
-                                vertical: compact ? 2 : 2.5,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    AppColors.teal,
-                                    AppColors.neonGreen,
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                text.featuredBadge,
-                                style: TextStyle(
-                                  fontSize: compact ? 7.5 : 8,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                          if (competition.teamCount > 0) ...[
-                            SizedBox(height: metaGap),
-                            Text(
-                              teamsLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context).hintColor,
-                                fontSize: metaSize,
-                                fontWeight: FontWeight.w700,
-                                height: 1.1,
-                              ),
-                            ),
-                          ],
-                          if (competition.matchesToday > 0) ...[
-                            SizedBox(height: metaGap),
-                            Text(
-                              matchesLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.9),
-                                fontSize: metaSize,
-                                fontWeight: FontWeight.w800,
-                                height: 1.1,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  nameRow,
-                  if (competition.teamCount > 0) ...[
-                    SizedBox(height: metaGap),
-                    Text(
-                      teamsLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).hintColor,
-                        fontSize: metaSize,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                  if (competition.matchesToday > 0) ...[
-                    SizedBox(height: metaGap),
-                    Text(
-                      matchesLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.9),
-                        fontSize: metaSize,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                ],
-              );
+          );
+        }
 
         final Widget content;
         if (dense) {
-          content = Column(
-            mainAxisSize: MainAxisSize.max,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          content = Stack(
+            clipBehavior: Clip.none,
             children: [
-              SizedBox(
-                height: logoSize,
-                child: Stack(
-                  clipBehavior: Clip.none,
+              Padding(
+                padding: EdgeInsets.fromLTRB(padH, padV + 2, padH, padV),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Center(
-                      child: CompetitionBadge.fromCompetition(
-                        competition,
-                        size: logoSize,
+                    SizedBox(
+                      width: logoSlot,
+                      height: logoSlot,
+                      child: Center(
+                        child: CompetitionBadge.fromCompetition(
+                          competition,
+                          size: badgeSize,
+                        ),
                       ),
                     ),
-                    Positioned(top: 0, right: 0, child: bookmark),
+                    SizedBox(height: rowGap),
+                    Flexible(
+                      child: Center(
+                        child: centeredMeta(
+                          showTeams: competition.teamCount > 0,
+                          showMatches: competition.matchesToday > 0,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              SizedBox(height: rowGap),
-              Expanded(child: metaSection),
+              Positioned(top: 2, right: 2, child: bookmark),
             ],
           );
         } else {
+          final nameRow = Row(
+            children: [
+              Expanded(
+                child: Text(
+                  competition.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: nameSize,
+                    letterSpacing: -0.2,
+                    height: 1.12,
+                  ),
+                ),
+              ),
+              if (competition.isFeatured) ...[
+                const SizedBox(width: 5),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 5 : 6,
+                    vertical: compact ? 2 : 2.5,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.teal, AppColors.neonGreen],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    text.featuredBadge,
+                    style: TextStyle(
+                      fontSize: compact ? 7.5 : 8,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+
           content = Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,16 +230,53 @@ class CompetitionCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  CompetitionBadge.fromCompetition(
-                    competition,
-                    size: logoSize,
+                  SizedBox(
+                    width: logoSlot,
+                    height: logoSlot,
+                    child: Center(
+                      child: CompetitionBadge.fromCompetition(
+                        competition,
+                        size: badgeSize,
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   bookmark,
                 ],
               ),
               SizedBox(height: rowGap),
-              metaSection,
+              nameRow,
+              if (competition.teamCount > 0) ...[
+                SizedBox(height: metaGap),
+                Text(
+                  teamsLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Theme.of(context).hintColor,
+                    fontSize: metaSize,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+              if (competition.matchesToday > 0) ...[
+                SizedBox(height: metaGap),
+                Text(
+                  matchesLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.9),
+                    fontSize: metaSize,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+              ],
             ],
           );
         }
@@ -288,7 +289,12 @@ class CompetitionCard extends StatelessWidget {
             child: Ink(
               width: dense ? double.infinity : 168,
               height: dense ? double.infinity : null,
-              padding: EdgeInsets.fromLTRB(padH, padV, padH - 1, padV),
+              padding: dense ? EdgeInsets.zero : EdgeInsets.fromLTRB(
+                padH,
+                padV,
+                padH - 1,
+                padV,
+              ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
                 gradient: LinearGradient(

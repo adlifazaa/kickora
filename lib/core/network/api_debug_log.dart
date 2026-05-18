@@ -13,19 +13,55 @@ class ApiDebugLog {
   static void boot() {
     if (!kDebugMode) return;
     debugPrint(
-      '[Kickora] apiMode=${ApiModeService.mode.name} '
-      'remoteConfigured=${ApiModeService.usesRemoteApi} '
+      '[Kickora Dev] boot apiMode=${ApiModeService.mode.name} '
+      'dataSource=${ApiModeService.effectiveDataSource} '
+      'remoteActive=${ApiModeService.remoteActive} '
       'apiDevMode=${ApiConstants.apiDevMode}',
     );
-    debugPrint('[Kickora] baseUrl=${ApiConstants.effectiveBaseUrl}');
+    debugPrint('[Kickora Dev] baseUrl=${ApiConstants.effectiveBaseUrl}');
+    if (ApiConstants.isMock) {
+      debugPrint(
+        '[Kickora Dev] default=mock (Play Store / release builds use mock unless dart-define is set)',
+      );
+    }
     if (ApiConstants.isDirectApi && ApiConstants.hasApiKey) {
       debugPrint(
-        '[Kickora] directApi header=${ApiConstants.headerApiKey} (value not logged)',
+        '[Kickora Dev] directApi header=${ApiConstants.headerApiKey} (value not logged)',
       );
     }
     if (ApiConstants.isBackendProxy) {
-      debugPrint('[Kickora] backendProxy: no API key header from app');
+      debugPrint('[Kickora Dev] backendProxy: no API key header from app');
     }
+  }
+
+  static void configurationWarning(String message) {
+    if (!kDebugMode) return;
+    debugPrint('[Kickora Dev] ⚠ $message');
+  }
+
+  static void providerSelected({
+    required String provider,
+    required bool remoteActive,
+  }) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[Kickora Dev] provider=$provider apiMode=${ApiModeService.mode.name} '
+      'dataSource=${ApiModeService.effectiveDataSource} remoteActive=$remoteActive',
+    );
+  }
+
+  /// Standard per-request developer line: apiMode, dataSource, resultCount.
+  static void developerTrace({
+    required String operation,
+    required String dataSource,
+    int? resultCount,
+  }) {
+    if (!kDebugMode) return;
+    final count = resultCount != null ? ' resultCount=$resultCount' : '';
+    debugPrint(
+      '[Kickora Dev] $operation apiMode=${ApiModeService.mode.name} '
+      'dataSource=$dataSource$count',
+    );
   }
 
   static void request(String method, Uri uri, {required int requestId}) {
@@ -99,7 +135,7 @@ class ApiDebugLog {
     );
   }
 
-  /// Repository layer: api vs mock, never logs secrets.
+  /// Repository / provider layer: api vs mock, never logs secrets.
   static void dataSource({
     required String operation,
     required String source,
@@ -107,13 +143,14 @@ class ApiDebugLog {
     String? message,
   }) {
     if (!kDebugMode) return;
-    final n = count != null ? ' resultCount=$count' : '';
-    final msg = message != null ? ' $message' : '';
-    debugPrint(
-      '[Kickora] apiMode=${ApiModeService.mode.name} '
-      'remote=${ApiModeService.usesRemoteApi} '
-      '$operation dataSource=$source$n$msg',
+    developerTrace(
+      operation: operation,
+      dataSource: source,
+      resultCount: count,
     );
+    if (message != null && message.isNotEmpty) {
+      debugPrint('[Kickora Dev] $operation note=$message');
+    }
   }
 
   static String _redactQuery(String query) {

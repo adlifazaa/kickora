@@ -103,9 +103,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
 
   void _noteDetailsError<T>(DataState<T> state, FootballRepository repo) {
     if (!repo.usesLiveApi || !_isApiFixture) return;
-    if (state.hasError && _detailsError == null) {
-      _detailsError = state.errorMessage;
-    }
+    if (!state.hasError) return;
+    _detailsError = state.errorMessage;
   }
 
   void _startLiveTimers() {
@@ -142,6 +141,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     final repo = AppScope.footballRepositoryOf(context);
     final fixtureId = _fixtureId;
     final matchId = _match.id;
+    final leagueId = _match.competition.id;
 
     var base = _match;
     var events = _match.events;
@@ -184,8 +184,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     }
 
     try {
-      final eventsState =
-          await repo.getMatchEvents(matchId, fixtureId: fixtureId);
+      final eventsState = await repo.getMatchEvents(
+        matchId,
+        fixtureId: fixtureId,
+        leagueId: leagueId,
+      );
       logMatchDetails(
         'events fixture=$fixtureId source=${eventsState.fromMock ? "mock-fallback" : "api"} '
         'count=${eventsState.data?.length ?? 0}',
@@ -200,8 +203,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     }
 
     try {
-      final statsState =
-          await repo.getMatchStatistics(matchId, fixtureId: fixtureId);
+      final statsState = await repo.getMatchStatistics(
+        matchId,
+        fixtureId: fixtureId,
+        leagueId: leagueId,
+      );
       logMatchDetails(
         'stats fixture=$fixtureId source=${statsState.fromMock ? "mock-fallback" : "api"} '
         'count=${statsState.data?.length ?? 0}',
@@ -216,8 +222,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     }
 
     try {
-      final lineupsState =
-          await repo.getMatchLineups(matchId, fixtureId: fixtureId);
+      final lineupsState = await repo.getMatchLineups(
+        matchId,
+        fixtureId: fixtureId,
+        leagueId: leagueId,
+      );
       logMatchDetails(
         'lineups fixture=$fixtureId source=${lineupsState.fromMock ? "mock-fallback" : "api"} '
         'home=${lineupsState.data?.home != null} away=${lineupsState.data?.away != null}',
@@ -416,10 +425,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
 
   /// Overview — timeline + live momentum (unchanged behaviour).
   Widget _buildOverviewBody(MatchModel match) {
+    final text = AppText.of(context);
     return _OverviewTab(
       match: match,
       showMomentum: match.status == MatchStatus.live,
       commentaryIndex: _commentaryIndex,
+      eventsEmptyTitle: _isApiFixture
+          ? (text.isArabic
+              ? 'الأحداث غير متوفرة بعد'
+              : 'Events are not available yet')
+          : null,
+      eventsEmptySubtitle: _isApiFixture ? null : null,
     );
   }
 
@@ -482,8 +498,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
           icon: Icons.bar_chart_rounded,
           title: text.isArabic
               ? 'الإحصائيات غير متوفرة بعد'
-              : 'Statistics not available yet',
-          subtitle: _detailsError,
+              : 'Statistics are not available yet',
+          subtitle: _isApiFixture ? null : _detailsError,
         ),
       );
     }
@@ -531,9 +547,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
           context,
           icon: Icons.groups_rounded,
           title: text.isArabic
-              ? 'التشكيلة غير متوفرة بعد'
-              : 'Lineups not available yet',
-          subtitle: _detailsError,
+              ? 'التشكيلات غير متوفرة بعد'
+              : 'Lineups are not available yet',
+          subtitle: _isApiFixture ? null : _detailsError,
         ),
       );
     }
@@ -966,11 +982,15 @@ class _OverviewTab extends StatelessWidget {
     required this.match,
     required this.showMomentum,
     required this.commentaryIndex,
+    this.eventsEmptyTitle,
+    this.eventsEmptySubtitle,
   });
 
   final MatchModel match;
   final bool showMomentum;
   final int commentaryIndex;
+  final String? eventsEmptyTitle;
+  final String? eventsEmptySubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -987,7 +1007,11 @@ class _OverviewTab extends StatelessWidget {
           ),
         Expanded(
           child: PrimaryScrollController.none(
-            child: MatchTimeline(match: match),
+            child: MatchTimeline(
+              match: match,
+              emptyTitle: eventsEmptyTitle,
+              emptySubtitle: eventsEmptySubtitle,
+            ),
           ),
         ),
       ],

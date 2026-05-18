@@ -23,9 +23,16 @@ class _TimelineRow {
 
 /// Chronological match timeline with goals, cards, subs, and phase markers.
 class MatchTimeline extends StatelessWidget {
-  const MatchTimeline({super.key, required this.match});
+  const MatchTimeline({
+    super.key,
+    required this.match,
+    this.emptyTitle,
+    this.emptySubtitle,
+  });
 
   final MatchModel match;
+  final String? emptyTitle;
+  final String? emptySubtitle;
 
   static int _parseMinute(String raw) {
     final normalized = raw.trim().toUpperCase();
@@ -73,8 +80,8 @@ class MatchTimeline extends StatelessWidget {
         loading: false,
         isEmpty: true,
         emptyIcon: Icons.timeline_rounded,
-        emptyTitle: text.timelineEmptyTitle,
-        emptySubtitle: text.timelineEmptySubtitle,
+        emptyTitle: emptyTitle ?? text.timelineEmptyTitle,
+        emptySubtitle: emptySubtitle ?? text.timelineEmptySubtitle,
         child: const SizedBox.shrink(),
       );
     }
@@ -348,8 +355,9 @@ class _EventCard extends StatelessWidget {
                           fontSize: 12.5,
                           height: 1.25,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        softWrap: false,
                       ),
                     ],
                     for (final line in detailLines) ...[
@@ -362,8 +370,9 @@ class _EventCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           height: 1.3,
                         ),
-                        maxLines: 3,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        softWrap: false,
                       ),
                     ],
                   ],

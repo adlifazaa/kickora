@@ -1,3 +1,4 @@
+import '../../core/display/player_profile_display.dart';
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
 import '../../core/lineup/formation_lineup_layout.dart';
@@ -65,13 +66,7 @@ class ApiFootballParser {
         elapsed,
         kickoff: DateTime.tryParse(fixture['date']?.toString() ?? ''),
       ),
-      competition: CompetitionModel(
-        id: _int(league['id']),
-        name: league['name']?.toString() ?? '',
-        region: leagueCountry.name,
-        logo: league['logo']?.toString() ?? '',
-        isFeatured: false,
-      ),
+      competition: _competitionFromLeagueJson(league),
       date: DateTime.tryParse(fixture['date']?.toString() ?? '') ??
           DateTime.now(),
       stadium: _map(fixture['venue'])['name']?.toString() ?? '',
@@ -451,10 +446,43 @@ class ApiFootballParser {
       name: league['name']?.toString() ?? '',
       region: country['name']?.toString() ?? '',
       logo: league['logo']?.toString() ?? '',
+      countryCode: country['code']?.toString() ?? '',
+      countryFlagUrl: country['flag']?.toString() ?? '',
+      season: _seasonYearFromLeagueEntry(json),
+      competitionType: league['type']?.toString() ?? '',
       isFeatured: _int(league['id']) == 1,
       teamCount: 0,
       matchesToday: 0,
     );
+  }
+
+  static CompetitionModel _competitionFromLeagueJson(Map<String, dynamic> league) {
+    final country = _parseCountry(league['country']);
+    return CompetitionModel(
+      id: _int(league['id']),
+      name: league['name']?.toString() ?? '',
+      region: country.name,
+      logo: league['logo']?.toString() ?? '',
+      countryCode: country.code,
+      countryFlagUrl: country.flagUrl,
+      competitionType: league['type']?.toString() ?? '',
+      isFeatured: false,
+    );
+  }
+
+  static int? _seasonYearFromLeagueEntry(Map<String, dynamic> json) {
+    final seasons = json['seasons'];
+    if (seasons is! List || seasons.isEmpty) return null;
+    for (final raw in seasons) {
+      if (raw is! Map) continue;
+      final season = Map<String, dynamic>.from(raw);
+      if (season['current'] == true) {
+        return _int(season['year']);
+      }
+    }
+    final last = seasons.last;
+    if (last is Map) return _int(last['year']);
+    return null;
   }
 
   // --- Standings ---
@@ -554,27 +582,31 @@ class ApiFootballParser {
     final team = _map(stats['team']);
     final goals = _map(stats['goals']);
     final games = _map(stats['games']);
+    final cards = _map(stats['cards']);
+    final penalty = _map(stats['penalty']);
 
     return PlayerModel(
       id: _int(player['id']),
       name: player['name']?.toString() ?? '',
       shortName: _abbrev(player['name']?.toString() ?? ''),
-      number: 0,
+      number: _missingInt(games['number']),
       nationality: player['nationality']?.toString() ?? '',
-      age: _int(player['age']),
-      height: 0,
+      age: _missingInt(player['age']),
+      height: _missingInt(player['height']),
+      weight: _missingInt(player['weight']),
       position: games['position']?.toString() ?? '',
       team: team['name']?.toString() ?? '',
       teamLogoShort: team['code']?.toString().isNotEmpty == true
           ? team['code'].toString()
           : _abbrev(team['name']?.toString() ?? ''),
       teamLogoUrl: team['logo']?.toString() ?? '',
-      appearances: _int(games['appearences'] ?? games['appearances']),
+      appearances: _missingInt(games['appearences'] ?? games['appearances']),
+      minutesPlayed: _missingInt(games['minutes']),
       goals: _int(goals['total']),
-      assists: 0,
-      yellowCards: 0,
-      redCards: 0,
-      seasonRating: '7.5',
+      assists: _int(goals['assists'] ?? penalty['scored']),
+      yellowCards: _int(cards['yellow']),
+      redCards: _int(cards['red']),
+      seasonRating: '',
       photoUrl: resolvePlayerPhotoUrl(player),
     );
   }
@@ -599,6 +631,17 @@ class ApiFootballParser {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString()) ?? 0;
+  }
+
+  /// Missing API stat — UI shows [PlayerProfileDisplay.dash].
+  static int _missingInt(Object? value) {
+    if (value == null) return PlayerProfileDisplay.missing;
+    if (value is String && value.trim().isEmpty) {
+      return PlayerProfileDisplay.missing;
+    }
+    if (value is num && value < 0) return PlayerProfileDisplay.missing;
+    final parsed = _int(value);
+    return parsed;
   }
 
   static String _lineupPosition(String? pos) {

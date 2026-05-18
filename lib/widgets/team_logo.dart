@@ -262,6 +262,8 @@ class CompetitionBadge extends StatelessWidget {
     this.size = 40,
     this.competitionId,
     this.competitionName,
+    this.countryCode,
+    this.countryName,
   });
 
   factory CompetitionBadge.fromCompetition(
@@ -271,11 +273,13 @@ class CompetitionBadge extends StatelessWidget {
   }) {
     return CompetitionBadge(
       key: key,
-      logo: competition.logoUrl.isNotEmpty
-          ? competition.logoUrl
+      logo: competition.displayLogoUrl.isNotEmpty
+          ? competition.displayLogoUrl
           : competition.logo,
       competitionId: competition.id,
       competitionName: competition.name,
+      countryCode: competition.countryCode,
+      countryName: competition.region,
       size: size,
     );
   }
@@ -284,6 +288,8 @@ class CompetitionBadge extends StatelessWidget {
   final double size;
   final int? competitionId;
   final String? competitionName;
+  final String? countryCode;
+  final String? countryName;
 
   String get _initials {
     if (logo.isEmpty) return '?';
@@ -331,6 +337,8 @@ class CompetitionBadge extends StatelessWidget {
       logo: logo,
       name: competitionName,
       id: competitionId,
+      countryCode: countryCode,
+      countryName: countryName,
     );
     if (key == null) return null;
     return MockCompetitionBadge(competitionKey: key, size: size);

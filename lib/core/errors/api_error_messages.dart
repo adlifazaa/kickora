@@ -34,7 +34,15 @@ class ApiErrorMessages {
   static const String unknownAr =
       'حدث خطأ ما. يرجى المحاولة مرة أخرى.';
 
+  static const String apiNotConfiguredEn =
+      'Live API is not configured. Showing offline demo data.';
+  static const String apiNotConfiguredAr =
+      'وضع API المباشر غير مُعد. يتم عرض بيانات تجريبية محلية.';
+
   static String friendly(ApiException error, {required bool isArabic}) {
+    if (error.isNotConfigured) {
+      return isArabic ? apiNotConfiguredAr : apiNotConfiguredEn;
+    }
     if (error.isRateLimited) {
       return isArabic ? rateLimitAr : rateLimitEn;
     }

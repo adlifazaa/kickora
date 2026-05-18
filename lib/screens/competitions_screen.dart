@@ -3,12 +3,16 @@
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
+import '../core/competition/competition_country_filter.dart';
+import '../core/constants/api_constants.dart';
+import '../core/debug/competition_debug_log.dart';
 import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../services/app_controller.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/competition_card.dart';
+import '../widgets/skeleton_box.dart';
 
 /// Browse + search competitions. Includes a premium search field, category
 /// chips, recent searches (persisted locally), and a clean empty state.
@@ -67,12 +71,27 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
   }
 
   bool _categoryMatch(CompetitionModel c) {
-    if (_category == 'all') return true;
     if (_category == 'favorites') {
       final app = AppScope.of(context);
       return app.isCompetitionFavorite(c.id);
     }
-    return c.region.toLowerCase().contains(_category);
+    if (ApiConstants.isMock) {
+      if (_category == 'all') return true;
+      return c.region.toLowerCase().contains(_category);
+    }
+    return CompetitionCountryFilter.matches(c, _category);
+  }
+
+  void _logCompetitionFilterDebug(List<CompetitionModel> visible) {
+    if (!ApiConstants.isDirectApi && !ApiConstants.isBackendProxy) return;
+    for (final c in visible.take(12)) {
+      logCompetitionDebug(
+        name: c.name,
+        country: c.region,
+        filterSelected: _category,
+        logoExists: c.hasRemoteLogo,
+      );
+    }
   }
 
   @override
@@ -88,6 +107,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
               c.region.toLowerCase().contains(_query.toLowerCase());
           return qOk && _categoryMatch(c);
         }).toList();
+        _logCompetitionFilterDebug(filtered);
         return _buildScaffold(context, app, text, filtered);
       },
     );
@@ -193,7 +213,23 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
   Widget _buildBody(BuildContext context, AppController app, AppText text,
       List<CompetitionModel> filtered) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.88,
+          ),
+          itemCount: 6,
+          itemBuilder: (context, index) => SkeletonBox(
+            height: double.infinity,
+            radius: 18,
+          ),
+        ),
+      );
     }
 
     if (_loadError != null && filtered.isEmpty) {
@@ -265,7 +301,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.93),
+            childAspectRatio: 0.88),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final competition = items[index];

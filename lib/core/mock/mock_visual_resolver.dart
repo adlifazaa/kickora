@@ -55,6 +55,8 @@ class MockVisualResolver {
     required String logo,
     String? name,
     int? id,
+    String? countryCode,
+    String? countryName,
   }) {
     if (_isHttpUrl(logo)) return null;
 
@@ -64,7 +66,20 @@ class MockVisualResolver {
     final fromName = competitionKeyByName(name);
     if (fromName != null) return fromName;
 
-    return competitionKeyById(id);
+    final fromId = competitionKeyById(id);
+    if (fromId != null) return fromId;
+
+    final fromCountry = flagKeyForTeam(
+      countryCode: countryCode,
+      countryName: countryName,
+    );
+    return switch (fromCountry) {
+      MockFlagKey.england => MockCompetitionKey.premierLeague,
+      MockFlagKey.spain => MockCompetitionKey.laLiga,
+      MockFlagKey.italy => MockCompetitionKey.serieA,
+      MockFlagKey.germany => MockCompetitionKey.bundesliga,
+      _ => null,
+    };
   }
 
   static MockCompetitionKey? competitionKeyByName(String? name) {
@@ -95,6 +110,10 @@ class MockVisualResolver {
       3 => MockCompetitionKey.laLiga,
       4 => MockCompetitionKey.serieA,
       5 => MockCompetitionKey.bundesliga,
+      39 => MockCompetitionKey.premierLeague,
+      140 => MockCompetitionKey.laLiga,
+      135 => MockCompetitionKey.serieA,
+      78 => MockCompetitionKey.bundesliga,
       _ => null,
     };
   }
