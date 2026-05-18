@@ -11,6 +11,8 @@ import '../models/notification_permission_status.dart';
 import '../models/notification_tap_intent.dart';
 import '../models/notification_type.dart';
 import '../notification_manager.dart';
+import '../notification_preferences.dart';
+import '../notification_debug_log.dart';
 import 'fcm_permission_handler.dart';
 import 'firebase_messaging_bridge.dart';
 import 'firebase_notification_bridge.dart';
@@ -23,9 +25,11 @@ class KickoraNotificationService {
   KickoraNotificationService({
     required NotificationManager manager,
     required LocalNotificationHelper localHelper,
+    required NotificationPreferences preferences,
     FirebaseNotificationBridge? firebaseBridge,
   })  : _manager = manager,
         _local = localHelper,
+        _preferences = preferences,
         _firebaseBridge = firebaseBridge;
 
   /// Mock stack for tests and platforms without FCM.
@@ -40,6 +44,7 @@ class KickoraNotificationService {
     return KickoraNotificationService(
       manager: manager,
       localHelper: MockLocalNotificationHelper(),
+      preferences: NotificationPreferences(prefs),
       firebaseBridge: bridge,
     );
   }
@@ -57,6 +62,7 @@ class KickoraNotificationService {
       return KickoraNotificationService(
         manager: manager,
         localHelper: FlutterLocalNotificationsHelper(),
+        preferences: NotificationPreferences(prefs),
         firebaseBridge: bridge,
       );
     }
@@ -71,7 +77,10 @@ class KickoraNotificationService {
 
   final NotificationManager _manager;
   final LocalNotificationHelper _local;
+  final NotificationPreferences _preferences;
   final FirebaseNotificationBridge? _firebaseBridge;
+
+  NotificationPreferences get preferences => _preferences;
 
   StreamSubscription<FirebaseNotificationPayload>? _foregroundSub;
   StreamSubscription<FirebaseNotificationPayload>? _openedSub;
@@ -147,12 +156,21 @@ class KickoraNotificationService {
     Set<int> favoriteTeamIds = const {},
     Set<int> favoriteMatchIds = const {},
     Set<int> favoriteCompetitionIds = const {},
-  }) =>
-      _manager.enable(
-        favoriteTeamIds: favoriteTeamIds,
-        favoriteMatchIds: favoriteMatchIds,
-        favoriteCompetitionIds: favoriteCompetitionIds,
+  }) async {
+    final granted = await _manager.enable(
+      favoriteTeamIds: const {},
+      favoriteMatchIds: const {},
+      favoriteCompetitionIds: const {},
+    );
+    if (granted) {
+      await restoreFavoriteTopics(
+        teamIds: favoriteTeamIds,
+        matchIds: favoriteMatchIds,
+        competitionIds: favoriteCompetitionIds,
       );
+    }
+    return granted;
+  }
 
   Future<void> disable() async {
     await _manager.disable();
@@ -168,7 +186,56 @@ class KickoraNotificationService {
         teamIds: teamIds,
         matchIds: matchIds,
         competitionIds: competitionIds,
+        subscribeTeams: _preferences.favoriteTeamUpdatesEnabled,
+        subscribeMatches: _preferences.favoriteMatchUpdatesEnabled,
+        subscribeCompetitions: _preferences.favoriteCompetitionUpdatesEnabled,
       );
+
+  /// Applies saved preferences and favorite topic subscriptions after cold start.
+  Future<int> restoreAfterStartup({
+    required Set<int> teamIds,
+    required Set<int> matchIds,
+    required Set<int> competitionIds,
+  }) async {
+    if (!isEnabled) {
+      NotificationDebugLog.preferencesRestored(
+        enabled: false,
+        enabledTypes: _preferences.enabledTypeLabels(),
+        subscribedTopics: 0,
+      );
+      return 0;
+    }
+    final count = await restoreFavoriteTopics(
+      teamIds: teamIds,
+      matchIds: matchIds,
+      competitionIds: competitionIds,
+    );
+    NotificationDebugLog.preferencesRestored(
+      enabled: true,
+      enabledTypes: _preferences.enabledTypeLabels(),
+      subscribedTopics: count,
+    );
+    return count;
+  }
+
+  /// Re-syncs FCM topics when favorite-category toggles change.
+  Future<void> applyPreferenceChange({
+    required Set<int> teamIds,
+    required Set<int> matchIds,
+    required Set<int> competitionIds,
+  }) async {
+    if (!isEnabled) return;
+    final count = await restoreFavoriteTopics(
+      teamIds: teamIds,
+      matchIds: matchIds,
+      competitionIds: competitionIds,
+    );
+    NotificationDebugLog.preferencesRestored(
+      enabled: true,
+      enabledTypes: _preferences.enabledTypeLabels(),
+      subscribedTopics: count,
+    );
+  }
 
   Future<void> syncFavoriteTeams(Set<int> teamIds) =>
       _manager.syncFavoriteTeams(teamIds);
@@ -179,20 +246,26 @@ class KickoraNotificationService {
   Future<void> syncFavoriteCompetitions(Set<int> competitionIds) =>
       _manager.syncFavoriteCompetitions(competitionIds);
 
-  Future<void> subscribeFavoriteTeam(int teamId) =>
-      _manager.subscribeFavoriteTeam(teamId);
+  Future<void> subscribeFavoriteTeam(int teamId) async {
+    if (!isEnabled || !_preferences.favoriteTeamUpdatesEnabled) return;
+    await _manager.subscribeFavoriteTeam(teamId);
+  }
 
   Future<void> unsubscribeFavoriteTeam(int teamId) =>
       _manager.unsubscribeFavoriteTeam(teamId);
 
-  Future<void> subscribeFavoriteMatch(int matchId) =>
-      _manager.subscribeFavoriteMatch(matchId);
+  Future<void> subscribeFavoriteMatch(int matchId) async {
+    if (!isEnabled || !_preferences.favoriteMatchUpdatesEnabled) return;
+    await _manager.subscribeFavoriteMatch(matchId);
+  }
 
   Future<void> unsubscribeFavoriteMatch(int matchId) =>
       _manager.unsubscribeFavoriteMatch(matchId);
 
-  Future<void> subscribeFavoriteCompetition(int competitionId) =>
-      _manager.subscribeFavoriteCompetition(competitionId);
+  Future<void> subscribeFavoriteCompetition(int competitionId) async {
+    if (!isEnabled || !_preferences.favoriteCompetitionUpdatesEnabled) return;
+    await _manager.subscribeFavoriteCompetition(competitionId);
+  }
 
   Future<void> unsubscribeFavoriteCompetition(int competitionId) =>
       _manager.unsubscribeFavoriteCompetition(competitionId);
@@ -340,6 +413,7 @@ class KickoraNotificationService {
   }) async {
     if (!isEnabled) return;
     final payload = FirebaseNotificationPayload.fromData(data);
+    if (!isTypeEnabled(payload.type)) return;
     if (openedApp) {
       await _onOpenedFcm(payload);
     } else {
@@ -347,21 +421,24 @@ class KickoraNotificationService {
     }
   }
 
+  bool isTypeEnabled(NotificationType type) =>
+      _preferences.isMatchTypeEnabled(type);
+
   Future<void> _dispatch(
     FirebaseNotificationPayload payload, {
     bool isArabic = false,
   }) async {
-    if (!isEnabled) return;
+    if (!isEnabled || !isTypeEnabled(payload.type)) return;
     await showLocal(payload.toKickoraNotification(isArabic: isArabic));
   }
 
   Future<void> _onForegroundFcm(FirebaseNotificationPayload payload) async {
-    if (!isEnabled) return;
+    if (!isEnabled || !isTypeEnabled(payload.type)) return;
     await showLocal(payload.toKickoraNotification());
   }
 
   Future<void> _onOpenedFcm(FirebaseNotificationPayload payload) async {
-    if (!isEnabled) return;
+    if (!isEnabled || !isTypeEnabled(payload.type)) return;
     _publishTapIntent(payload);
   }
 

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/refresh/match_refresh_service.dart';
 import '../data/repositories/football_repository.dart';
+import '../notifications/notification_manager.dart';
 import '../notifications/services/kickora_notification_service.dart';
 import '../subscription/premium_service.dart';
 import '../subscription/premium_subscription_service.dart';
@@ -50,7 +51,6 @@ class AppController extends ChangeNotifier {
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
-  static const String _notificationsKey = 'notifications_enabled';
   static const String _recentSearchesKey = 'recent_searches';
   static const int _maxRecentSearches = 8;
 
@@ -71,6 +71,22 @@ class AppController extends ChangeNotifier {
   Set<int> get favoriteMatchIds => favoriteManager.matchIds;
 
   bool get notificationsEnabled => _notificationsEnabled;
+
+  bool get notifyGoalsEnabled =>
+      notificationService.preferences.goalsEnabled;
+  bool get notifyMatchStartedEnabled =>
+      notificationService.preferences.matchStartedEnabled;
+  bool get notifyRedCardsEnabled =>
+      notificationService.preferences.redCardsEnabled;
+  bool get notifyMatchFinishedEnabled =>
+      notificationService.preferences.matchFinishedEnabled;
+  bool get notifyFavoriteTeamUpdatesEnabled =>
+      notificationService.preferences.favoriteTeamUpdatesEnabled;
+  bool get notifyFavoriteCompetitionUpdatesEnabled =>
+      notificationService.preferences.favoriteCompetitionUpdatesEnabled;
+  bool get notifyFavoriteMatchUpdatesEnabled =>
+      notificationService.preferences.favoriteMatchUpdatesEnabled;
+
   List<String> get recentSearches => List.unmodifiable(_recentSearches);
 
   bool get isPremium => premiumSubscriptionService.isPremium;
@@ -88,9 +104,15 @@ class AppController extends ChangeNotifier {
     await favoriteManager.load();
     await premiumSubscriptionService.load();
 
-    _notificationsEnabled = _preferences.getBool(_notificationsKey) ?? false;
+    _notificationsEnabled =
+        _preferences.getBool(NotificationManager.enabledPreferenceKey) ?? false;
     _recentSearches =
         _preferences.getStringList(_recentSearchesKey) ?? const <String>[];
+    await notificationService.restoreAfterStartup(
+      teamIds: favoriteManager.teamIds,
+      matchIds: favoriteManager.matchIds,
+      competitionIds: favoriteManager.competitionIds,
+    );
     await matchRefreshService.start();
     notifyListeners();
   }
@@ -136,8 +158,54 @@ class AppController extends ChangeNotifier {
       await notificationService.disable();
       _notificationsEnabled = false;
     }
-    await _preferences.setBool(_notificationsKey, _notificationsEnabled);
+    await _preferences.setBool(
+      NotificationManager.enabledPreferenceKey,
+      _notificationsEnabled,
+    );
     await favoriteManager.onNotificationsEnabledChanged(_notificationsEnabled);
+    notifyListeners();
+  }
+
+  Future<void> setNotifyGoalsEnabled(bool enabled) async {
+    await notificationService.preferences.setGoalsEnabled(enabled);
+    notifyListeners();
+  }
+
+  Future<void> setNotifyMatchStartedEnabled(bool enabled) async {
+    await notificationService.preferences.setMatchStartedEnabled(enabled);
+    notifyListeners();
+  }
+
+  Future<void> setNotifyRedCardsEnabled(bool enabled) async {
+    await notificationService.preferences.setRedCardsEnabled(enabled);
+    notifyListeners();
+  }
+
+  Future<void> setNotifyMatchFinishedEnabled(bool enabled) async {
+    await notificationService.preferences.setMatchFinishedEnabled(enabled);
+    notifyListeners();
+  }
+
+  Future<void> setNotifyFavoriteTeamUpdatesEnabled(bool enabled) async {
+    await notificationService.preferences.setFavoriteTeamUpdatesEnabled(
+      enabled,
+    );
+    await favoriteManager.onNotificationPreferencesChanged();
+    notifyListeners();
+  }
+
+  Future<void> setNotifyFavoriteCompetitionUpdatesEnabled(bool enabled) async {
+    await notificationService.preferences
+        .setFavoriteCompetitionUpdatesEnabled(enabled);
+    await favoriteManager.onNotificationPreferencesChanged();
+    notifyListeners();
+  }
+
+  Future<void> setNotifyFavoriteMatchUpdatesEnabled(bool enabled) async {
+    await notificationService.preferences.setFavoriteMatchUpdatesEnabled(
+      enabled,
+    );
+    await favoriteManager.onNotificationPreferencesChanged();
     notifyListeners();
   }
 

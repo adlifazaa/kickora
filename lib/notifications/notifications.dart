@@ -8,6 +8,7 @@ export 'models/notification_type.dart';
 export 'notification_channels.dart';
 export 'notification_debug_log.dart';
 export 'notification_manager.dart';
+export 'notification_preferences.dart';
 export 'services/firebase_notification_bridge.dart';
 export 'services/kickora_notification_service.dart';
 export 'services/local_notification_helper.dart';

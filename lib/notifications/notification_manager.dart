@@ -114,11 +114,16 @@ class NotificationManager {
     required Set<int> teamIds,
     required Set<int> matchIds,
     required Set<int> competitionIds,
+    bool subscribeTeams = true,
+    bool subscribeMatches = true,
+    bool subscribeCompetitions = true,
   }) async {
     if (!isEnabled) return 0;
-    await syncFavoriteTeams(teamIds);
-    await syncFavoriteMatches(matchIds);
-    await syncFavoriteCompetitions(competitionIds);
+    await syncFavoriteTeams(subscribeTeams ? teamIds : const {});
+    await syncFavoriteMatches(subscribeMatches ? matchIds : const {});
+    await syncFavoriteCompetitions(
+      subscribeCompetitions ? competitionIds : const {},
+    );
     final count = subscribedTopicCount;
     NotificationDebugLog.topicsRestored(count);
     return count;

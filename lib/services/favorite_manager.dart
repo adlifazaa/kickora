@@ -77,7 +77,7 @@ class FavoriteManager extends ChangeNotifier {
   Future<int> restoreSubscriptions() async {
     final notifications = _notifications;
     if (notifications == null || !notifications.isEnabled) return 0;
-    return notifications.restoreFavoriteTopics(
+    return notifications.restoreAfterStartup(
       teamIds: teamIds,
       matchIds: matchIds,
       competitionIds: competitionIds,
@@ -160,6 +160,7 @@ class FavoriteManager extends ChangeNotifier {
   }) async {
     final notifications = _notifications;
     if (notifications == null || !notifications.isEnabled) return;
+    if (!notifications.isTypeEnabled(type)) return;
     if (!isMatchInvolvingFavoriteTeam(match)) return;
 
     final home = match.homeTeam.name;
@@ -231,5 +232,15 @@ class FavoriteManager extends ChangeNotifier {
     if (enabled) {
       await restoreSubscriptions();
     }
+  }
+
+  Future<void> onNotificationPreferencesChanged() async {
+    final notifications = _notifications;
+    if (notifications == null || !notifications.isEnabled) return;
+    await notifications.applyPreferenceChange(
+      teamIds: teamIds,
+      matchIds: matchIds,
+      competitionIds: competitionIds,
+    );
   }
 }

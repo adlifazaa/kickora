@@ -39,6 +39,19 @@ class NotificationDebugLog {
     debugPrint('[Kickora Notifications] restored topic count=$count');
   }
 
+  static void preferencesRestored({
+    required bool enabled,
+    required List<String> enabledTypes,
+    required int subscribedTopics,
+  }) {
+    if (!kDebugMode) return;
+    final types = enabledTypes.isEmpty ? 'none' : enabledTypes.join(',');
+    debugPrint(
+      '[Kickora Notifications] preferences restored '
+      'enabled=$enabled types=[$types] topics=$subscribedTopics',
+    );
+  }
+
   static void received({
     required String type,
     required String deliveryPhase,

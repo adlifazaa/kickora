@@ -9,6 +9,7 @@ import 'models/notification_type.dart';
 import 'notification_channels.dart';
 import 'notification_debug_log.dart';
 import 'notification_manager.dart';
+import 'notification_preferences.dart';
 import 'services/local_notification_helper.dart';
 
 /// Shared local notification display for foreground and background FCM.
@@ -45,6 +46,9 @@ class FcmLocalDisplay {
     if (requireUserEnabled) {
       final enabled = await _notificationsEnabled();
       if (!enabled) return;
+      final prefs = await SharedPreferences.getInstance();
+      final settings = NotificationPreferences(prefs);
+      if (!settings.isMatchTypeEnabled(payload.type)) return;
     }
 
     await ensureInitialized();

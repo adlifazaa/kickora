@@ -73,14 +73,78 @@ class SettingsScreen extends StatelessWidget {
               _SettingsTile(
                 icon: Icons.notifications_active_outlined,
                 iconColor: Colors.amber,
-                title: text.notifications,
-                subtitle:
-                    '${text.notificationsPrefsBody}\n${text.pushNotificationsComingSoon}',
-                subtitleMaxLines: 4,
+                title: text.isArabic ? 'تفعيل الإشعارات' : 'Enable notifications',
+                subtitle: text.notificationsPrefsBody,
+                subtitleMaxLines: 3,
                 trailing: _KickoraSwitch(
                   value: app.notificationsEnabled,
                   onChanged: (v) => app.setNotificationsEnabled(v),
                 ),
+              ),
+              const SizedBox(height: 16),
+              SectionHeader(
+                title: text.isArabic ? 'إشعارات المباريات' : 'Match notifications',
+                icon: Icons.sports_soccer_rounded,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic ? 'الأهداف' : 'Goals',
+                value: app.notifyGoalsEnabled,
+                onChanged: app.setNotifyGoalsEnabled,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic ? 'بداية المباراة' : 'Match started',
+                value: app.notifyMatchStartedEnabled,
+                onChanged: app.setNotifyMatchStartedEnabled,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic ? 'البطاقات الحمراء' : 'Red cards',
+                value: app.notifyRedCardsEnabled,
+                onChanged: app.setNotifyRedCardsEnabled,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic ? 'نهاية المباراة' : 'Match finished',
+                value: app.notifyMatchFinishedEnabled,
+                onChanged: app.setNotifyMatchFinishedEnabled,
+              ),
+              const SizedBox(height: 16),
+              SectionHeader(
+                title: text.isArabic ? 'المفضلة' : 'Favorites',
+                icon: Icons.star_rounded,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic
+                    ? 'تحديثات الفرق المفضلة'
+                    : 'Favorite team updates',
+                value: app.notifyFavoriteTeamUpdatesEnabled,
+                onChanged: app.setNotifyFavoriteTeamUpdatesEnabled,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic
+                    ? 'تحديثات البطولات المفضلة'
+                    : 'Favorite competition updates',
+                value: app.notifyFavoriteCompetitionUpdatesEnabled,
+                onChanged: app.setNotifyFavoriteCompetitionUpdatesEnabled,
+              ),
+              const SizedBox(height: 12),
+              _NotificationPrefTile(
+                enabled: app.notificationsEnabled,
+                title: text.isArabic
+                    ? 'تحديثات المباريات المفضلة'
+                    : 'Favorite match updates',
+                value: app.notifyFavoriteMatchUpdatesEnabled,
+                onChanged: app.setNotifyFavoriteMatchUpdatesEnabled,
               ),
               const SizedBox(height: 26),
               SectionHeader(
@@ -184,7 +248,7 @@ class _KickoraSwitch extends StatelessWidget {
   });
 
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +256,43 @@ class _KickoraSwitch extends StatelessWidget {
       value: value,
       onChanged: onChanged,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+}
+
+class _NotificationPrefTile extends StatelessWidget {
+  const _NotificationPrefTile({
+    required this.enabled,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: _SettingsTile(
+        icon: Icons.tune_rounded,
+        iconColor: Theme.of(context).colorScheme.primary,
+        title: title,
+        subtitle: enabled
+            ? (AppScope.of(context).isArabic
+                ? 'تنبيهات هذا النوع'
+                : 'Alerts for this category')
+            : (AppScope.of(context).isArabic
+                ? 'فعّل الإشعارات أولاً'
+                : 'Turn on notifications first'),
+        trailing: _KickoraSwitch(
+          value: value,
+          onChanged: enabled ? onChanged : null,
+        ),
+      ),
     );
   }
 }

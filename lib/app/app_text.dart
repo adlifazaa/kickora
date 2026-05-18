@@ -71,8 +71,8 @@ class AppText {
   String get notifications =>
       _isArabic ? 'إشعارات المباريات' : 'Match notifications';
   String get notificationsPrefsBody => _isArabic
-      ? 'تنبيهات الأهداف والجولات (وضع تجريبي محلي فقط).'
-      : 'Goals & kick-off alerts (local preference only for now).';
+      ? 'اختر أنواع التنبيهات التي تريد استلامها.'
+      : 'Choose which alerts you want to receive.';
   String get pushNotificationsComingSoon => _isArabic
       ? 'الإشعارات الذكية للمباريات قريبًا'
       : 'Smart match notifications coming soon';
