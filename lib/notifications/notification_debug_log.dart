@@ -41,6 +41,8 @@ class NotificationDebugLog {
 
   static void received({
     required String type,
+    required String deliveryPhase,
+    String? topic,
     int? matchId,
     int? teamId,
     int? competitionId,
@@ -48,13 +50,15 @@ class NotificationDebugLog {
   }) {
     if (!kDebugMode) return;
     final ctx = <String>[
+      'phase=$deliveryPhase',
+      if (topic != null && topic.isNotEmpty) 'topic=$topic',
       if (matchId != null) 'match=$matchId',
       if (teamId != null) 'team=$teamId',
       if (competitionId != null) 'competition=$competitionId',
     ].join(' ');
+    final opened = openedApp ? ' openedApp' : '';
     debugPrint(
-      '[Kickora Notifications] received type=$type '
-      '${openedApp ? 'openedApp ' : ''}$ctx'.trim(),
+      '[Kickora Notifications] received type=$type$opened $ctx'.trim(),
     );
   }
 

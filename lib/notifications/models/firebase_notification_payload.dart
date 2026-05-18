@@ -10,6 +10,7 @@ class FirebaseNotificationPayload {
     this.matchId,
     this.teamId,
     this.competitionId,
+    this.topic,
     this.homeTeam,
     this.awayTeam,
     this.minute,
@@ -23,6 +24,7 @@ class FirebaseNotificationPayload {
   final int? matchId;
   final int? teamId;
   final int? competitionId;
+  final String? topic;
   final String? homeTeam;
   final String? awayTeam;
   final String? minute;
@@ -41,6 +43,7 @@ class FirebaseNotificationPayload {
       matchId: _intOrNull(data['matchId'] ?? data['fixture_id']),
       teamId: _intOrNull(data['teamId'] ?? data['team_id']),
       competitionId: _intOrNull(data['competitionId'] ?? data['league_id']),
+      topic: data['topic']?.toString(),
       homeTeam: data['homeTeam']?.toString(),
       awayTeam: data['awayTeam']?.toString(),
       minute: data['minute']?.toString(),

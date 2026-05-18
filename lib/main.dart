@@ -1,4 +1,6 @@
-﻿import 'package:flutter/services.dart';
+﻿import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,6 +19,7 @@ import 'ads/ad_service.dart';
 import 'subscription/premium_service.dart';
 import 'subscription/premium_subscription_service.dart';
 import 'core/refresh/match_refresh_service.dart';
+import 'notifications/fcm_background_handler.dart';
 import 'notifications/services/kickora_notification_service.dart';
 import 'services/app_controller.dart';
 import 'services/favorite_manager.dart';
@@ -25,6 +28,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await FirebaseService.initialize();
+  if (FirebaseService.isInitialized && _registerFcmBackgroundHandler) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
   await AnalyticsService.instance.initialize();
   await CrashlyticsService.instance.initialize();
   ApiModeService.logConfiguration();
@@ -34,8 +40,7 @@ Future<void> main() async {
   final premiumService = PremiumService(premiumSubscriptionService);
   AdService.instance.bindPremium(premiumSubscriptionService);
   await AdService.instance.initialize();
-  final notificationService =
-      KickoraNotificationService.createMock(preferences);
+  final notificationService = KickoraNotificationService.create(preferences);
   await notificationService.initialize();
   FirebaseService.logStartupStatus(
     notificationsEnabled: notificationService.isEnabled,
@@ -68,4 +73,10 @@ Future<void> main() async {
   );
   await controller.load();
   runApp(KickoraApp(controller: controller));
+}
+
+bool get _registerFcmBackgroundHandler {
+  if (kIsWeb) return false;
+  return defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 }

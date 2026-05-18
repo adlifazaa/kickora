@@ -3,17 +3,22 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/firebase/firebase_service.dart';
+import '../fcm_local_display.dart';
 import '../models/firebase_notification_payload.dart';
 import '../models/kickora_notification.dart';
 import '../models/notification_permission_status.dart';
+import '../models/notification_tap_intent.dart';
 import '../models/notification_type.dart';
 import '../notification_manager.dart';
+import 'fcm_permission_handler.dart';
+import 'firebase_messaging_bridge.dart';
 import 'firebase_notification_bridge.dart';
 import 'local_notification_helper.dart';
 import 'notification_permission_handler.dart';
 import 'notification_service.dart';
 
-/// App-facing notifications API (mock-safe; FCM foundation via [NotificationManager]).
+/// App-facing notifications API (FCM + local display when Firebase is configured).
 class KickoraNotificationService {
   KickoraNotificationService({
     required NotificationManager manager,
@@ -23,6 +28,7 @@ class KickoraNotificationService {
         _local = localHelper,
         _firebaseBridge = firebaseBridge;
 
+  /// Mock stack for tests and platforms without FCM.
   factory KickoraNotificationService.createMock(SharedPreferences prefs) {
     final bridge = MockFirebaseNotificationBridge();
     final fcm = NotificationService(bridge);
@@ -38,12 +44,46 @@ class KickoraNotificationService {
     );
   }
 
+  /// Live FCM when [FirebaseService] initialized on Android/iOS; otherwise mock.
+  factory KickoraNotificationService.create(SharedPreferences prefs) {
+    if (FirebaseService.isInitialized && _supportsPush) {
+      final bridge = FirebaseMessagingBridge();
+      final fcm = NotificationService(bridge);
+      final manager = NotificationManager(
+        notificationService: fcm,
+        permissionHandler: FcmPermissionHandler(prefs),
+        preferences: prefs,
+      );
+      return KickoraNotificationService(
+        manager: manager,
+        localHelper: FlutterLocalNotificationsHelper(),
+        firebaseBridge: bridge,
+      );
+    }
+    return KickoraNotificationService.createMock(prefs);
+  }
+
+  static bool get _supportsPush {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   final NotificationManager _manager;
   final LocalNotificationHelper _local;
   final FirebaseNotificationBridge? _firebaseBridge;
 
   StreamSubscription<FirebaseNotificationPayload>? _foregroundSub;
+  StreamSubscription<FirebaseNotificationPayload>? _openedSub;
   bool _initialized = false;
+
+  final _tapController = StreamController<NotificationTapIntent>.broadcast();
+
+  /// Cold-start tap intent (consume once after app boots).
+  NotificationTapIntent? pendingTapIntent;
+
+  /// Future navigation: listen for notification taps (match/team screens).
+  Stream<NotificationTapIntent> get onNotificationTap => _tapController.stream;
 
   static const String enabledPreferenceKey =
       NotificationManager.enabledPreferenceKey;
@@ -60,12 +100,16 @@ class KickoraNotificationService {
   MockLocalNotificationHelper? get mockLocal =>
       _local is MockLocalNotificationHelper ? _local : null;
 
+  FirebaseMessagingBridge? get _messagingBridge =>
+      _firebaseBridge is FirebaseMessagingBridge ? _firebaseBridge : null;
+
   Future<void> initialize() async {
     if (_initialized) return;
     await _local.initialize();
     await _manager.initialize();
     _foregroundSub = _manager.onForegroundMessage.listen(_onForegroundFcm);
-    _manager.onMessageOpenedApp.listen(_onOpenedFcm);
+    _openedSub = _manager.onMessageOpenedApp.listen(_onOpenedFcm);
+    await _consumeInitialMessage();
     _initialized = true;
     if (kDebugMode) {
       debugPrint(
@@ -75,11 +119,24 @@ class KickoraNotificationService {
     }
   }
 
+  Future<void> _consumeInitialMessage() async {
+    final bridge = _messagingBridge;
+    if (bridge == null || !isEnabled) return;
+    final payload = await bridge.getInitialMessage();
+    if (payload == null) return;
+    _publishTapIntent(payload, coldStart: true);
+  }
+
   Future<void> dispose() async {
     await _foregroundSub?.cancel();
+    await _openedSub?.cancel();
+    await _tapController.close();
     await _manager.dispose();
-    if (_firebaseBridge is MockFirebaseNotificationBridge) {
-      _firebaseBridge.dispose();
+    final bridge = _firebaseBridge;
+    if (bridge is MockFirebaseNotificationBridge) {
+      bridge.dispose();
+    } else if (bridge is FirebaseMessagingBridge) {
+      bridge.dispose();
     }
   }
 
@@ -304,10 +361,23 @@ class KickoraNotificationService {
   }
 
   Future<void> _onOpenedFcm(FirebaseNotificationPayload payload) async {
+    if (!isEnabled) return;
+    _publishTapIntent(payload);
+  }
+
+  void _publishTapIntent(FirebaseNotificationPayload payload,
+      {bool coldStart = false}) {
+    final intent = NotificationTapIntent.fromPayload(payload);
+    pendingTapIntent = intent;
+    if (!_tapController.isClosed) {
+      _tapController.add(intent);
+    }
     if (kDebugMode) {
       debugPrint(
-        '[Kickora Notifications] opened → match=${payload.matchId} '
-        'type=${payload.type.wireValue}',
+        '[Kickora Notifications] tap intent '
+        'coldStart=$coldStart match=${intent.matchId} '
+        'team=${intent.teamId} type=${intent.type.wireValue} '
+        'topic=${intent.topic ?? '—'}',
       );
     }
   }

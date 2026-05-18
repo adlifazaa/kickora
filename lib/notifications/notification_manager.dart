@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/firebase_notification_payload.dart';
 import 'models/notification_permission_status.dart';
-import 'models/notification_type.dart';
 import 'notification_channels.dart';
 import 'notification_debug_log.dart';
 import 'services/notification_permission_handler.dart';
@@ -278,23 +277,10 @@ class NotificationManager {
 
   void _onForeground(FirebaseNotificationPayload payload) {
     if (!isEnabled) return;
-    NotificationDebugLog.received(
-      type: payload.type.wireValue,
-      matchId: payload.matchId,
-      teamId: payload.teamId,
-      competitionId: payload.competitionId,
-    );
     _foregroundController.add(payload);
   }
 
   void _onOpened(FirebaseNotificationPayload payload) {
-    NotificationDebugLog.received(
-      type: payload.type.wireValue,
-      matchId: payload.matchId,
-      teamId: payload.teamId,
-      competitionId: payload.competitionId,
-      openedApp: true,
-    );
     _openedController.add(payload);
   }
 
