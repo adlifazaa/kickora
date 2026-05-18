@@ -249,6 +249,8 @@ class FootballRepository {
       leagueId: leagueId ?? _mockMatchById(matchId)?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
+      memoryKey: 'mem_events_$fid',
+      memoryTtl: ApiCachePolicy.matchEvents,
       fetch: () => _remote.fetchMatchEvents(fid),
       mockValue: () => _mockMatchById(matchId)?.events ?? const [],
       emptyValue: () => const <MatchEventModel>[],
@@ -267,6 +269,8 @@ class FootballRepository {
       leagueId: leagueId ?? _mockMatchById(matchId)?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
+      memoryKey: 'mem_stats_$fid',
+      memoryTtl: ApiCachePolicy.matchStatistics,
       fetch: () => _remote.fetchMatchStatistics(fid),
       mockValue: () => _mockMatchById(matchId)?.stats ?? const [],
       emptyValue: () => const <MatchStatisticModel>[],
@@ -286,6 +290,8 @@ class FootballRepository {
       leagueId: leagueId ?? match?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
+      memoryKey: 'mem_lineups_$fid',
+      memoryTtl: ApiCachePolicy.matchLineups,
       fetch: () => _remote.fetchLineups(fid),
       mockValue: () => (home: match?.homeLineup, away: match?.awayLineup),
       emptyValue: () => (home: null, away: null),
@@ -323,6 +329,20 @@ class FootballRepository {
       final hit =
           _readMemory<List<StandingModel>>(memKey, ApiCachePolicy.standings);
       if (hit != null) return hit;
+      final disk = _remote.readCachedStandings(leagueId);
+      if (disk != null && disk.isNotEmpty) {
+        final cached = DataState.success(disk, fromMock: false, fromCache: true);
+        _storeMemory(memKey, cached, false);
+        ApiDebugLog.dataSource(
+          operation: 'getStandings',
+          source: 'cache-disk',
+          count: disk.length,
+        );
+        _scheduleQuietRefresh(
+          () => _refreshStandingsQuietly(leagueId, memKey),
+        );
+        return cached;
+      }
     } else {
       _memory.remove(memKey);
     }
@@ -374,6 +394,18 @@ class FootballRepository {
         ApiCachePolicy.competitions,
       );
       if (hit != null) return hit;
+      final disk = _remote.readCachedCompetitions();
+      if (disk != null && disk.isNotEmpty) {
+        final cached = DataState.success(disk, fromMock: false, fromCache: true);
+        _storeMemory(memKey, cached, false);
+        ApiDebugLog.dataSource(
+          operation: operation,
+          source: 'cache-disk',
+          count: disk.length,
+        );
+        _scheduleQuietRefresh(() => _refreshCompetitionsQuietly(memKey));
+        return cached;
+      }
     } else {
       _memory.remove(memKey);
     }
@@ -433,6 +465,20 @@ class FootballRepository {
     if (!forceRefresh && RemoteFootballSource.isRemoteActive) {
       final hit = _readMemory<List<TeamModel>>(memKey, ApiCachePolicy.teams);
       if (hit != null) return hit;
+      final disk = _remote.readCachedTeams(competitionId);
+      if (disk != null && disk.isNotEmpty) {
+        final cached = DataState.success(disk, fromMock: false, fromCache: true);
+        _storeMemory(memKey, cached, false);
+        ApiDebugLog.dataSource(
+          operation: 'getCompetitionTeams',
+          source: 'cache-disk',
+          count: disk.length,
+        );
+        _scheduleQuietRefresh(
+          () => _refreshTeamsQuietly(competitionId, memKey),
+        );
+        return cached;
+      }
     } else if (forceRefresh) {
       _memory.remove(memKey);
     }
@@ -517,6 +563,18 @@ class FootballRepository {
     if (cached != null) {
       PlayerPhotoResolver.cacheProfilePhoto(id, cached.photoUrl);
       return DataState.success(cached, fromMock: false, fromCache: true);
+    }
+    final disk = _remote.readCachedPlayerById(id);
+    if (disk != null) {
+      _memory.put(memKey, disk);
+      PlayerPhotoResolver.cacheProfilePhoto(id, disk.photoUrl);
+      ApiDebugLog.dataSource(
+        operation: 'getPlayerById',
+        source: 'cache-disk',
+        count: 1,
+      );
+      _scheduleQuietRefresh(() => _refreshPlayerQuietly(id, memKey));
+      return DataState.success(disk, fromMock: false, fromCache: true);
     }
     try {
       final remote = await _remote.fetchPlayerById(id);
@@ -675,9 +733,15 @@ class FootballRepository {
     String? endpoint,
     int? leagueId,
     bool Function(T value)? isEmpty,
+    String? memoryKey,
+    Duration? memoryTtl,
   }) async {
     if (!RemoteFootballSource.isRemoteActive) {
       return DataState.success(mockValue(), fromMock: true);
+    }
+    if (memoryKey != null && memoryTtl != null) {
+      final hit = _readMemory<T>(memoryKey, memoryTtl);
+      if (hit != null) return hit;
     }
     final path = endpoint ?? operation;
     final leagueLabel = leagueId?.toString() ?? 'unknown';
@@ -693,7 +757,9 @@ class FootballRepository {
         empty: empty,
         failed: false,
       );
-      return DataState.success(data, fromMock: false);
+      final result = DataState.success(data, fromMock: false);
+      if (memoryKey != null) _storeMemory(memoryKey, result, false);
+      return result;
     } on ApiException catch (e) {
       if (e.isNotConfigured || allowMock) {
         return DataState.success(mockValue(), fromMock: true);
@@ -709,7 +775,9 @@ class FootballRepository {
           empty: true,
           failed: false,
         );
-        return DataState.success(empty, fromMock: false);
+        final result = DataState.success(empty, fromMock: false);
+        if (memoryKey != null) _storeMemory(memoryKey, result, false);
+        return result;
       }
       logMatchDetailsEndpoint(
         matchId: fixtureId,
@@ -794,6 +862,59 @@ class FootballRepository {
   void _storeMemory<T>(String key, DataState<T> state, bool forceRefresh) {
     if (forceRefresh || state.hasError) return;
     _memory.put(key, state);
+  }
+
+  void _scheduleQuietRefresh(Future<void> Function() action) {
+    Future.microtask(action);
+  }
+
+  Future<void> _refreshCompetitionsQuietly(String memKey) async {
+    try {
+      final data = await _remote.fetchCompetitions(skipCache: true);
+      _storeMemory(
+        memKey,
+        DataState.success(data, fromMock: false),
+        true,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _refreshTeamsQuietly(int competitionId, String memKey) async {
+    try {
+      final data = await _remote.fetchTeams(
+        competitionId: competitionId,
+        skipCache: true,
+      );
+      _storeMemory(
+        memKey,
+        DataState.success(data, fromMock: false),
+        true,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _refreshStandingsQuietly(int leagueId, String memKey) async {
+    try {
+      final data = await _remote.fetchStandings(
+        leagueId: leagueId,
+        skipCache: true,
+      );
+      _storeMemory(
+        memKey,
+        DataState.success(data, fromMock: false),
+        true,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _refreshPlayerQuietly(int id, String memKey) async {
+    try {
+      final player = await _remote.fetchPlayerById(id);
+      if (player != null) {
+        _memory.put(memKey, player);
+        PlayerPhotoResolver.cacheProfilePhoto(id, player.photoUrl);
+      }
+    } catch (_) {}
   }
 
   String _matchMemKey(

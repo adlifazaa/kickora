@@ -9,6 +9,9 @@ enum CacheBucket {
   standings,
   competitions,
   matchDetails,
+  matchEvents,
+  matchStatistics,
+  matchLineups,
   teams,
   upcomingMatches,
   finishedMatches,
@@ -33,6 +36,12 @@ class CacheService {
         return ApiCachePolicy.competitions;
       case CacheBucket.matchDetails:
         return ApiCachePolicy.matchDetails;
+      case CacheBucket.matchEvents:
+        return ApiCachePolicy.matchEvents;
+      case CacheBucket.matchStatistics:
+        return ApiCachePolicy.matchStatistics;
+      case CacheBucket.matchLineups:
+        return ApiCachePolicy.matchLineups;
       case CacheBucket.teams:
         return ApiCachePolicy.teams;
       case CacheBucket.upcomingMatches:

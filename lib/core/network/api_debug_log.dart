@@ -84,12 +84,18 @@ class ApiDebugLog {
     String dataSource = 'api',
   }) {
     if (!kDebugMode) return;
-    final count = results != null ? ' resultCount=$results' : '';
-    final err = errorCode != null ? ' error=$errorCode' : '';
-    debugPrint(
-      '[Kickora] apiMode=${ApiModeService.mode.name} '
-      'request#$requestId ← HTTP $statusCode $path '
-      'dataSource=$dataSource$count$err',
+    if (errorCode != null) {
+      failure(path, errorCode);
+      return;
+    }
+    requestOutcome(
+      path: path,
+      cacheHit: false,
+      deduped: false,
+      resultCount: results,
+      dataSource: dataSource,
+      requestId: requestId,
+      statusCode: statusCode,
     );
   }
 
@@ -98,11 +104,14 @@ class ApiDebugLog {
     required bool hit,
     required String bucket,
     String layer = 'disk',
+    int? resultCount,
   }) {
     if (!kDebugMode) return;
-    debugPrint(
-      '[Kickora] apiMode=${ApiModeService.mode.name} '
-      'cache ${hit ? 'HIT' : 'MISS'} layer=$layer bucket=$bucket key=$key',
+    requestOutcome(
+      path: '$bucket:$key',
+      cacheHit: hit,
+      resultCount: resultCount,
+      dataSource: layer,
     );
   }
 
@@ -119,8 +128,28 @@ class ApiDebugLog {
   }
 
   static void deduped(String dedupeKey) {
+    requestOutcome(path: dedupeKey, cacheHit: false, deduped: true);
+  }
+
+  /// Unified debug line for cache + HTTP (never logs secrets).
+  static void requestOutcome({
+    required String path,
+    required bool cacheHit,
+    bool deduped = false,
+    int? resultCount,
+    String dataSource = 'api',
+    int? requestId,
+    int? statusCode,
+  }) {
     if (!kDebugMode) return;
-    debugPrint('[Kickora] deduped in-flight $dedupeKey');
+    final count = resultCount != null ? ' resultCount=$resultCount' : '';
+    final req = requestId != null ? ' request#$requestId' : '';
+    final http = statusCode != null ? ' status=$statusCode' : '';
+    debugPrint(
+      '[Kickora API] path=$path apiMode=${ApiModeService.mode.name} '
+      'cache=${cacheHit ? 'HIT' : 'MISS'} deduped=$deduped '
+      'dataSource=$dataSource$count$req$http',
+    );
   }
 
   static void retry(String path, int attempt, String reason) {

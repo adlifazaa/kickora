@@ -2,6 +2,7 @@ import '../network/api_debug_log.dart';
 import 'api_constants.dart';
 import 'api_developer_config.dart';
 import 'api_mode.dart';
+import 'api_production_guidance.dart';
 
 /// Resolves and exposes the active football data mode (compile-time via dart-define).
 class ApiModeService {
@@ -31,6 +32,9 @@ class ApiModeService {
   /// Boot-time developer summary + misconfiguration hints (debug console only).
   static void logConfiguration() {
     ApiDebugLog.boot();
+    for (final message in ApiProductionGuidance.bootMessages()) {
+      ApiDebugLog.configurationWarning(message);
+    }
     for (final warning in configurationWarnings) {
       ApiDebugLog.configurationWarning(warning);
     }

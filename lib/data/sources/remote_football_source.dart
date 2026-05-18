@@ -251,7 +251,7 @@ class RemoteFootballSource {
     return list;
   }
 
-  // --- Match details ---
+  // --- Match details (lazy: only from match details screen via repository) ---
 
   Future<MatchModel?> fetchMatchDetails(int matchId) async {
     _ensureActive();
@@ -279,20 +279,34 @@ class RemoteFootballSource {
 
   Future<List<MatchEventModel>> fetchMatchEvents(int matchId) async {
     _ensureActive();
+    final cacheKey = 'remote_events_$matchId';
+    final cached = _readMatchEvents(cacheKey);
+    if (cached != null) {
+      _log('getMatchEvents', 'cache', cached.length);
+      return cached;
+    }
     final list = await _call(
       () => _apiFootball.getMatchEvents(matchId),
       () => _backendProxy.getMatchEvents(matchId),
     );
+    await _writeMatchEvents(cacheKey, list);
     _log('getMatchEvents', _sourceLabel, list.length);
     return list;
   }
 
   Future<List<MatchStatisticModel>> fetchMatchStatistics(int matchId) async {
     _ensureActive();
+    final cacheKey = 'remote_stats_$matchId';
+    final cached = _readMatchStatistics(cacheKey);
+    if (cached != null) {
+      _log('getMatchStatistics', 'cache', cached.length);
+      return cached;
+    }
     final list = await _call(
       () => _apiFootball.getMatchStatistics(matchId),
       () => _backendProxy.getMatchStatistics(matchId),
     );
+    await _writeMatchStatistics(cacheKey, list);
     _log('getMatchStatistics', _sourceLabel, list.length);
     return list;
   }
@@ -569,6 +583,64 @@ class RemoteFootballSource {
       key,
       list.map(_playerToJson).toList(),
       CacheBucket.playerProfile,
+    );
+  }
+
+  List<MatchEventModel>? _readMatchEvents(String key) {
+    final list = _cache?.readJsonList(key, CacheBucket.matchEvents);
+    if (list == null) return null;
+    return list
+        .whereType<Map>()
+        .map((e) => MatchEventModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList(growable: false);
+  }
+
+  Future<void> _writeMatchEvents(String key, List<MatchEventModel> list) async {
+    await _cache?.writeJsonList(
+      key,
+      list
+          .map(
+            (e) => {
+              'minute': e.minute,
+              'type': e.type.name,
+              'playerName': e.playerName,
+              'assistName': e.assistName,
+              'detail': e.description,
+              'isHome': e.isHome,
+            },
+          )
+          .toList(),
+      CacheBucket.matchEvents,
+    );
+  }
+
+  List<MatchStatisticModel>? _readMatchStatistics(String key) {
+    final list = _cache?.readJsonList(key, CacheBucket.matchStatistics);
+    if (list == null) return null;
+    return list
+        .whereType<Map>()
+        .map((e) => MatchStatisticModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList(growable: false);
+  }
+
+  Future<void> _writeMatchStatistics(
+    String key,
+    List<MatchStatisticModel> list,
+  ) async {
+    await _cache?.writeJsonList(
+      key,
+      list
+          .map(
+            (s) => {
+              'title': s.title,
+              'home': s.home,
+              'away': s.away,
+              'homeDisplay': s.homeValue,
+              'awayDisplay': s.awayValue,
+            },
+          )
+          .toList(),
+      CacheBucket.matchStatistics,
     );
   }
 

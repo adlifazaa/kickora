@@ -13,7 +13,11 @@ class ApiRequestCoordinator {
   Future<T> run<T>(String dedupeKey, Future<T> Function() action) {
     final existing = _inFlight[dedupeKey];
     if (existing != null) {
-      ApiDebugLog.deduped(dedupeKey);
+      ApiDebugLog.requestOutcome(
+        path: dedupeKey,
+        cacheHit: false,
+        deduped: true,
+      );
       return existing as Future<T>;
     }
 

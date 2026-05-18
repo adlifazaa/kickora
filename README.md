@@ -2,15 +2,17 @@
 
 Flutter football app (`com.kickora.live`). **Mock data is the default** for Play Store and everyday development — no API keys in the repo or release binaries.
 
-## Developer API test mode (console only)
+## API modes and production cost control
 
-Debug builds print a single-line trace per fetch:
+| Mode | Use case | Command |
+|------|----------|---------|
+| **mock** (default) | UI work, tests, Play Store without your backend | `flutter run` |
+| **directApi** | Local developer testing with your own API-Football key | see below |
+| **backendProxy** | **Recommended for production** — keys stay on your server | see below |
 
-```text
-[Kickora Dev] getLiveMatches apiMode=mock dataSource=mock resultCount=2
-```
+Production should use **backendProxy + aggressive caching**, not directApi. The app caches live fixtures (~45s), lists (5–10 min), standings (~20 min), and stable catalogs (24h). Events, statistics, and lineups load **only on the match details screen**, never for list rows.
 
-Never commit real API keys. Pass credentials only via `--dart-define` at run/build time.
+Debug builds log each request (no secrets): endpoint path, api mode, cache hit/miss, deduped flag, and result count.
 
 ### Mock mode (default)
 
@@ -28,11 +30,13 @@ Optional explicit flag:
 flutter run --dart-define=KICKORA_API_MODE=mock
 ```
 
-### Direct API-Football (local testing)
+### Direct API-Football (developer testing only)
 
 ```bash
 flutter run --dart-define=KICKORA_API_MODE=direct --dart-define=KICKORA_API_KEY=YOUR_KEY
 ```
+
+**Do not ship directApi to the Play Store.** The console warns: *directApi is for development only. Use backendProxy in production.*
 
 If `KICKORA_API_MODE=direct` is set **without** a key, the app logs a friendly warning and **falls back to mock data** (no crash).
 
@@ -48,7 +52,7 @@ Lower refresh pressure while testing:
 flutter run --dart-define=KICKORA_API_MODE=direct --dart-define=KICKORA_API_KEY=YOUR_KEY --dart-define=KICKORA_API_DEV_MODE=true
 ```
 
-### Backend proxy (production-style)
+### Backend proxy (recommended production mode)
 
 ```bash
 flutter run --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND_URL=https://your-api.example.com
@@ -58,11 +62,22 @@ Aliases: `backendproxy`, `backend_proxy`. Without a URL, the app warns and uses 
 
 ### Play Store release
 
-Ship **without** `KICKORA_API_KEY` or direct mode — default mock or your hosted backend URL only:
+Ship **without** `KICKORA_API_KEY` or direct mode — use backend proxy only:
 
 ```bash
 flutter build appbundle --release --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND_URL=https://your-api.example.com
 ```
+
+## Developer API test mode (console only)
+
+Debug builds print a single-line trace per fetch:
+
+```text
+[Kickora Dev] getLiveMatches apiMode=mock dataSource=mock resultCount=2
+[Kickora API] path=/fixtures/live apiMode=mock cache=MISS deduped=false resultCount=2
+```
+
+Never commit real API keys. Pass credentials only via `--dart-define` at run/build time.
 
 ## Getting Started
 

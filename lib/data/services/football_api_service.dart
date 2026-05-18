@@ -205,7 +205,7 @@ class FootballApiService {
     if (!isLive) throw const ApiException.notConfigured();
 
     final cacheKey = 'cache_events_$matchId';
-    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.matchDetails);
+    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.matchEvents);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -225,7 +225,7 @@ class FootballApiService {
     await _cacheService?.writeJsonList(
       cacheKey,
       events.map(_eventToJson).toList(),
-      CacheBucket.matchDetails,
+      CacheBucket.matchEvents,
     );
     return events;
   }
@@ -234,7 +234,8 @@ class FootballApiService {
     if (!isLive) throw const ApiException.notConfigured();
 
     final cacheKey = 'cache_stats_$matchId';
-    final cached = _cacheService?.readJsonList(cacheKey, CacheBucket.matchDetails);
+    final cached =
+        _cacheService?.readJsonList(cacheKey, CacheBucket.matchStatistics);
     if (cached != null) {
       return cached
           .whereType<Map>()
@@ -263,7 +264,7 @@ class FootballApiService {
             },
           )
           .toList(),
-      CacheBucket.matchDetails,
+      CacheBucket.matchStatistics,
     );
     return stats;
   }
