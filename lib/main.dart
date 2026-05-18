@@ -37,6 +37,9 @@ Future<void> main() async {
   final notificationService =
       KickoraNotificationService.createMock(preferences);
   await notificationService.initialize();
+  FirebaseService.logStartupStatus(
+    notificationsEnabled: notificationService.isEnabled,
+  );
   final favoriteManager = FavoriteManager(
     preferences,
     notificationService: notificationService,

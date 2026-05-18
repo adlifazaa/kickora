@@ -5,14 +5,14 @@ import 'package:kickora/core/firebase/firebase_features.dart';
 import 'package:kickora/core/firebase/firebase_service.dart';
 
 void main() {
-  test('Firebase product features disabled by default', () {
-    expect(FirebaseService.featuresEnabled, isFalse);
-    expect(FirebaseFeatures.productEnabled, isFalse);
+  test('Firebase features off until core initializes', () {
+    expect(FirebaseService.isInitialized, isFalse);
+    expect(FirebaseFeatures.isConfigured, isFalse);
     expect(FirebaseFeatures.analyticsEnabled, isFalse);
     expect(FirebaseFeatures.crashlyticsEnabled, isFalse);
   });
 
-  test('AnalyticsService is disabled without Firebase product flag', () async {
+  test('AnalyticsService is disabled without Firebase init', () async {
     final analytics = AnalyticsService.instance;
     expect(analytics.isEnabled, isFalse);
 
@@ -27,7 +27,7 @@ void main() {
     expect(analytics.isEnabled, isFalse);
   });
 
-  test('CrashlyticsService is disabled without Firebase product flag', () async {
+  test('CrashlyticsService is disabled without Firebase init', () async {
     final crashlytics = CrashlyticsService.instance;
     expect(crashlytics.isEnabled, isFalse);
 
