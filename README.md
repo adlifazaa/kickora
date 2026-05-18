@@ -79,6 +79,49 @@ Debug builds print a single-line trace per fetch:
 
 Never commit real API keys. Pass credentials only via `--dart-define` at run/build time.
 
+## Firebase
+
+- Add `google-services.json` (Android) and `GoogleService-Info.plist` (iOS).
+- `lib/firebase_options.dart` is generated via FlutterFire CLI.
+- Analytics and Crashlytics activate only after `FirebaseService.initialize()` succeeds.
+- FCM background handler is registered on Android/iOS when Firebase is ready.
+
+## Notifications
+
+- **Off by default** on first install — no OS permission dialog until the user enables notifications in Settings.
+- Topic pattern: `team_{id}`, `match_{id}`, `competition_{id}`.
+- Types: `goal_scored`, `match_started`, `red_card`, `match_finished`, `favorite_team_update`, `favorite_competition_update`, `favorite_match_update`.
+
+## AdMob (native only)
+
+- Package: `google_mobile_ads`
+- Test ad units by default (`AdUnitIds`).
+- Real ads require:
+
+```bash
+flutter run --dart-define=KICKORA_ADS_ENABLED=true
+```
+
+Optional production unit overrides: `KICKORA_AD_NATIVE_MATCH_LIST`, `KICKORA_AD_NATIVE_COMPETITION`, etc.
+
+## Premium (Google Play Billing)
+
+- Product ID: `kickora_premium_yearly`
+- Billing uses `in_app_purchase` when the store is available on the device.
+- Premium unlocks only after a successful purchase or restore — never faked in production UI.
+
+## Release build
+
+```bash
+flutter clean
+flutter pub get
+flutter analyze
+flutter test
+flutter build appbundle --release --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND_URL=https://your-api.example.com
+```
+
+See `docs/release_checklist.md`, `docs/privacy_policy.md`, and `docs/terms_conditions.md`.
+
 ## Getting Started
 
 See [Flutter documentation](https://docs.flutter.dev/) for environment setup.

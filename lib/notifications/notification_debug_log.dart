@@ -79,4 +79,25 @@ class NotificationDebugLog {
     if (!kDebugMode) return;
     debugPrint('[Kickora Notifications] permission request → $result');
   }
+
+  static void routing({
+    required String type,
+    required String target,
+    int? matchId,
+    int? teamId,
+    int? competitionId,
+    String? topic,
+  }) {
+    if (!kDebugMode) return;
+    final ctx = <String>[
+      'target=$target',
+      if (topic != null && topic.isNotEmpty) 'topic=$topic',
+      if (matchId != null) 'match=$matchId',
+      if (teamId != null) 'team=$teamId',
+      if (competitionId != null) 'competition=$competitionId',
+    ].join(' ');
+    debugPrint(
+      '[Kickora Notifications] routing type=$type $ctx'.trim(),
+    );
+  }
 }

@@ -75,6 +75,16 @@ class AnalyticsService {
       });
 
   /// Logs search activity using query length only (no query text — privacy safe).
+  Future<void> logPremiumScreenOpened() =>
+      _run('premium_screen_opened', () async {
+        await _analytics!.logEvent(name: 'premium_screen_opened');
+      });
+
+  Future<void> logNotificationEnabled() =>
+      _run('notification_enabled', () async {
+        await _analytics!.logEvent(name: 'notification_enabled');
+      });
+
   Future<void> logSearch(String query) => _run('search', () async {
         final length = query.trim().length;
         if (length == 0) return;

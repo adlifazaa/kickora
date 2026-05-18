@@ -16,8 +16,10 @@ import 'data/providers/football_data_provider_factory.dart';
 import 'data/services/api_football/api_football_service.dart';
 import 'data/services/backend_proxy/backend_proxy_service.dart';
 import 'ads/ad_service.dart';
+import 'subscription/play_billing_bridge.dart';
 import 'subscription/premium_service.dart';
 import 'subscription/premium_subscription_service.dart';
+import 'subscription/mock_subscription_bridge.dart';
 import 'core/refresh/match_refresh_service.dart';
 import 'notifications/fcm_background_handler.dart';
 import 'notifications/services/kickora_notification_service.dart';
@@ -32,11 +34,17 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
   await AnalyticsService.instance.initialize();
+  await AnalyticsService.instance.logAppOpen();
   await CrashlyticsService.instance.initialize();
   ApiModeService.logConfiguration();
   final preferences = await SharedPreferences.getInstance();
-  final premiumSubscriptionService = PremiumSubscriptionService(preferences);
+  final billingBridge = await PlayBillingBridge.create();
+  final premiumSubscriptionService = PremiumSubscriptionService(
+    preferences,
+    paymentBridge: billingBridge ?? const MockSubscriptionBridge(),
+  );
   await premiumSubscriptionService.load();
+  PremiumService.configurePayments(enabled: billingBridge != null);
   final premiumService = PremiumService(premiumSubscriptionService);
   AdService.instance.bindPremium(premiumSubscriptionService);
   await AdService.instance.initialize();

@@ -28,4 +28,14 @@ class AdDebugLog {
     final extra = reason != null ? ' ($reason)' : '';
     debugPrint('[Kickora Ads] native load skipped ${placement.name}$extra');
   }
+
+  static void nativeLoaded(AdPlacement placement) {
+    if (!kDebugMode) return;
+    debugPrint('[Kickora Ads] native loaded → ${placement.name}');
+  }
+
+  static void nativeLoadFailed(AdPlacement placement, String message) {
+    if (!kDebugMode) return;
+    debugPrint('[Kickora Ads] native failed ${placement.name}: $message');
+  }
 }

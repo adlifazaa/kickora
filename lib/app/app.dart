@@ -3,7 +3,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../services/app_controller.dart';
 import '../screens/splash_screen.dart';
+import '../notifications/notification_router.dart';
+import '../widgets/notification_tap_listener.dart';
 import 'app_scope.dart';
+import 'kickora_navigator.dart';
 import 'routes.dart';
 import 'theme.dart';
 
@@ -19,7 +22,15 @@ class KickoraApp extends StatelessWidget {
       child: AnimatedBuilder(
         animation: controller,
         builder: (context, _) {
-          return MaterialApp(
+          final router = NotificationRouter(
+            navigatorKey: kickoraNavigatorKey,
+            footballRepository: controller.footballRepository,
+          );
+          return NotificationTapListener(
+            controller: controller,
+            router: router,
+            child: MaterialApp(
+            navigatorKey: kickoraNavigatorKey,
             debugShowCheckedModeBanner: false,
             title: 'Kickora',
             theme: AppTheme.lightTheme,
@@ -41,6 +52,7 @@ class KickoraApp extends StatelessWidget {
                 child: child ?? const SplashScreen(),
               );
             },
+          ),
           );
         },
       ),

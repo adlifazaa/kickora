@@ -1,3 +1,6 @@
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+import 'ad_config.dart';
 import 'ad_debug_log.dart';
 import 'ad_frequency_controller.dart';
 import 'ad_placement.dart';
@@ -37,7 +40,16 @@ class AdService {
     if (remoteConfig != null) {
       await updateRemoteConfig(remoteConfig);
     }
-    // TODO(admob): await MobileAds.instance.initialize();
+    if (AdConfig.productionAdsEnabled) {
+      try {
+        await MobileAds.instance.initialize();
+      } catch (e) {
+        AdDebugLog.nativeLoadSkipped(
+          AdPlacement.feedNative,
+          reason: 'MobileAds init failed',
+        );
+      }
+    }
     await _native.prepareAllNativePlacements();
     _initialized = true;
     AdDebugLog.initialized(

@@ -3,12 +3,26 @@ import 'package:flutter/material.dart';
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
+import '../core/firebase/analytics_service.dart';
 import '../subscription/premium_service.dart';
 import '../subscription/subscription_plan.dart';
 
-/// Kickora Premium paywall — structure only; payments disabled until IAP ships.
-class PremiumScreen extends StatelessWidget {
+/// Kickora Premium paywall — yearly IAP when billing is available on device.
+class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
+
+  @override
+  State<PremiumScreen> createState() => _PremiumScreenState();
+}
+
+class _PremiumScreenState extends State<PremiumScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logPremiumScreenOpened();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,13 +84,27 @@ class PremiumScreen extends StatelessWidget {
     );
   }
 
-  void _onComingSoon(BuildContext context, AppText text, PremiumService premium) {
-    if (PremiumService.paymentsEnabled) {
-      premium.purchaseYearly();
+  Future<void> _onComingSoon(
+    BuildContext context,
+    AppText text,
+    PremiumService premium,
+  ) async {
+    if (!PremiumService.paymentsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(text.paymentsComingSoonMessage)),
+      );
       return;
     }
+    final purchased = await premium.purchaseYearly();
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text.paymentsComingSoonMessage)),
+      SnackBar(
+        content: Text(
+          purchased
+              ? text.premiumActiveSubtitle
+              : text.paymentsComingSoonMessage,
+        ),
+      ),
     );
   }
 

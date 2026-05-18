@@ -13,6 +13,7 @@ import '../models/notification_type.dart';
 import '../notification_manager.dart';
 import '../notification_preferences.dart';
 import '../notification_debug_log.dart';
+import '../notification_relevance.dart';
 import 'fcm_permission_handler.dart';
 import 'firebase_messaging_bridge.dart';
 import 'firebase_notification_bridge.dart';
@@ -413,7 +414,12 @@ class KickoraNotificationService {
   }) async {
     if (!isEnabled) return;
     final payload = FirebaseNotificationPayload.fromData(data);
-    if (!isTypeEnabled(payload.type)) return;
+    if (!await _shouldDeliver(
+      payload,
+      allowWhenTypeDisabled: openedApp,
+    )) {
+      return;
+    }
     if (openedApp) {
       await _onOpenedFcm(payload);
     } else {
@@ -428,18 +434,29 @@ class KickoraNotificationService {
     FirebaseNotificationPayload payload, {
     bool isArabic = false,
   }) async {
-    if (!isEnabled || !isTypeEnabled(payload.type)) return;
+    if (!await _shouldDeliver(payload)) return;
     await showLocal(payload.toKickoraNotification(isArabic: isArabic));
   }
 
   Future<void> _onForegroundFcm(FirebaseNotificationPayload payload) async {
-    if (!isEnabled || !isTypeEnabled(payload.type)) return;
+    if (!await _shouldDeliver(payload)) return;
     await showLocal(payload.toKickoraNotification());
   }
 
   Future<void> _onOpenedFcm(FirebaseNotificationPayload payload) async {
-    if (!isEnabled || !isTypeEnabled(payload.type)) return;
+    if (!isEnabled) return;
     _publishTapIntent(payload);
+  }
+
+  Future<bool> _shouldDeliver(
+    FirebaseNotificationPayload payload, {
+    bool allowWhenTypeDisabled = false,
+  }) async {
+    if (!isEnabled) return false;
+    if (!allowWhenTypeDisabled && !isTypeEnabled(payload.type)) {
+      return false;
+    }
+    return NotificationRelevance.shouldDeliver(payload);
   }
 
   void _publishTapIntent(FirebaseNotificationPayload payload,

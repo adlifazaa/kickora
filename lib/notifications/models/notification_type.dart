@@ -15,6 +15,12 @@ enum NotificationType {
   /// Favorite team match reminder / update.
   favoriteTeamUpdate,
 
+  /// Favorite competition update.
+  favoriteCompetitionUpdate,
+
+  /// Favorite match update.
+  favoriteMatchUpdate,
+
   /// @deprecated Use [matchStarted].
   matchStarting,
 
@@ -50,6 +56,10 @@ extension NotificationTypeX on NotificationType {
       case NotificationType.favoriteTeamUpdate:
       case NotificationType.favoriteTeamReminder:
         return 'favorite_team_update';
+      case NotificationType.favoriteCompetitionUpdate:
+        return 'favorite_competition_update';
+      case NotificationType.favoriteMatchUpdate:
+        return 'favorite_match_update';
     }
   }
 
@@ -76,6 +86,12 @@ extension NotificationTypeX on NotificationType {
       case 'favorite_team_reminder':
       case 'favorite_team':
         return NotificationType.favoriteTeamUpdate;
+      case 'favorite_competition_update':
+      case 'favorite_competition':
+        return NotificationType.favoriteCompetitionUpdate;
+      case 'favorite_match_update':
+      case 'favorite_match':
+        return NotificationType.favoriteMatchUpdate;
       default:
         return null;
     }
@@ -92,6 +108,9 @@ extension NotificationTypeX on NotificationType {
         return NotificationType.matchFinished;
       case NotificationType.favoriteTeamReminder:
         return NotificationType.favoriteTeamUpdate;
+      case NotificationType.favoriteCompetitionUpdate:
+      case NotificationType.favoriteMatchUpdate:
+        return this;
       default:
         return this;
     }

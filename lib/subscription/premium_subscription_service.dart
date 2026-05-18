@@ -76,8 +76,8 @@ class PremiumSubscriptionService extends ChangeNotifier {
   Future<bool> restorePurchases() async {
     final ok = await _paymentBridge.restorePurchases();
     if (!ok) return false;
-    notifyListeners();
-    return ok;
+    await _grant(SubscriptionPlanType.yearly, _durationFor(SubscriptionPlanType.yearly));
+    return true;
   }
 
   /// Mock-only: activate trial without payment (Settings → Remove ads flow).

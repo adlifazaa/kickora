@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/firebase/analytics_service.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../data/repositories/football_repository.dart';
 import '../notifications/notification_manager.dart';
@@ -163,6 +164,9 @@ class AppController extends ChangeNotifier {
       _notificationsEnabled,
     );
     await favoriteManager.onNotificationsEnabledChanged(_notificationsEnabled);
+    if (_notificationsEnabled) {
+      await AnalyticsService.instance.logNotificationEnabled();
+    }
     notifyListeners();
   }
 

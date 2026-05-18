@@ -59,6 +59,10 @@ class NotificationPreferences {
         return matchFinishedEnabled;
       case NotificationType.favoriteTeamUpdate:
         return favoriteTeamUpdatesEnabled;
+      case NotificationType.favoriteCompetitionUpdate:
+        return favoriteCompetitionUpdatesEnabled;
+      case NotificationType.favoriteMatchUpdate:
+        return favoriteMatchUpdatesEnabled;
       default:
         return true;
     }

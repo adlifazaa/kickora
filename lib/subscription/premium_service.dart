@@ -12,8 +12,12 @@ class PremiumService extends ChangeNotifier {
 
   final PremiumSubscriptionService _subscription;
 
-  /// Set `true` only after StoreKit / Play Billing is integrated and reviewed.
-  static const bool paymentsEnabled = false;
+  /// Set at startup when Play/App Store billing is available on device.
+  static bool paymentsEnabled = false;
+
+  static void configurePayments({required bool enabled}) {
+    paymentsEnabled = enabled;
+  }
 
   static const String yearlyProductId = 'kickora_premium_yearly';
 

@@ -4,6 +4,7 @@ import '../ads/ad_placement.dart';
 import '../ads/ad_service.dart';
 import '../app/app_scope.dart';
 import 'ad_placeholder.dart';
+import 'native_ad_widget.dart';
 
 /// In-feed or scroll-footer ad slot — [AdPlaceholder] only, never real AdMob UI.
 ///
@@ -39,6 +40,13 @@ class GentleAdSlot extends StatelessWidget {
           feedItemIndex: feedItemIndex,
         )) {
           return const SizedBox.shrink();
+        }
+
+        if (ads.shouldShowRealAd(placement)) {
+          return Padding(
+            padding: padding,
+            child: NativeAdWidget(placement: placement, height: height),
+          );
         }
 
         ads.recordPlaceholderImpression(placement);
