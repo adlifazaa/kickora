@@ -34,6 +34,11 @@ class NotificationDebugLog {
     debugPrint('[Kickora Notifications] topic unsubscribe → $topic');
   }
 
+  static void topicsRestored(int count) {
+    if (!kDebugMode) return;
+    debugPrint('[Kickora Notifications] restored topic count=$count');
+  }
+
   static void received({
     required String type,
     int? matchId,

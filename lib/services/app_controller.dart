@@ -128,6 +128,8 @@ class AppController extends ChangeNotifier {
     if (enabled) {
       final granted = await notificationService.enable(
         favoriteTeamIds: favoriteManager.teamIds,
+        favoriteMatchIds: favoriteManager.matchIds,
+        favoriteCompetitionIds: favoriteManager.competitionIds,
       );
       _notificationsEnabled = granted;
     } else {

@@ -86,13 +86,32 @@ class KickoraNotificationService {
   Future<NotificationPermissionStatus> permissionStatus() =>
       _manager.permissionStatus();
 
-  Future<bool> enable({Set<int> favoriteTeamIds = const {}}) =>
-      _manager.enable(favoriteTeamIds: favoriteTeamIds);
+  Future<bool> enable({
+    Set<int> favoriteTeamIds = const {},
+    Set<int> favoriteMatchIds = const {},
+    Set<int> favoriteCompetitionIds = const {},
+  }) =>
+      _manager.enable(
+        favoriteTeamIds: favoriteTeamIds,
+        favoriteMatchIds: favoriteMatchIds,
+        favoriteCompetitionIds: favoriteCompetitionIds,
+      );
 
   Future<void> disable() async {
     await _manager.disable();
     await _local.cancelAll();
   }
+
+  Future<int> restoreFavoriteTopics({
+    required Set<int> teamIds,
+    required Set<int> matchIds,
+    required Set<int> competitionIds,
+  }) =>
+      _manager.restoreFavoriteTopics(
+        teamIds: teamIds,
+        matchIds: matchIds,
+        competitionIds: competitionIds,
+      );
 
   Future<void> syncFavoriteTeams(Set<int> teamIds) =>
       _manager.syncFavoriteTeams(teamIds);
@@ -102,6 +121,24 @@ class KickoraNotificationService {
 
   Future<void> syncFavoriteCompetitions(Set<int> competitionIds) =>
       _manager.syncFavoriteCompetitions(competitionIds);
+
+  Future<void> subscribeFavoriteTeam(int teamId) =>
+      _manager.subscribeFavoriteTeam(teamId);
+
+  Future<void> unsubscribeFavoriteTeam(int teamId) =>
+      _manager.unsubscribeFavoriteTeam(teamId);
+
+  Future<void> subscribeFavoriteMatch(int matchId) =>
+      _manager.subscribeFavoriteMatch(matchId);
+
+  Future<void> unsubscribeFavoriteMatch(int matchId) =>
+      _manager.unsubscribeFavoriteMatch(matchId);
+
+  Future<void> subscribeFavoriteCompetition(int competitionId) =>
+      _manager.subscribeFavoriteCompetition(competitionId);
+
+  Future<void> unsubscribeFavoriteCompetition(int competitionId) =>
+      _manager.unsubscribeFavoriteCompetition(competitionId);
 
   Future<void> showLocal(KickoraNotification notification) async {
     if (!isEnabled) return;

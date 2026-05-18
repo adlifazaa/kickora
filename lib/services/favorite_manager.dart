@@ -6,17 +6,33 @@ import '../notifications/models/notification_type.dart';
 import '../notifications/services/kickora_notification_service.dart';
 import 'favorites_service.dart';
 
-/// UI-facing favorites state: persists via [FavoritesService], syncs notification topics.
+/// UI-facing favorites state: persists via [FavoritesService], syncs FCM topics when enabled.
 class FavoriteManager extends ChangeNotifier {
   FavoriteManager(
     SharedPreferences prefs, {
     KickoraNotificationService? notificationService,
     FavoritesService? favoritesService,
-  })  : _notifications = notificationService,
-        _favorites = favoritesService ?? FavoritesService(prefs);
+  }) : _notifications = notificationService {
+    _favorites = favoritesService ??
+        FavoritesService(
+          prefs,
+          hooks: FavoriteSubscriptionHooks(
+            onFavoriteAdded: (type, id) => _onFavoriteTopicChanged(
+              type,
+              id,
+              subscribed: true,
+            ),
+            onFavoriteRemoved: (type, id) => _onFavoriteTopicChanged(
+              type,
+              id,
+              subscribed: false,
+            ),
+          ),
+        );
+  }
 
   final KickoraNotificationService? _notifications;
-  final FavoritesService _favorites;
+  late final FavoritesService _favorites;
 
   FavoritesService get favoritesService => _favorites;
 
@@ -54,7 +70,18 @@ class FavoriteManager extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
 
-    await _syncNotificationTopics();
+    await restoreSubscriptions();
+  }
+
+  /// Re-syncs team_, competition_, and match_ topics when notifications are on.
+  Future<int> restoreSubscriptions() async {
+    final notifications = _notifications;
+    if (notifications == null || !notifications.isEnabled) return 0;
+    return notifications.restoreFavoriteTopics(
+      teamIds: teamIds,
+      matchIds: matchIds,
+      competitionIds: competitionIds,
+    );
   }
 
   Future<bool> addTeam(int id) =>
@@ -88,10 +115,39 @@ class FavoriteManager extends ChangeNotifier {
     await _favorites.load();
     final changed = await action();
     if (!changed) return false;
-    // Future push: FavoriteTopicNames.team|competition|match(id) via FCM subscribe.
     notifyListeners();
-    await _syncNotificationTopics();
     return true;
+  }
+
+  Future<void> _onFavoriteTopicChanged(
+    FavoriteType type,
+    int id, {
+    required bool subscribed,
+  }) async {
+    final notifications = _notifications;
+    if (notifications == null) return;
+
+    if (subscribed) {
+      if (!notifications.isEnabled) return;
+      switch (type) {
+        case FavoriteType.team:
+          await notifications.subscribeFavoriteTeam(id);
+        case FavoriteType.competition:
+          await notifications.subscribeFavoriteCompetition(id);
+        case FavoriteType.match:
+          await notifications.subscribeFavoriteMatch(id);
+      }
+      return;
+    }
+
+    switch (type) {
+      case FavoriteType.team:
+        await notifications.unsubscribeFavoriteTeam(id);
+      case FavoriteType.competition:
+        await notifications.unsubscribeFavoriteCompetition(id);
+      case FavoriteType.match:
+        await notifications.unsubscribeFavoriteMatch(id);
+    }
   }
 
   /// Delivers match alerts when [home]/[away] team is favorited and notifications are on.
@@ -171,17 +227,9 @@ class FavoriteManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncNotificationTopics() async {
-    final notifications = _notifications;
-    if (notifications == null || !notifications.isEnabled) return;
-    await notifications.syncFavoriteTeams(teamIds);
-    await notifications.syncFavoriteMatches(matchIds);
-    await notifications.syncFavoriteCompetitions(competitionIds);
-  }
-
   Future<void> onNotificationsEnabledChanged(bool enabled) async {
     if (enabled) {
-      await _syncNotificationTopics();
+      await restoreSubscriptions();
     }
   }
 }

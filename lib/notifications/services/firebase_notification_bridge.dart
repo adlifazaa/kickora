@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import '../models/firebase_notification_payload.dart';
 import '../notification_channels.dart';
-import '../notification_debug_log.dart';
 
 /// Firebase Cloud Messaging bridge (stub — swap for `firebase_messaging` later).
 ///
@@ -52,14 +51,15 @@ class MockFirebaseNotificationBridge implements FirebaseNotificationBridge {
   @override
   Future<void> subscribeToTopic(String topic) async {
     _topics.add(topic);
-    NotificationDebugLog.topicSubscribe(topic);
   }
 
   @override
   Future<void> unsubscribeFromTopic(String topic) async {
     _topics.remove(topic);
-    NotificationDebugLog.topicUnsubscribe(topic);
   }
+
+  /// Test helper: topics currently subscribed in mock FCM.
+  Set<String> get subscribedTopics => Set.unmodifiable(_topics);
 
   @override
   Stream<FirebaseNotificationPayload> get onForegroundMessage =>

@@ -105,8 +105,96 @@ class NotificationManager {
   }
 
   Future<void> disable() async {
+    await unsubscribeAllFavoriteTopics();
     await _prefs.setBool(enabledPreferenceKey, false);
     await _logStatus();
+  }
+
+  /// Re-subscribes all favorite topics after restart when notifications are on.
+  Future<int> restoreFavoriteTopics({
+    required Set<int> teamIds,
+    required Set<int> matchIds,
+    required Set<int> competitionIds,
+  }) async {
+    if (!isEnabled) return 0;
+    await syncFavoriteTeams(teamIds);
+    await syncFavoriteMatches(matchIds);
+    await syncFavoriteCompetitions(competitionIds);
+    final count = subscribedTopicCount;
+    NotificationDebugLog.topicsRestored(count);
+    return count;
+  }
+
+  Future<void> unsubscribeAllFavoriteTopics() async {
+    await _syncTopicSet(
+      preferenceKey: _subscribedTeamsKey,
+      desiredIds: const {},
+      topicFor: NotificationTopics.team,
+      requireEnabled: false,
+    );
+    await _syncTopicSet(
+      preferenceKey: _subscribedMatchesKey,
+      desiredIds: const {},
+      topicFor: NotificationTopics.match,
+      requireEnabled: false,
+    );
+    await _syncTopicSet(
+      preferenceKey: _subscribedCompetitionsKey,
+      desiredIds: const {},
+      topicFor: NotificationTopics.competition,
+      requireEnabled: false,
+    );
+  }
+
+  Future<void> subscribeFavoriteTeam(int teamId) async {
+    if (!isEnabled) return;
+    await _subscribeOne(
+      preferenceKey: _subscribedTeamsKey,
+      id: teamId,
+      topicFor: NotificationTopics.team,
+    );
+  }
+
+  Future<void> unsubscribeFavoriteTeam(int teamId) async {
+    await _unsubscribeOne(
+      preferenceKey: _subscribedTeamsKey,
+      id: teamId,
+      topicFor: NotificationTopics.team,
+    );
+  }
+
+  Future<void> subscribeFavoriteMatch(int matchId) async {
+    if (!isEnabled) return;
+    await _subscribeOne(
+      preferenceKey: _subscribedMatchesKey,
+      id: matchId,
+      topicFor: NotificationTopics.match,
+    );
+  }
+
+  Future<void> unsubscribeFavoriteMatch(int matchId) async {
+    await _unsubscribeOne(
+      preferenceKey: _subscribedMatchesKey,
+      id: matchId,
+      topicFor: NotificationTopics.match,
+    );
+  }
+
+  Future<void> subscribeFavoriteCompetition(int competitionId) async {
+    if (!isEnabled) return;
+    await _subscribeOne(
+      preferenceKey: _subscribedCompetitionsKey,
+      id: competitionId,
+      topicFor: NotificationTopics.competition,
+    );
+  }
+
+  Future<void> unsubscribeFavoriteCompetition(int competitionId) async {
+    await _unsubscribeOne(
+      preferenceKey: _subscribedCompetitionsKey,
+      id: competitionId,
+      topicFor: NotificationTopics.competition,
+    );
   }
 
   Future<void> syncFavoriteTeams(Set<int> teamIds) async {
@@ -136,11 +224,44 @@ class NotificationManager {
     );
   }
 
+  Future<void> _subscribeOne({
+    required String preferenceKey,
+    required int id,
+    required String Function(int id) topicFor,
+  }) async {
+    final previous = _readIdSet(preferenceKey);
+    if (previous.contains(id)) return;
+    await _fcm.subscribeToTopic(topicFor(id));
+    previous.add(id);
+    await _prefs.setStringList(
+      preferenceKey,
+      previous.map((e) => '$e').toList(),
+    );
+    await _logStatus();
+  }
+
+  Future<void> _unsubscribeOne({
+    required String preferenceKey,
+    required int id,
+    required String Function(int id) topicFor,
+  }) async {
+    final previous = _readIdSet(preferenceKey);
+    if (!previous.remove(id)) return;
+    await _fcm.unsubscribeFromTopic(topicFor(id));
+    await _prefs.setStringList(
+      preferenceKey,
+      previous.map((e) => '$e').toList(),
+    );
+    await _logStatus();
+  }
+
   Future<void> _syncTopicSet({
     required String preferenceKey,
     required Set<int> desiredIds,
     required String Function(int id) topicFor,
+    bool requireEnabled = true,
   }) async {
+    if (requireEnabled && !isEnabled) return;
     final previous = _readIdSet(preferenceKey);
     for (final id in previous.difference(desiredIds)) {
       await _fcm.unsubscribeFromTopic(topicFor(id));
