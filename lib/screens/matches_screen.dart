@@ -7,7 +7,7 @@ import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../models/match_model.dart';
 import '../widgets/ad_placeholder.dart';
-import '../widgets/native_ad_placeholder.dart';
+import '../widgets/gentle_ad_slot.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/live_update_indicator.dart';
 import '../widgets/match_card.dart';
@@ -282,7 +282,7 @@ class _MatchesScreenState extends State<MatchesScreen>
         );
         if (matchIndex % 4 == 0) {
           widgets.addAll([
-            NativeAdPlaceholder(
+            GentleAdSlot(
               variant: variants[(matchIndex ~/ 4 - 1) % variants.length],
               feedItemIndex: matchIndex,
             ),

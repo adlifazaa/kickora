@@ -12,7 +12,7 @@ import '../widgets/async_content_view.dart';
 import '../widgets/live_badge.dart';
 import '../widgets/live_update_indicator.dart';
 import '../widgets/match_card.dart';
-import '../widgets/native_ad_placeholder.dart';
+import '../widgets/gentle_ad_slot.dart';
 
 /// Full list of live matches (Home → Live now → See all).
 class LiveMatchesScreen extends StatefulWidget {
@@ -280,7 +280,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
         );
         if (matchIndex % 5 == 0) {
           widgets.addAll([
-            NativeAdPlaceholder(
+            GentleAdSlot(
               variant: variants[(matchIndex ~/ 5 - 1) % variants.length],
               feedItemIndex: matchIndex,
             ),

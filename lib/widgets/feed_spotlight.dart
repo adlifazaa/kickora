@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../ads/ad_placement.dart';
 import '../app/app_scope.dart';
 import 'ad_placeholder.dart';
-import 'native_ad_placeholder.dart';
+import 'gentle_ad_slot.dart';
 
 /// Inserts premium native placeholders every [interval] feed items (3–5).
 /// Skips the first [skipFirst] items so nothing sits under hero/featured blocks.
@@ -34,10 +34,11 @@ List<Widget> insertFeedSpotlights({
       variantIndex++;
       out.add(const SizedBox(height: 14));
       out.add(
-        NativeAdPlaceholder(
+        GentleAdSlot(
           placement: placement,
           variant: variant,
           feedItemIndex: itemNumber,
+          padding: EdgeInsets.zero,
         ),
       );
       out.add(const SizedBox(height: 14));

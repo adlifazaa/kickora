@@ -12,6 +12,9 @@ import '../services/app_controller.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/competition_card.dart';
+import '../ads/ad_placement.dart';
+import '../widgets/ad_placeholder.dart';
+import '../widgets/gentle_ad_slot.dart';
 import '../widgets/skeleton_box.dart';
 
 /// Browse + search competitions. Includes a premium search field, category
@@ -267,6 +270,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
               ),
             ),
           _competitionsGrid(context, filtered),
+          _scrollSectionAd(),
         ],
       );
     }
@@ -288,7 +292,20 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
     }
 
     return CustomScrollView(
-      slivers: [_competitionsGrid(context, filtered)],
+      slivers: [
+        _competitionsGrid(context, filtered),
+        _scrollSectionAd(),
+      ],
+    );
+  }
+
+  SliverToBoxAdapter _scrollSectionAd() {
+    return const SliverToBoxAdapter(
+      child: GentleAdSlot(
+        placement: AdPlacement.scrollBottomNative,
+        variant: ContentSpotlightVariant.featuredContent,
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 20),
+      ),
     );
   }
 

@@ -95,8 +95,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: app.isPremium
                     ? text.premiumActiveSubtitle
                     : text.removeAdsSettingsSubtitle,
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.subscription),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.premium),
                 trailing: app.isPremium
                     ? Icon(Icons.verified_rounded,
                         color: Theme.of(context).colorScheme.primary)

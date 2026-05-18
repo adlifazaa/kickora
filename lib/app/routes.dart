@@ -15,7 +15,7 @@ import '../screens/matches_screen.dart';
 import '../screens/player_details_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/splash_screen.dart';
-import '../screens/subscription_screen.dart';
+import '../screens/premium_screen.dart';
 import '../screens/terms_of_use_screen.dart';
 import '../screens/standings_screen.dart';
 import '../widgets/micro_interactions.dart';
@@ -34,6 +34,7 @@ class AppRoutes {
   static const privacy = '/privacy';
   static const terms = '/terms';
   static const subscription = '/subscription';
+  static const premium = '/premium';
   static const globalSearch = '/global-search';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -96,9 +97,10 @@ class AppRoutes {
             settings: settings,
             builder: (context) => const TermsOfUseScreen());
       case subscription:
+      case premium:
         return PremiumPageRoute(
             settings: settings,
-            builder: (context) => const SubscriptionScreen());
+            builder: (context) => const PremiumScreen());
       case globalSearch:
         return PremiumPageRoute(
             settings: settings,
