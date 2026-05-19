@@ -321,58 +321,68 @@ class _SettingsTile extends StatelessWidget {
     return Material(
       color: Theme.of(context).cardTheme.color,
       borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: LinearGradient(
-                    colors: [
-                      iconColor.withValues(alpha: 0.28),
-                      iconColor.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  border: Border.all(color: iconColor.withValues(alpha: 0.25)),
-                ),
-                child: Icon(icon, color: iconColor, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 14),
+                    Container(
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: LinearGradient(
+                          colors: [
+                            iconColor.withValues(alpha: 0.28),
+                            iconColor.withValues(alpha: 0.08),
+                          ],
+                        ),
+                        border:
+                            Border.all(color: iconColor.withValues(alpha: 0.25)),
+                      ),
+                      child: Icon(icon, color: iconColor, size: 22),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      maxLines: subtitleMaxLines,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: Theme.of(context).hintColor,
-                          fontSize: 12,
-                          height: 1.35,
-                          fontWeight: FontWeight.w600),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 14),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            maxLines: subtitleMaxLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: Theme.of(context).hintColor,
+                                fontSize: 12,
+                                height: 1.35,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
+            ),
+            if (trailing != null) ...[
               const SizedBox(width: 8),
-              trailing ?? const SizedBox.shrink(),
+              trailing!,
             ],
-          ),
+          ],
         ),
       ),
     );

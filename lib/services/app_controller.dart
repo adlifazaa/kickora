@@ -148,6 +148,9 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    notifyListeners();
+
     if (enabled) {
       final granted = await notificationService.enable(
         favoriteTeamIds: favoriteManager.teamIds,
