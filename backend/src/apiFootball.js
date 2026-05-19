@@ -1,0 +1,111 @@
+'use strict';
+
+const config = require('./config');
+
+const FINISHED_SHORT = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
+const UPCOMING_SHORT = new Set(['NS', 'TBD', 'PST']);
+
+function todayIso() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+function statusShort(fixtureItem) {
+  return (
+    fixtureItem?.fixture?.status?.short ??
+    fixtureItem?.status?.short ??
+    ''
+  ).toUpperCase();
+}
+
+function filterFixtureResponse(body, predicate) {
+  if (!body || !Array.isArray(body.response)) return body;
+  const response = body.response.filter((item) => predicate(statusShort(item)));
+  return {
+    ...body,
+    results: response.length,
+    response,
+  };
+}
+
+async function fetchUpstream(path, query = {}) {
+  if (!config.apiFootballKey) {
+    const err = new Error('API_FOOTBALL_KEY is not configured on the server');
+    err.statusCode = 503;
+    err.code = 'not_configured';
+    throw err;
+  }
+
+  const url = new URL(path, config.apiFootballBaseUrl);
+  for (const [key, value] of Object.entries(query)) {
+    if (value != null && `${value}`.trim() !== '') {
+      url.searchParams.set(key, `${value}`);
+    }
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'x-apisports-key': config.apiFootballKey,
+      },
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    let body;
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      const err = new Error('Invalid JSON from API-Football');
+      err.statusCode = 502;
+      throw err;
+    }
+
+    if (res.status === 429) {
+      const err = new Error('API-Football rate limit');
+      err.statusCode = 429;
+      throw err;
+    }
+
+    if (!res.ok) {
+      const err = new Error(`API-Football HTTP ${res.status}`);
+      err.statusCode = res.status >= 500 ? 502 : res.status;
+      throw err;
+    }
+
+    return body;
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      const err = new Error('API-Football request timed out');
+      err.statusCode = 504;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function leagueSeasonQuery(req) {
+  const league = req.query.competitionId ?? req.query.league;
+  const season = req.query.season;
+  const out = {};
+  if (league != null && `${league}`.trim() !== '') out.league = `${league}`;
+  if (season != null && `${season}`.trim() !== '') out.season = `${season}`;
+  return out;
+}
+
+module.exports = {
+  todayIso,
+  fetchUpstream,
+  filterFixtureResponse,
+  FINISHED_SHORT,
+  UPCOMING_SHORT,
+  leagueSeasonQuery,
+};

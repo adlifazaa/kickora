@@ -26,3 +26,7 @@ Client-side TTLs in Kickora mirror these buckets. Configure your **Kickora backe
 ```
 
 Never ship `KICKORA_API_KEY` in Play Store release builds.
+
+## Backend server
+
+Deploy the Node proxy in `backend/` (see `backend/README.md`). Set `API_FOOTBALL_KEY` only on the server. The proxy implements the same TTL buckets in `backend/src/cache.js`.

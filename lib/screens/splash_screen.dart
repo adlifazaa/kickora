@@ -2,6 +2,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../app/app_colors.dart';
 import '../app/app_text.dart';
@@ -26,9 +27,15 @@ class _SplashScreenState extends State<SplashScreen>
     duration: const Duration(milliseconds: 680),
   )..repeat(reverse: true);
 
+  String _versionName = '';
+
   @override
   void initState() {
     super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (!mounted) return;
+      setState(() => _versionName = info.version);
+    });
     Timer(const Duration(milliseconds: 1350), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(AppRoutes.mainNavigation);
@@ -191,7 +198,9 @@ class _SplashScreenState extends State<SplashScreen>
               opacity: fadeAnim,
               child: Center(
                 child: Text(
-                  '${text.isArabic ? 'إصدار' : 'Version'} 1.0.0',
+                  _versionName.isEmpty
+                      ? (text.isArabic ? 'إصدار' : 'Version')
+                      : '${text.isArabic ? 'إصدار' : 'Version'} $_versionName',
                   style: TextStyle(
                     color: Theme.of(context).hintColor,
                     fontWeight: FontWeight.w700,

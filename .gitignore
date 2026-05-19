@@ -57,3 +57,7 @@ lib/firebase_options.dart
 
 # AdMob production IDs (local only)
 /config/admob.local.json
+
+# Kickora backend proxy (Node)
+backend/node_modules/
+backend/.env

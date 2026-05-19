@@ -62,6 +62,8 @@ Aliases: `backendproxy`, `backend_proxy`. Without a URL, the app warns and uses 
 
 Server-side cache TTL recommendations: `docs/backend_proxy_caching.md`.
 
+Deploy the Node proxy (`backend/README.md`): set `API_FOOTBALL_KEY` on the server only, then use your deploy URL as `KICKORA_BACKEND_URL`.
+
 Release builds log a warning if `KICKORA_API_MODE=direct` is used (falls back to mock — no crash).
 
 ### Play Store release

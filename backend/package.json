@@ -1,0 +1,18 @@
+{
+  "name": "kickora-backend-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kickora API proxy — hides API-Football key from the Flutter app",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0"
+  }
+}
