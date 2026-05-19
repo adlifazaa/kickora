@@ -1,7 +1,8 @@
+import 'admob_environment.dart';
 import 'ad_placement.dart';
 import 'ad_unit_ids.dart';
 
-/// AdMob runtime flags (Google test IDs by default).
+/// AdMob runtime flags — test units by default; production from local config only.
 class AdConfig {
   AdConfig._();
 
@@ -11,43 +12,16 @@ class AdConfig {
     defaultValue: false,
   );
 
-  static bool get useTestAdUnits => !productionAdsEnabled;
+  static bool get useTestAdUnits =>
+      !productionAdsEnabled || !AdMobEnvironment.hasProductionNativeUnits;
 
-  /// Native unit for a placement (test or production via dart-define).
+  /// Native unit for a placement (Google test or local production config).
   static String nativeUnitId(AdPlacement placement) {
     if (useTestAdUnits) {
       return AdUnitIds.nativeFor(placement);
     }
-    final prod = switch (placement) {
-      AdPlacement.matchListNative || AdPlacement.feedNative =>
-        _prodMatchList,
-      AdPlacement.competitionListNative ||
-      AdPlacement.competitionsNative =>
-        _prodCompetition,
-      AdPlacement.scrollBottomNative => _prodScrollBottom,
-      _ => _prodNativeDefault,
-    };
-    if (prod.trim().isNotEmpty) return prod;
+    final prod = AdMobEnvironment.nativeUnitId(placement);
+    if (prod.isNotEmpty) return prod;
     return AdUnitIds.nativeFor(placement);
   }
-
-  static const String _prodMatchList = String.fromEnvironment(
-    'KICKORA_AD_NATIVE_MATCH_LIST_PROD',
-    defaultValue: '',
-  );
-
-  static const String _prodCompetition = String.fromEnvironment(
-    'KICKORA_AD_NATIVE_COMPETITION_PROD',
-    defaultValue: '',
-  );
-
-  static const String _prodScrollBottom = String.fromEnvironment(
-    'KICKORA_AD_NATIVE_SCROLL_PROD',
-    defaultValue: '',
-  );
-
-  static const String _prodNativeDefault = String.fromEnvironment(
-    'KICKORA_AD_NATIVE_PROD',
-    defaultValue: '',
-  );
 }

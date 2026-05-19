@@ -1,0 +1,6 @@
+# Optional alternative to admob.local.json (android/local.properties also supported).
+# Copy values into config/admob.local.json or android/local.properties — never commit real IDs.
+
+admob.app.id=ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy
+kickora.native.main=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz
+kickora.native.feed=ca-app-pub-xxxxxxxxxxxxxxxx/wwwwwwwwww

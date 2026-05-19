@@ -54,3 +54,6 @@ app.*.map.json
 **/google-services.json
 **/GoogleService-Info.plist
 lib/firebase_options.dart
+
+# AdMob production IDs (local only)
+/config/admob.local.json

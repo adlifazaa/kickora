@@ -17,6 +17,56 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+fun extractJsonString(jsonText: String, key: String): String? {
+    val pattern = Regex(""""$key"\s*:\s*"([^"]*)"""")
+    return pattern.find(jsonText)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
+}
+
+fun loadAdmobLocalConfig(): Triple<String?, String?, String?> {
+    var appId: String? = null
+    var main: String? = null
+    var feed: String? = null
+
+    val jsonFile = rootProject.file("../config/admob.local.json")
+    if (jsonFile.exists()) {
+        val text = jsonFile.readText()
+        appId = extractJsonString(text, "KICKORA_ADMOB_ANDROID_APP_ID")
+        main = extractJsonString(text, "KICKORA_AD_NATIVE_MAIN")
+        feed = extractJsonString(text, "KICKORA_AD_NATIVE_FEED")
+    }
+
+    val localPropsFile = rootProject.file("local.properties")
+    if (localPropsFile.exists()) {
+        val props = Properties().apply {
+            localPropsFile.inputStream().use { load(it) }
+        }
+        appId = props.getProperty("admob.app.id")?.trim()?.takeIf { it.isNotEmpty() } ?: appId
+        main = props.getProperty("kickora.native.main")?.trim()?.takeIf { it.isNotEmpty() } ?: main
+        feed = props.getProperty("kickora.native.feed")?.trim()?.takeIf { it.isNotEmpty() } ?: feed
+    }
+
+    return Triple(appId, main, feed)
+}
+
+fun generateAdmobDartConfig(main: String?, feed: String?, appId: String?) {
+    val out = rootProject.file("../lib/ads/admob_generated_config.dart")
+    fun esc(value: String?) = (value ?: "").replace("\\", "\\\\").replace("'", "\\'")
+    out.writeText(
+        """
+// Generated from config/admob.local.json — do not edit manually.
+abstract final class AdMobGeneratedConfig {
+  static const androidAppId = '${esc(appId)}';
+  static const kickoraNativeMain = '${esc(main)}';
+  static const kickoraNativeFeed = '${esc(feed)}';
+}
+""".trimIndent() + "\n",
+    )
+}
+
+val admobConfig = loadAdmobLocalConfig()
+val admobAppId = admobConfig.first ?: "ca-app-pub-3940256099942544~3347511713"
+generateAdmobDartConfig(admobConfig.second, admobConfig.third, admobConfig.first)
+
 android {
     namespace = "com.kickora.live"
     compileSdk = flutter.compileSdkVersion
@@ -38,6 +88,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["admobAppId"] = admobAppId
     }
 
     signingConfigs {

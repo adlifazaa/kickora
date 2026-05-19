@@ -38,7 +38,7 @@ class NativeAdManager {
     if (_config.adsMasterEnabled) {
       // TODO(admob): NativeAd.load(adUnitId: unitIdFor(placement), ...)
       if (kDebugMode) {
-        debugPrint('[Kickora Ads] native unit reserved (not shown)');
+        debugPrint('[Kickora Ads] native placement reserved (not shown)');
       }
     }
   }
