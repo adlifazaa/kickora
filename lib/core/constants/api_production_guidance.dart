@@ -1,4 +1,5 @@
 import 'api_constants.dart';
+import 'api_release_policy.dart';
 
 /// Compile-time guidance for production vs development API modes.
 class ApiProductionGuidance {
@@ -31,6 +32,7 @@ class ApiProductionGuidance {
     if (isRecommendedProductionMode) {
       messages.add('backendProxy active (recommended for production).');
     }
+    messages.addAll(ApiReleasePolicy.releaseWarnings());
     return messages;
   }
 }

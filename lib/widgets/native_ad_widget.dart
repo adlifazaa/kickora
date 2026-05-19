@@ -4,7 +4,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../ads/ad_debug_log.dart';
 import '../ads/ad_placement.dart';
 import '../ads/ad_service.dart';
-import '../ads/ad_unit_ids.dart';
+import '../ads/ad_config.dart';
 
 /// Native AdMob slot — returns zero height when ads are disabled or user is premium.
 class NativeAdWidget extends StatefulWidget {
@@ -12,10 +12,12 @@ class NativeAdWidget extends StatefulWidget {
     super.key,
     required this.placement,
     this.height = 72,
+    this.onLoadFailed,
   });
 
   final AdPlacement placement;
   final double height;
+  final VoidCallback? onLoadFailed;
 
   @override
   State<NativeAdWidget> createState() => _NativeAdWidgetState();
@@ -38,7 +40,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
     }
 
     final ad = NativeAd(
-      adUnitId: AdUnitIds.nativeFor(widget.placement),
+      adUnitId: AdConfig.nativeUnitId(widget.placement),
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
@@ -49,6 +51,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           AdDebugLog.nativeLoadFailed(widget.placement, error.message);
+          widget.onLoadFailed?.call();
         },
       ),
       nativeTemplateStyle: NativeTemplateStyle(

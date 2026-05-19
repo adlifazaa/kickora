@@ -4,6 +4,7 @@ import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../core/firebase/analytics_service.dart';
+import '../subscription/premium_product_offer.dart';
 import '../subscription/premium_service.dart';
 import '../subscription/subscription_plan.dart';
 
@@ -16,11 +17,27 @@ class PremiumScreen extends StatefulWidget {
 }
 
 class _PremiumScreenState extends State<PremiumScreen> {
+  PremiumProductOffer? _yearlyOffer;
+  bool _loadingOffer = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AnalyticsService.instance.logPremiumScreenOpened();
+      _loadOffer();
+    });
+  }
+
+  Future<void> _loadOffer() async {
+    final app = AppScope.of(context);
+    if (!PremiumService.paymentsEnabled) return;
+    setState(() => _loadingOffer = true);
+    final offer = await app.premiumService.loadYearlyOffer();
+    if (!mounted) return;
+    setState(() {
+      _yearlyOffer = offer;
+      _loadingOffer = false;
     });
   }
 
@@ -53,11 +70,17 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   _ActiveBanner(text: text),
                   const SizedBox(height: 16),
                 ] else if (yearly != null) ...[
-                  _YearlyPlanCard(plan: yearly, text: text),
+                  _YearlyPlanCard(
+                    plan: yearly,
+                    text: text,
+                    storePrice: _yearlyOffer?.priceLabel,
+                  ),
                   const SizedBox(height: 14),
                   _ComingSoonButton(
                     text: text,
-                    onPressed: () => _onComingSoon(context, text, premium),
+                    label: _purchaseButtonLabel(text),
+                    loading: _loadingOffer,
+                    onPressed: () => _onPurchase(context, text, premium),
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -84,12 +107,28 @@ class _PremiumScreenState extends State<PremiumScreen> {
     );
   }
 
-  Future<void> _onComingSoon(
+  String _purchaseButtonLabel(AppText text) {
+    if (!PremiumService.paymentsEnabled) {
+      return text.isArabic ? 'قريبًا' : 'Coming Soon';
+    }
+    if (_yearlyOffer == null && !_loadingOffer) {
+      return text.isArabic ? 'غير متوفر' : 'Unavailable';
+    }
+    return text.isArabic ? 'اشترك سنويًا' : 'Subscribe yearly';
+  }
+
+  Future<void> _onPurchase(
     BuildContext context,
     AppText text,
     PremiumService premium,
   ) async {
     if (!PremiumService.paymentsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(text.paymentsComingSoonMessage)),
+      );
+      return;
+    }
+    if (_yearlyOffer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(text.paymentsComingSoonMessage)),
       );
@@ -273,16 +312,22 @@ class _ActiveBanner extends StatelessWidget {
 }
 
 class _YearlyPlanCard extends StatelessWidget {
-  const _YearlyPlanCard({required this.plan, required this.text});
+  const _YearlyPlanCard({
+    required this.plan,
+    required this.text,
+    this.storePrice,
+  });
 
   final SubscriptionPlan plan;
   final AppText text;
+  final String? storePrice;
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final title = text.isArabic ? plan.titleAr : plan.titleEn;
-    final price = text.isArabic ? plan.priceLabelAr : plan.priceLabelEn;
+    final price = storePrice ??
+        (text.isArabic ? plan.priceLabelAr : plan.priceLabelEn);
     final subtitle = text.isArabic ? plan.subtitleAr : plan.subtitleEn;
     final badge = text.isArabic ? plan.savingsBadgeAr : plan.savingsBadgeEn;
 
@@ -354,18 +399,31 @@ class _YearlyPlanCard extends StatelessWidget {
 }
 
 class _ComingSoonButton extends StatelessWidget {
-  const _ComingSoonButton({required this.text, required this.onPressed});
+  const _ComingSoonButton({
+    required this.text,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+  });
 
   final AppText text;
+  final String label;
   final VoidCallback onPressed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
-        onPressed: onPressed,
-        child: Text(text.isArabic ? 'قريبًا' : 'Coming Soon'),
+        onPressed: loading ? null : onPressed,
+        child: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(label),
       ),
     );
   }

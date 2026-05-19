@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'mock_subscription_bridge.dart';
+import 'premium_product_offer.dart';
 import 'subscription_plan.dart';
 
 /// Google Play / App Store billing via [in_app_purchase] (no fake unlocks).
@@ -51,6 +52,25 @@ class PlayBillingBridge implements SubscriptionPaymentBridge {
       if (purchase.pendingCompletePurchase) {
         _iap.completePurchase(purchase);
       }
+    }
+  }
+
+  Future<PremiumProductOffer?> queryYearlyOffer() async {
+    try {
+      final response = await _iap.queryProductDetails(
+        {PremiumServiceProductIds.yearly},
+      );
+      if (response.error != null || response.productDetails.isEmpty) {
+        return null;
+      }
+      final product = response.productDetails.first;
+      return PremiumProductOffer(
+        productId: product.id,
+        priceLabel: product.price,
+        isAvailable: true,
+      );
+    } catch (_) {
+      return null;
     }
   }
 

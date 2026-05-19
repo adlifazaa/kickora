@@ -60,6 +60,10 @@ flutter run --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND
 
 Aliases: `backendproxy`, `backend_proxy`. Without a URL, the app warns and uses mock data.
 
+Server-side cache TTL recommendations: `docs/backend_proxy_caching.md`.
+
+Release builds log a warning if `KICKORA_API_MODE=direct` is used (falls back to mock — no crash).
+
 ### Play Store release
 
 Ship **without** `KICKORA_API_KEY` or direct mode — use backend proxy only:
@@ -102,7 +106,9 @@ Never commit real API keys. Pass credentials only via `--dart-define` at run/bui
 flutter run --dart-define=KICKORA_ADS_ENABLED=true
 ```
 
-Optional production unit overrides: `KICKORA_AD_NATIVE_MATCH_LIST`, `KICKORA_AD_NATIVE_COMPETITION`, etc.
+Production native units (when `KICKORA_ADS_ENABLED=true`): `KICKORA_AD_NATIVE_MATCH_LIST_PROD`, `KICKORA_AD_NATIVE_COMPETITION_PROD`, etc. Empty values fall back to Google test IDs.
+
+Failed ad loads show the gentle placeholder — never crash.
 
 ## Premium (Google Play Billing)
 

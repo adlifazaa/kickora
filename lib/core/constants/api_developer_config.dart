@@ -1,25 +1,25 @@
 import 'api_constants.dart';
 import 'api_mode.dart';
+import 'api_release_policy.dart';
 
 /// Compile-time API mode validation for local developer testing (console only).
 class ApiDeveloperConfig {
   ApiDeveloperConfig._();
 
-  /// Active football data mode (default [ApiMode.mock]).
-  static ApiMode get apiMode => ApiConstants.apiMode;
+  /// Active football data mode after release safety rules.
+  static ApiMode get apiMode => ApiReleasePolicy.effectiveMode;
 
   static bool get isMockDefault => ApiConstants.isMock;
 
   /// True when remote HTTP can run (credentials present).
-  static bool get remoteActive =>
-      !ApiConstants.isMock && ApiConstants.hasRemoteApi;
+  static bool get remoteActive => ApiReleasePolicy.usesRemoteApi;
 
   /// Human-readable label for logs: `mock`, `directApi`, `backendProxy`.
   static String get dataSourceLabel {
-    if (ApiConstants.isMock) return 'mock';
-    if (!ApiConstants.hasRemoteApi) return 'mock';
-    if (ApiConstants.isDirectApi) return 'directApi';
-    if (ApiConstants.isBackendProxy) return 'backendProxy';
+    final mode = apiMode;
+    if (mode == ApiMode.mock) return 'mock';
+    if (mode == ApiMode.directApi) return 'directApi';
+    if (mode == ApiMode.backendProxy) return 'backendProxy';
     return 'mock';
   }
 

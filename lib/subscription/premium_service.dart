@@ -1,16 +1,22 @@
 import 'package:flutter/foundation.dart';
 
+import 'play_billing_bridge.dart';
 import 'premium_features.dart';
+import 'premium_product_offer.dart';
 import 'premium_subscription_service.dart';
 import 'subscription_plan.dart';
 
 /// Kickora Premium facade — catalog + feature flags (payments off by default).
 class PremiumService extends ChangeNotifier {
-  PremiumService(this._subscription) {
+  PremiumService(
+    this._subscription, {
+    PlayBillingBridge? billingBridge,
+  }) : _billingBridge = billingBridge {
     _subscription.addListener(_onSubscriptionChanged);
   }
 
   final PremiumSubscriptionService _subscription;
+  final PlayBillingBridge? _billingBridge;
 
   /// Set at startup when Play/App Store billing is available on device.
   static bool paymentsEnabled = false;
@@ -61,6 +67,12 @@ class PremiumService extends ChangeNotifier {
 
   bool get favoriteTeamsFeatures =>
       hasFeature(PremiumFeature.favoriteTeamsFeatures);
+
+  /// Loads yearly SKU from store when billing bridge is available.
+  Future<PremiumProductOffer?> loadYearlyOffer() async {
+    if (!paymentsEnabled) return null;
+    return _billingBridge?.queryYearlyOffer();
+  }
 
   /// Future IAP entry — returns false while [paymentsEnabled] is false.
   Future<bool> purchaseYearly() async {

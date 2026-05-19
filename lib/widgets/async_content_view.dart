@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_text.dart';
+import '../core/errors/api_error_messages.dart';
 import 'app_empty_state.dart';
 import 'skeleton_box.dart';
 
@@ -17,6 +18,7 @@ class AsyncContentView extends StatelessWidget {
     this.emptyTitle,
     this.emptySubtitle,
     this.showLoadingIndicator = true,
+    this.showOfflineHint = false,
   });
 
   final bool loading;
@@ -28,6 +30,7 @@ class AsyncContentView extends StatelessWidget {
   final String? emptyTitle;
   final String? emptySubtitle;
   final bool showLoadingIndicator;
+  final bool showOfflineHint;
 
   @override
   Widget build(BuildContext context) {
@@ -59,10 +62,16 @@ class AsyncContentView extends StatelessWidget {
 
     if (isEmpty) {
       final text = AppText.of(context);
+      final offlineSub = showOfflineHint
+          ? ApiErrorMessages.noInternetEn
+          : null;
       return AppEmptyState(
         icon: emptyIcon,
         title: emptyTitle ?? text.noMatches,
-        subtitle: emptySubtitle ?? text.noMatchesSub,
+        subtitle: emptySubtitle ??
+            (text.isArabic && showOfflineHint
+                ? ApiErrorMessages.noInternetAr
+                : offlineSub ?? text.noMatchesSub),
         actionLabel: onRetry != null ? text.retry : null,
         onAction: onRetry,
       );

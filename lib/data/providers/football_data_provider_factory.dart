@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/cache/cache_manager.dart';
 import '../../core/constants/api_mode.dart';
-import '../../core/constants/api_mode_service.dart';
+import '../../core/constants/api_release_policy.dart';
 import '../../core/network/api_debug_log.dart';
 import '../sources/remote_football_source.dart';
 import 'football_data_provider.dart';
@@ -18,9 +18,10 @@ class FootballDataProviderFactory {
 
   static FootballDataProvider create({CacheManager? cache}) {
     final FootballDataProvider provider;
-    if (ApiModeService.isMock || !ApiModeService.usesRemoteApi) {
+    final mode = ApiReleasePolicy.effectiveMode;
+    if (mode == ApiMode.mock || !ApiReleasePolicy.usesRemoteApi) {
       provider = MockFootballDataProvider();
-    } else if (ApiModeService.isBackendProxy) {
+    } else if (mode == ApiMode.backendProxy) {
       provider = RemoteFootballDataProvider.create(
         cache: cache,
         mode: ApiMode.backendProxy,

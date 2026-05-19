@@ -3,7 +3,7 @@
 ## Versioning
 
 - Current `pubspec.yaml`: `1.0.0+1`
-- Suggested next store upload: `1.0.0+2` (increment `+` build number only for hotfix)
+- Suggested next store upload: **versionName `1.0.0`**, **versionCode `2`** (`1.0.0+2` in pubspec)
 
 ## Pre-build commands
 

@@ -29,6 +29,29 @@ void main() {
     expect(payload.teamId, 7);
   });
 
+  test('parses favorite competition and match update types', () {
+    final competition = RemoteMessage(
+      data: const {
+        'type': 'favorite_competition_update',
+        'competitionId': '39',
+      },
+    );
+    final match = RemoteMessage(
+      data: const {
+        'type': 'favorite_match_update',
+        'matchId': '1001',
+      },
+    );
+    expect(
+      FcmMessageParser.parse(competition).type,
+      NotificationType.favoriteCompetitionUpdate,
+    );
+    expect(
+      FcmMessageParser.parse(match).type,
+      NotificationType.favoriteMatchUpdate,
+    );
+  });
+
   test('explicit topic in data wins', () {
     final message = RemoteMessage(
       from: '/topics/match_1',

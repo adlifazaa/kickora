@@ -45,7 +45,10 @@ Future<void> main() async {
   );
   await premiumSubscriptionService.load();
   PremiumService.configurePayments(enabled: billingBridge != null);
-  final premiumService = PremiumService(premiumSubscriptionService);
+  final premiumService = PremiumService(
+    premiumSubscriptionService,
+    billingBridge: billingBridge,
+  );
   AdService.instance.bindPremium(premiumSubscriptionService);
   await AdService.instance.initialize();
   final notificationService = KickoraNotificationService.create(preferences);
