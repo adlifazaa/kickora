@@ -147,30 +147,46 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setNotificationsEnabled(bool enabled) async {
-    _notificationsEnabled = enabled;
+  /// `false` when the user turned notifications on but OS permission was denied.
+  Future<bool> setNotificationsEnabled(bool enabled) async {
+    if (!enabled) {
+      _notificationsEnabled = false;
+      notifyListeners();
+      await notificationService.disable();
+      await _preferences.setBool(
+        NotificationManager.enabledPreferenceKey,
+        false,
+      );
+      await favoriteManager.onNotificationsEnabledChanged(false);
+      notifyListeners();
+      return true;
+    }
+
+    _notificationsEnabled = true;
     notifyListeners();
 
-    if (enabled) {
-      final granted = await notificationService.enable(
+    var granted = false;
+    try {
+      granted = await notificationService.enable(
         favoriteTeamIds: favoriteManager.teamIds,
         favoriteMatchIds: favoriteManager.matchIds,
         favoriteCompetitionIds: favoriteManager.competitionIds,
       );
-      _notificationsEnabled = granted;
-    } else {
-      await notificationService.disable();
-      _notificationsEnabled = false;
+    } catch (_) {
+      granted = false;
     }
+
+    _notificationsEnabled = granted;
     await _preferences.setBool(
       NotificationManager.enabledPreferenceKey,
-      _notificationsEnabled,
+      granted,
     );
-    await favoriteManager.onNotificationsEnabledChanged(_notificationsEnabled);
-    if (_notificationsEnabled) {
+    await favoriteManager.onNotificationsEnabledChanged(granted);
+    if (granted) {
       await AnalyticsService.instance.logNotificationEnabled();
     }
     notifyListeners();
+    return granted;
   }
 
   Future<void> setNotifyGoalsEnabled(bool enabled) async {

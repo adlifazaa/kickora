@@ -44,7 +44,7 @@ void main() {
         controller: controller,
         child: MaterialApp(
           theme: AppTheme.darkTheme,
-          home: const SettingsScreen(),
+          home: const Scaffold(body: SettingsScreen()),
         ),
       ),
     );

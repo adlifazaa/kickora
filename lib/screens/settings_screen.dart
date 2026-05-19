@@ -5,7 +5,28 @@ import '../app/app_contact.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
+import '../services/app_controller.dart';
 import '../widgets/section_header.dart';
+
+Future<void> _onMasterNotificationsChanged(
+  BuildContext context,
+  AppController app,
+  bool enabled,
+) async {
+  final granted = await app.setNotificationsEnabled(enabled);
+  if (!context.mounted || !enabled || granted) return;
+  final isArabic = app.isArabic;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        isArabic
+            ? 'لم يتم منح إذن الإشعارات. يمكنك تفعيلها من إعدادات الجهاز.'
+            : 'Notification permission was not granted. You can enable it in system settings.',
+      ),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -43,43 +64,37 @@ class SettingsScreen extends StatelessWidget {
                 icon: Icons.tune_rounded,
               ),
               const SizedBox(height: 12),
-              _SettingsTile(
+              _SettingsSwitchTile(
                 icon: Icons.language_rounded,
                 iconColor: AppColors.teal,
                 title: '${text.language}: العربية / English',
                 subtitle: text.isArabic
                     ? 'دعم كامل لاتجاه RTL'
                     : 'Full RTL & LTR support',
-                trailing: _KickoraSwitch(
-                  value: app.isArabic,
-                  onChanged: (v) => app.setLocale(Locale(v ? 'ar' : 'en')),
-                ),
+                value: app.isArabic,
+                onChanged: (v) => app.setLocale(Locale(v ? 'ar' : 'en')),
               ),
               const SizedBox(height: 12),
-              _SettingsTile(
+              _SettingsSwitchTile(
                 icon: Icons.dark_mode_rounded,
                 iconColor: AppColors.neonGreen,
                 title: text.darkMode,
                 subtitle: text.isArabic
                     ? 'مظهر ملعب ليلي فاخر'
                     : 'Premium night stadium look',
-                trailing: _KickoraSwitch(
-                  value: app.themeMode == ThemeMode.dark,
-                  onChanged: (v) =>
-                      app.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
-                ),
+                value: app.themeMode == ThemeMode.dark,
+                onChanged: (v) =>
+                    app.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
               ),
               const SizedBox(height: 12),
-              _SettingsTile(
+              _SettingsSwitchTile(
                 icon: Icons.notifications_active_outlined,
                 iconColor: Colors.amber,
                 title: text.isArabic ? 'تفعيل الإشعارات' : 'Enable notifications',
                 subtitle: text.notificationsPrefsBody,
                 subtitleMaxLines: 3,
-                trailing: _KickoraSwitch(
-                  value: app.notificationsEnabled,
-                  onChanged: (v) => app.setNotificationsEnabled(v),
-                ),
+                value: app.notificationsEnabled,
+                onChanged: (v) => _onMasterNotificationsChanged(context, app, v),
               ),
               const SizedBox(height: 16),
               SectionHeader(
@@ -240,6 +255,74 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+/// Switch row with no [InkWell] over the control (reliable on real Android).
+class _SettingsSwitchTile extends StatelessWidget {
+  const _SettingsSwitchTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    this.subtitleMaxLines = 2,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final int subtitleMaxLines;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).cardTheme.color,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _SettingsLeadingIcon(icon: icon, iconColor: iconColor),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: subtitleMaxLines,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).hintColor,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _KickoraSwitch(value: value, onChanged: onChanged),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Settings row switch — uses [ThemeData.switchTheme] for premium contrast.
 class _KickoraSwitch extends StatelessWidget {
   const _KickoraSwitch({
@@ -252,10 +335,17 @@ class _KickoraSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Switch.adaptive(
-      value: value,
-      onChanged: onChanged,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return SizedBox(
+      width: 52,
+      height: 48,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
     );
   }
 }
@@ -275,24 +365,49 @@ class _NotificationPrefTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppScope.of(context);
     return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: _SettingsTile(
-        icon: Icons.tune_rounded,
-        iconColor: Theme.of(context).colorScheme.primary,
-        title: title,
-        subtitle: enabled
-            ? (AppScope.of(context).isArabic
-                ? 'تنبيهات هذا النوع'
-                : 'Alerts for this category')
-            : (AppScope.of(context).isArabic
-                ? 'فعّل الإشعارات أولاً'
-                : 'Turn on notifications first'),
-        trailing: _KickoraSwitch(
-          value: value,
-          onChanged: enabled ? onChanged : null,
-        ),
+      opacity: enabled ? 1 : 0.55,
+      child: _SettingsSwitchTile(
+      icon: Icons.tune_rounded,
+      iconColor: Theme.of(context).colorScheme.primary,
+      title: title,
+      subtitle: enabled
+          ? (app.isArabic ? 'تنبيهات هذا النوع' : 'Alerts for this category')
+          : (app.isArabic
+              ? 'فعّل الإشعارات أولاً'
+              : 'Turn on notifications first'),
+      value: value,
+      onChanged: enabled ? onChanged : null,
       ),
+    );
+  }
+}
+
+class _SettingsLeadingIcon extends StatelessWidget {
+  const _SettingsLeadingIcon({
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [
+            iconColor.withValues(alpha: 0.28),
+            iconColor.withValues(alpha: 0.08),
+          ],
+        ),
+        border: Border.all(color: iconColor.withValues(alpha: 0.25)),
+      ),
+      child: Icon(icon, color: iconColor, size: 22),
     );
   }
 }
@@ -303,7 +418,6 @@ class _SettingsTile extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.subtitle,
-    this.subtitleMaxLines = 2,
     this.trailing,
     this.onTap,
   });
@@ -312,7 +426,7 @@ class _SettingsTile extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String subtitle;
-  final int subtitleMaxLines;
+  static const int _subtitleMaxLines = 2;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -333,21 +447,7 @@ class _SettingsTile extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(11),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        gradient: LinearGradient(
-                          colors: [
-                            iconColor.withValues(alpha: 0.28),
-                            iconColor.withValues(alpha: 0.08),
-                          ],
-                        ),
-                        border:
-                            Border.all(color: iconColor.withValues(alpha: 0.25)),
-                      ),
-                      child: Icon(icon, color: iconColor, size: 22),
-                    ),
+                    _SettingsLeadingIcon(icon: icon, iconColor: iconColor),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -363,7 +463,7 @@ class _SettingsTile extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             subtitle,
-                            maxLines: subtitleMaxLines,
+                            maxLines: _subtitleMaxLines,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                                 color: Theme.of(context).hintColor,

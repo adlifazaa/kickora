@@ -29,12 +29,19 @@ class CompetitionCard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final maxW = constraints.maxWidth;
         final maxH = constraints.maxHeight;
         final compact =
-            dense || (maxH.isFinite && maxH > 0 && maxH < 155);
+            !dense && maxH.isFinite && maxH > 0 && maxH < 155;
         final padH = compact ? 10.0 : 12.0;
         final padV = compact ? 10.0 : 11.0;
-        final logoSlot = dense ? 76.0 : (compact ? 44.0 : 48.0);
+        final cardH = maxH.isFinite && maxH > 0 ? maxH : maxW / 0.88;
+        final wideCell = dense && maxW > 185;
+        final logoSlot = dense
+            ? (wideCell
+                ? (maxW * 0.34).clamp(56.0, 96.0)
+                : (cardH < 150 ? 64.0 : 76.0))
+            : (compact ? 44.0 : 48.0);
         final badgeSize = logoSlot * 0.92;
         final nameSize = compact ? 12.5 : 13.5;
         final metaSize = compact ? 10.0 : 10.5;
@@ -150,31 +157,30 @@ class CompetitionCard extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(padH, padV + 2, padH, padV),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: logoSlot,
-                      height: logoSlot,
-                      child: Center(
-                        child: CompetitionBadge.fromCompetition(
-                          competition,
-                          size: badgeSize,
+                padding: EdgeInsets.fromLTRB(padH, padV, padH, padV),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: logoSlot,
+                        height: logoSlot,
+                        child: Center(
+                          child: CompetitionBadge.fromCompetition(
+                            competition,
+                            size: badgeSize,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: rowGap),
-                    Flexible(
-                      child: Center(
-                        child: centeredMeta(
-                          showTeams: competition.teamCount > 0,
-                          showMatches: competition.matchesToday > 0,
-                        ),
+                      SizedBox(height: rowGap),
+                      centeredMeta(
+                        showTeams: competition.teamCount > 0,
+                        showMatches: competition.matchesToday > 0,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Positioned(top: 2, right: 2, child: bookmark),
