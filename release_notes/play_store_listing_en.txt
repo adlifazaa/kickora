@@ -2,7 +2,7 @@
 KICKORA — Google Play Store Listing (English)
 ================================================================================
 App name: Kickora
-Package: com.kickora.live
+Package: com.kickora.worldcup
 Contact: sugarkeysapps@gmail.com
 Last updated: May 2026
 
@@ -80,13 +80,15 @@ Suggested category: Sports
 --------------------------------------------------------------------------------
 PRIVACY NOTES (summary for store listing / Data safety form)
 --------------------------------------------------------------------------------
+• Package: com.kickora.worldcup
 • Contact email for privacy requests: sugarkeysapps@gmail.com
-• In-app Privacy Policy available under Settings
-• App may use network access to fetch football data
-• Local preferences (language, theme, favorites) stored on device
-• Advertising architecture may be enabled in future versions (disclosed in policy)
+• In-app Privacy Policy available under Settings (matches docs/privacy_policy.md)
+• Firebase Analytics, Crashlytics, and Cloud Messaging (FCM) integrated
+• Google Mobile Ads (AdMob) SDK included; real ads not shown in current release
+• Mock football data by default; network requests only when live data is configured
+• Local preferences (language, theme, favorites) stored on device only
 • Not directed at children under 13
-• Users can contact us to request data deletion where applicable
+• Users can contact us for privacy questions or data-related requests
 
 --------------------------------------------------------------------------------
 CONTENT RATING / AUDIENCE

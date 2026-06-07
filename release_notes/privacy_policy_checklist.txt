@@ -1,7 +1,7 @@
 ================================================================================
 KICKORA — Privacy Policy & Play Data Safety Checklist
 ================================================================================
-App: Kickora
+App: Kickora (com.kickora.worldcup)
 Contact: sugarkeysapps@gmail.com
 In-app policy: Settings → Privacy policy
 In-app terms: Settings → Terms of use
@@ -29,19 +29,22 @@ ON-DEVICE / LOCAL (typical)
 [ ] Favorites (teams, competitions) — stored locally on device
 [ ] Recent searches (competitions) — stored locally if enabled
 
-NETWORK / THIRD PARTIES
-[ ] Football data fetched from API-Football (api-sports.io) when API key provided
-[ ] Device IP address processed by API provider as part of HTTP requests
-[ ] No Kickora account / login in current version (declare “No account required” if true)
+NETWORK / THIRD PARTIES (active SDKs in release binary)
+[ ] Firebase Analytics — screen views & feature events (no search text, no API keys, no FCM tokens in analytics)
+[ ] Firebase Crashlytics — crash logs, stack traces, device/OS metadata sent to Google
+[ ] Firebase Cloud Messaging (FCM) — device registration when user enables notifications in Settings
+[ ] Google Mobile Ads (AdMob) SDK included; real ads NOT shown until KICKORA_ADS_ENABLED=true
+[ ] Football data: mock/demo by default; live API requests only when configured at build time
+[ ] Device IP address processed by third-party providers as part of HTTP requests (when live data enabled)
+[ ] No Kickora account / login (declare “No account required”)
 
-NOT COLLECTED BY KICKora SERVER (typical — confirm no backend)
+NOT COLLECTED BY KICKORA SERVER (typical — confirm no backend)
 [ ] Kickora does not operate its own user accounts database (unless added later)
 [ ] No email collected unless user contacts support voluntarily
 
-FUTURE / ARCHITECTURE (declare when activated)
-[ ] Push notifications (FCM) — architecture ready; declare when live
-[ ] Advertising (e.g. Google AdMob) — declare when ads are enabled in production
-[ ] Analytics — declare if Firebase Analytics or similar is added
+WHEN ADS ARE ENABLED (declare in Data safety before shipping ads)
+[ ] AdMob may collect advertising identifiers per Google policies
+[ ] Premium subscribers do not see ads
 
 --------------------------------------------------------------------------------
 3. GOOGLE PLAY DATA SAFETY FORM — SUGGESTED ANSWERS
@@ -54,10 +57,13 @@ Data collection
 [ ] If using API-Football: data is requested from device to provider; document
     “Data shared with third parties” for sports data provider as applicable.
 
-Data types (check if transmitted)
-[ ] App activity — optional / diagnostics only if analytics added
-[ ] Device or other IDs — only if ads/analytics SDKs enabled
-[ ] Approximate location — only if you add location-based features (not default)
+Data types (check if transmitted — current release)
+[ ] App activity — Yes (Firebase Analytics: screen views, match/competition opened, favorites, search length)
+[ ] Crash logs / Diagnostics — Yes (Firebase Crashlytics)
+[ ] Device or other IDs — Yes (Firebase Analytics app instance ID; FCM token when notifications enabled)
+[ ] Advertising ID — No in current release (AdMob SDK present but ads disabled); Yes when ads enabled
+[ ] Approximate location — No (no location permissions or features)
+[ ] Personal info (name, email, etc.) — No
 
 Security practices
 [ ] Data encrypted in transit (HTTPS for API calls) — Yes, when using HTTPS APIs
@@ -65,9 +71,9 @@ Security practices
 [ ] Committed to Play Families Policy if targeting children — N/A if 13+ only
 
 Purpose
-[ ] App functionality (scores, favorites, preferences)
-[ ] Advertising — only when ads are enabled
-[ ] Analytics — only when analytics SDK is enabled
+[ ] App functionality (scores, favorites, preferences, crash fixes, push delivery)
+[ ] Analytics — Yes (Firebase Analytics)
+[ ] Advertising — only when KICKORA_ADS_ENABLED=true (AdMob)
 
 --------------------------------------------------------------------------------
 4. PRIVACY POLICY URL (Play Console)
@@ -76,8 +82,9 @@ Purpose
 [ ] Option B: Some developers link to in-app-only policy — Play often requires a URL
 [ ] URL text must match in-app policy substance
 [ ] Include contact: sugarkeysapps@gmail.com
-[ ] Mention third-party football data provider (API-Football / API-Sports)
-[ ] Mention optional ads in future if stated in-app
+[ ] Mention Firebase Analytics, Crashlytics, and FCM as in docs/privacy_policy.md
+[ ] Mention AdMob SDK (ads disabled in current release; declare Advertising ID when ads ship)
+[ ] Mention third-party football data provider when live data is enabled (mock by default)
 
 --------------------------------------------------------------------------------
 5. PERMISSIONS (Android)
@@ -122,7 +129,7 @@ Purpose
 --------------------------------------------------------------------------------
 10. BEFORE EACH RELEASE (re-run)
 --------------------------------------------------------------------------------
-[ ] Any new SDK (ads, analytics, crash reporting) added to privacy policy?
+[ ] Any new SDK or change to Firebase / AdMob behaviour added to docs/privacy_policy.md and in-app policy?
 [ ] Data safety form updated?
 [ ] New permissions added to AndroidManifest?
 [ ] Release notes mention privacy-impacting changes?

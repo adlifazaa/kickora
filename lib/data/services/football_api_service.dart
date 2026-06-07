@@ -1,6 +1,7 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/constants/api_mode_service.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_debug_log.dart';
 import '../api/clients/football_remote_client.dart';
@@ -38,10 +39,10 @@ class FootballApiService {
   final ApiProvider provider;
 
   static ApiProvider _defaultProvider() {
-    if (ApiConstants.isMock || !ApiConstants.hasRemoteApi) {
+    if (ApiModeService.isMock || !ApiModeService.usesRemoteApi) {
       return ApiProvider.mock;
     }
-    return ApiConstants.isBackendProxy
+    return ApiModeService.isBackendProxy
         ? ApiProvider.backend
         : ApiProvider.apiFootball;
   }
@@ -329,7 +330,7 @@ class FootballApiService {
 
   Future<List<TeamModel>> fetchTeams({int? competitionId}) async {
     if (!isLive) throw const ApiException.notConfigured();
-    if (ApiConstants.isBackendProxy && competitionId == null) {
+    if (ApiModeService.isBackendProxy && competitionId == null) {
       return const [];
     }
 

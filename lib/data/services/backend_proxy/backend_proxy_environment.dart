@@ -1,18 +1,14 @@
+import '../../../core/constants/api_constants.dart';
+
 /// Compile-time environment for Kickora backend proxy (no secrets logged).
 class BackendProxyEnvironment {
   BackendProxyEnvironment._();
 
-  /// `mock` (default), `direct`, or `backend` / `backendproxy`.
-  static const String apiMode = String.fromEnvironment(
-    'KICKORA_API_MODE',
-    defaultValue: 'mock',
-  );
+  /// Resolved API mode name (see [ApiConstants.apiModeName]).
+  static String get apiMode => ApiConstants.apiModeName;
 
   /// Production backend base URL (no trailing slash required).
-  static const String backendUrl = String.fromEnvironment(
-    'KICKORA_BACKEND_URL',
-    defaultValue: '',
-  );
+  static String get backendUrl => ApiConstants.backendBaseUrl;
 
   /// Legacy alias supported by [ApiConstants].
   static const String backendBaseUrl = String.fromEnvironment(
@@ -20,6 +16,5 @@ class BackendProxyEnvironment {
     defaultValue: '',
   );
 
-  static bool get isConfigured =>
-      backendUrl.trim().isNotEmpty || backendBaseUrl.trim().isNotEmpty;
+  static bool get isConfigured => ApiConstants.hasBackendUrl;
 }

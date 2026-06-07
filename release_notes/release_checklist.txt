@@ -2,7 +2,7 @@
 KICKORA — Play Store Release Checklist
 ================================================================================
 App: Kickora
-Package: com.kickora.live
+Package: com.kickora.worldcup
 Contact: sugarkeysapps@gmail.com
 
 Use this list before uploading to Google Play Console. Do not ship until each
@@ -24,7 +24,7 @@ A. PROJECT & BUILD (blocking)
 B. ANDROID CONFIGURATION
 --------------------------------------------------------------------------------
 [ ] App name: Kickora (strings.xml + Play Console)
-[ ] applicationId: com.kickora.live (matches Play Console app ID)
+[ ] applicationId: com.kickora.worldcup (matches Play Console app ID)
 [ ] Launcher icons: branded mipmap assets (replace Flutter placeholders if any)
 [ ] Splash / LaunchTheme references valid resources
 [ ] INTERNET permission present in AndroidManifest.xml

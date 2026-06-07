@@ -14,8 +14,10 @@ void main() {
     );
   });
 
-  test('default app mode remains mock', () {
-    expect(ApiConstants.apiMode, ApiMode.mock);
-    expect(ApiConstants.isMock, isTrue);
+  test('default app mode is backend proxy, not direct API', () {
+    expect(ApiConstants.apiMode, ApiMode.backendProxy);
+    expect(ApiConstants.isMock, isFalse);
+    expect(ApiConstants.isDirectApi, isFalse);
+    expect(ApiConstants.hasApiKey, isFalse);
   });
 }

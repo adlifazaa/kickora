@@ -32,8 +32,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: ar ? 'البيانات التي نجمعها' : 'Data we collect',
               child: _Paragraph(
                 ar
-                    ? 'لا يطلب Kickora حاليًا تسجيل دخول أو حسابًا. لا نجمع اسمك، بريدك الإلكتروني، أو معرّفات شخصية. التطبيق يعرض بيانات تجريبية (Mock Data) لأغراض العرض فقط.'
-                    : 'Kickora does not require sign-in or an account. We do not collect your name, email, or personal identifiers. The app currently displays mock/demo data for showcase purposes only.',
+                    ? 'لا يطلب Kickora تسجيل دخول أو حسابًا. لا نجمع اسمك أو بريدك الإلكتروني أو رقم هاتفك. قد يعرض التطبيق بيانات كرة قدم تجريبية (Mock) لأغراض العرض ما لم يتم تهيئة مزود بيانات حي عند البناء.'
+                    : 'Kickora does not require sign-in or an account. We do not collect your name, email, or phone number. The app may display mock/demo football data for showcase unless live data providers are configured at build time.',
               ),
             ),
             const SizedBox(height: 10),
@@ -52,8 +52,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: ar ? 'الإعلانات' : 'Ads',
               child: _Paragraph(
                 ar
-                    ? 'لا توجد إعلانات حقيقية مفعّلة حاليًا — نعرض فقط مواضع وهمية (Placeholders) لأغراض التصميم. عند تفعيل الإعلانات مستقبلاً (مثل Google AdMob)، قد يستخدم مزوّد الإعلانات معرّفات إعلانية لعرض إعلانات مخصصة. سيتم تحديث هذه السياسة وتوفير خيار في الإعدادات قبل تفعيل أي إعلانات حقيقية.'
-                    : 'No real ads are active right now — only design placeholders are shown. When ads (e.g. Google AdMob) are enabled later, the ad provider may use advertising identifiers to serve personalised ads. This policy will be updated and a setting will be provided before any real ad goes live.',
+                    ? 'لا تُعرض إعلانات حقيقية في هذا الإصدار. تم دمج Google Mobile Ads (AdMob) لمواضع native مستقبلية. عند تفعيل الإعلانات، قد يستخدم AdMob معرّفات إعلانية ويعالج بيانات وفق سياسات Google. مشتركو Premium لا يرون إعلانات. سنحدّث هذه السياسة قبل تفعيل إعلانات حقيقية في الإنتاج.'
+                    : 'Real ads are not shown in the current release. Google Mobile Ads (AdMob) is integrated for future native placements. When ads are enabled, AdMob may use advertising identifiers and process data per Google\'s AdMob policies. Premium subscribers do not see ads. We will update this policy before enabling real ads in production.',
               ),
             ),
             const SizedBox(height: 10),
@@ -64,8 +64,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   : 'Third-party APIs',
               child: _Paragraph(
                 ar
-                    ? 'في الإصدارات القادمة قد نستخدم خدمات بيانات كرة قدم من جهات خارجية (مثل API-Football أو غيرها) لجلب المباريات والفرق واللاعبين. هذه الخدمات تتلقى فقط الطلبات اللازمة لإحضار البيانات، ولا يتم مشاركة معلومات شخصية تخصّك معها.'
-                    : 'Future versions may use third-party football data providers (such as API-Football or similar) to fetch matches, teams, and players. These services only receive the queries needed to fetch data — no personal information about you is shared with them.',
+                    ? 'افتراضيًا، يستخدم التطبيق بيانات كرة قدم تجريبية. عند تهيئة بيانات حية، قد تُرسَل طلبات إلى مزودي بيانات خارجيين (مثل API-Football). تتلقى هذه الخدمات فقط الطلبات اللازمة لجلب البيانات — دون مشاركة معلومات شخصية عنك.'
+                    : 'By default, the app uses mock/demo football data. When live data is configured, requests may be sent to third-party football data providers (such as API-Football). Those services receive only the queries needed to fetch data — no personal information about you is shared with them.',
               ),
             ),
             const SizedBox(height: 10),
@@ -74,18 +74,18 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: ar ? 'الإشعارات' : 'Notifications',
               child: _Paragraph(
                 ar
-                    ? 'الإشعارات معطلة افتراضيًا. إذا تم تفعيل تنبيهات المباريات لاحقًا، فسيُطلب منك أولاً الإذن، ويمكنك إيقافها في أي وقت من إعدادات التطبيق أو من إعدادات نظام جهازك.'
-                    : 'Notifications are disabled by default. If match alerts are enabled in a future update, you will be asked for permission first, and you can turn them off any time from the in-app settings or your system settings.',
+                    ? 'تستخدم الإشعارات Firebase Cloud Messaging (FCM) وهي معطّلة افتراضيًا. عند تفعيل تنبيهات المباريات من الإعدادات، نطلب الإذن ونسجّل جهازك في Firebase للمواضيع التي تختارها (مثل فرقك المفضلة). يمكنك إيقاف الإشعارات في أي وقت من التطبيق أو إعدادات النظام.'
+                    : 'Push notifications use Firebase Cloud Messaging (FCM) and are off by default. If you enable match alerts in Settings, we request permission and register your device with Firebase for the topics you choose (e.g. favourite teams). You can turn notifications off any time in the app or system settings.',
               ),
             ),
             const SizedBox(height: 10),
             _Section(
               icon: Icons.analytics_outlined,
-              title: ar ? 'التحليلات' : 'Analytics',
+              title: ar ? 'التحليلات وتقارير الأعطال' : 'Analytics & crash reports',
               child: _Paragraph(
                 ar
-                    ? 'لا نستخدم حاليًا أي أدوات تحليل. في حال إضافتها مستقبلاً، ستكون مجمّعة ومجهولة الهوية (لا تتضمن بياناتك الشخصية) ولن يتم تفعيلها إلا إذا منحت موافقتك.'
-                    : 'We currently do not use any analytics tooling. If it is added later, the data will be aggregated and anonymous (no personal data) and will only be enabled when you opt in.',
+                    ? 'نستخدم Firebase Analytics (Google) لفهم استخدام التطبيق — مثل مشاهدات الشاشات، فتح المباريات أو البطولات، إضافة المفضلة، وطول استعلام البحث (وليس نص البحث). لا نسجّل مفاتيح API أو رموز FCM في التحليلات. نستخدم Firebase Crashlytics (Google) لجمع سجلات الأعطال وبيانات الجهاز لإصلاح مشاكل الاستقرار. هذه البيانات مجمّعة أو تشخيصية ولا تتضمن اسمك أو بريدك.'
+                    : 'We use Firebase Analytics (Google) to understand app usage — such as screen views, matches or competitions opened, favorites added, and search length (not query text). We do not log API keys or FCM tokens in analytics. We use Firebase Crashlytics (Google) to collect crash logs and device metadata to fix stability issues. This data is aggregated or diagnostic and does not include your name or email.',
               ),
             ),
             const SizedBox(height: 10),
@@ -218,8 +218,8 @@ class _IntroCard extends StatelessWidget {
           Expanded(
             child: Text(
               ar
-                  ? 'نحترم خصوصيتك. هذه الصفحة توضح ما يجمعه Kickora فعليًا وما قد يجمعه مستقبلاً، بلغة واضحة ومباشرة.'
-                  : 'We respect your privacy. This page explains what Kickora actually collects today and what it may collect in the future — in plain, direct language.',
+                  ? 'نحترم خصوصيتك. توضّح هذه الصفحة ما يجمعه Kickora وكيف قد تعالج خدمات الطرف الثالث (Firebase وAdMob) البيانات — بلغة واضحة ومباشرة.'
+                  : 'We respect your privacy. This page explains what Kickora collects and how third-party services (Firebase, AdMob) may process data — in plain, direct language.',
               style: TextStyle(
                 color: Theme.of(context).hintColor,
                 fontSize: 13,

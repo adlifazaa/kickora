@@ -3,6 +3,7 @@ import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_cache_policy.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/api_mode.dart';
+import '../../core/constants/api_mode_service.dart';
 import '../../core/player/player_photo_resolver.dart';
 import '../../core/errors/api_error_messages.dart';
 import '../../core/errors/api_exception.dart';
@@ -34,7 +35,7 @@ class FootballRepository {
             (api != null
                 ? RemoteFootballDataProvider(
                     api,
-                    mode: ApiConstants.isBackendProxy
+                    mode: ApiModeService.isBackendProxy
                         ? ApiMode.backendProxy
                         : ApiMode.directApi,
                   )
@@ -46,7 +47,10 @@ class FootballRepository {
   final RepositoryMemoryCache _memory = RepositoryMemoryCache();
   RemoteFootballSource? _remoteSource;
 
-  bool get usesLiveApi => RemoteFootballSource.isRemoteActive;
+  bool get _remoteFetchEnabled =>
+      !_provider.isMock && RemoteFootballSource.isRemoteActive;
+
+  bool get usesLiveApi => _remoteFetchEnabled;
 
   // --- Matches ---
 
@@ -65,7 +69,7 @@ class FootballRepository {
         date: date,
         competitionId: competitionId,
       );
-      if (RemoteFootballSource.isRemoteActive) {
+      if (_remoteFetchEnabled) {
         await _remote.invalidateLiveMatches(competitionId: competitionId);
       }
     }
@@ -193,7 +197,7 @@ class FootballRepository {
     final fid = _resolvedFixtureId(fixtureId, id);
     final allowMock = _allowMockFallback(fid);
 
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       return DataState.success(_mockMatchById(id), fromMock: true);
     }
     try {
@@ -321,7 +325,7 @@ class FootballRepository {
     bool allowMockFallback = true,
     bool forceRefresh = false,
   }) async {
-    if (!RemoteFootballSource.isRemoteActive || leagueId == null) {
+    if (!_remoteFetchEnabled || leagueId == null) {
       return DataState.success(MockData.standings, fromMock: true);
     }
     final memKey = 'mem_standings_$leagueId';
@@ -377,7 +381,7 @@ class FootballRepository {
     bool forceRefresh = false,
   }) async {
     const operation = 'getCompetitions';
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       final list = MockData.competitions;
       ApiDebugLog.dataSource(
         operation: operation,
@@ -427,7 +431,7 @@ class FootballRepository {
   }
 
   Future<DataState<CompetitionModel?>> getCompetitionById(int id) async {
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       ApiDebugLog.dataSource(
         operation: 'getCompetitionById',
         source: 'mock',
@@ -462,7 +466,7 @@ class FootballRepository {
     bool forceRefresh = false,
   }) async {
     final memKey = 'mem_teams_$competitionId';
-    if (!forceRefresh && RemoteFootballSource.isRemoteActive) {
+    if (!forceRefresh && _remoteFetchEnabled) {
       final hit = _readMemory<List<TeamModel>>(memKey, ApiCachePolicy.teams);
       if (hit != null) return hit;
       final disk = _remote.readCachedTeams(competitionId);
@@ -497,7 +501,7 @@ class FootballRepository {
     if (trimmed.isEmpty) {
       return const DataState.success(<PlayerModel>[]);
     }
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       final lower = trimmed.toLowerCase();
       final list = MockData.players
           .where(
@@ -525,7 +529,7 @@ class FootballRepository {
   }
 
   Future<DataState<List<PlayerModel>>> getTopScorers(int competitionId) async {
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       final list = MockData.topScorers(competitionId);
       ApiDebugLog.dataSource(
         operation: 'getTopScorers',
@@ -555,7 +559,7 @@ class FootballRepository {
 
   Future<DataState<PlayerModel?>> getPlayerById(int id) async {
     final memKey = 'player_profile_$id';
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       return DataState.success(_mockPlayerById(id), fromMock: true);
     }
     final cached =
@@ -641,7 +645,7 @@ class FootballRepository {
     required List<MatchModel> Function() mock,
     required Future<List<MatchModel>> Function() fetch,
   }) async {
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       final list = _filterMatches(mock(), competitionId);
       ApiDebugLog.dataSource(
         operation: operation,
@@ -700,7 +704,7 @@ class FootballRepository {
     required int competitionId,
     bool forceRefresh = false,
   }) async {
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       return DataState.success(
         MockData.competitionTeams(competitionId),
         fromMock: true,
@@ -736,7 +740,7 @@ class FootballRepository {
     String? memoryKey,
     Duration? memoryTtl,
   }) async {
-    if (!RemoteFootballSource.isRemoteActive) {
+    if (!_remoteFetchEnabled) {
       return DataState.success(mockValue(), fromMock: true);
     }
     if (memoryKey != null && memoryTtl != null) {
@@ -937,7 +941,7 @@ class FootballRepository {
   }
 
   bool _allowMockFallback(int fixtureId) {
-    if (!RemoteFootballSource.isRemoteActive) return true;
+    if (!_remoteFetchEnabled) return true;
     return MockData.isMockMatchId(fixtureId);
   }
 

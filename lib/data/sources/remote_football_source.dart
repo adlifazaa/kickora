@@ -1,7 +1,7 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_constants.dart';
-import '../../core/constants/api_mode.dart';
+import '../../core/constants/api_mode_service.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_debug_log.dart';
 import '../models/competition_model.dart';
@@ -33,19 +33,14 @@ class RemoteFootballSource {
   final ApiFootballService _apiFootball;
   final BackendProxyService _backendProxy;
 
-  static bool get isRemoteActive {
-    if (ApiConstants.isMock) return false;
-    if (ApiConstants.isDirectApi) return ApiConstants.hasApiKey;
-    if (ApiConstants.isBackendProxy) return ApiConstants.hasBackendUrl;
-    return false;
-  }
+  static bool get isRemoteActive => ApiModeService.usesRemoteApi;
 
   /// @deprecated Use [isRemoteActive].
   static bool get isRemoteLiveActive => isRemoteActive;
 
   String get _sourceLabel {
-    if (ApiConstants.isDirectApi) return 'directApi';
-    if (ApiConstants.isBackendProxy) return 'backendProxy';
+    if (ApiModeService.isDirectApi) return 'directApi';
+    if (ApiModeService.isBackendProxy) return 'backendProxy';
     return 'mock';
   }
 
@@ -418,11 +413,11 @@ class RemoteFootballSource {
     Future<T> Function() direct,
     Future<T> Function() backend,
   ) async {
-    if (ApiConstants.isDirectApi) {
+    if (ApiModeService.isDirectApi) {
       if (!_apiFootball.isEnabled) throw const ApiException.notConfigured();
       return direct();
     }
-    if (ApiConstants.isBackendProxy) {
+    if (ApiModeService.isBackendProxy) {
       if (!_backendProxy.isEnabled) throw const ApiException.notConfigured();
       return backend();
     }

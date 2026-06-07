@@ -68,7 +68,7 @@ val admobAppId = admobConfig.first ?: "ca-app-pub-3940256099942544~3347511713"
 generateAdmobDartConfig(admobConfig.second, admobConfig.third, admobConfig.first)
 
 android {
-    namespace = "com.kickora.live"
+    namespace = "com.kickora.worldcup"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -83,7 +83,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.kickora.live"
+        applicationId = "com.kickora.worldcup"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

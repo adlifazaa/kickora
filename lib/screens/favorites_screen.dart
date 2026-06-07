@@ -1,11 +1,13 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
-import '../data/mock_data.dart';
 import '../models/competition_model.dart';
 import '../models/team_model.dart';
+import '../services/app_controller.dart';
+import '../services/favorites_resolver.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/feed_spotlight.dart';
 import '../widgets/match_card.dart';
@@ -20,8 +22,70 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  Future<void> _refresh() async {
-    await AppScope.of(context).favoriteManager.load();
+  bool _loadingItems = true;
+  FavoritesSnapshot _snapshot = const FavoritesSnapshot();
+  AppController? _app;
+  Set<int> _trackedTeamIds = const {};
+  Set<int> _trackedCompetitionIds = const {};
+  Set<int> _trackedMatchIds = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final app = AppScope.of(context);
+    if (!identical(_app, app)) {
+      _app?.removeListener(_onAppChanged);
+      _app = app;
+      _app!.addListener(_onAppChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _app?.removeListener(_onAppChanged);
+    super.dispose();
+  }
+
+  void _onAppChanged() {
+    final app = _app;
+    if (app == null || _favoriteIdsUnchanged(app)) return;
+    _refresh(silent: true);
+  }
+
+  bool _favoriteIdsUnchanged(AppController app) {
+    return setEquals(_trackedTeamIds, app.favoriteTeamIds) &&
+        setEquals(_trackedCompetitionIds, app.favoriteCompetitionIds) &&
+        setEquals(_trackedMatchIds, app.favoriteMatchIds);
+  }
+
+  Future<void> _refresh({bool silent = false}) async {
+    final app = AppScope.of(context);
+    if (!silent && mounted) {
+      setState(() => _loadingItems = true);
+    }
+
+    await app.favoriteManager.load();
+
+    final snapshot = await FavoritesResolver(app.footballRepository).resolve(
+      teamIds: app.favoriteTeamIds,
+      competitionIds: app.favoriteCompetitionIds,
+      matchIds: app.favoriteMatchIds,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _loadingItems = false;
+      _snapshot = snapshot;
+      _trackedTeamIds = Set<int>.from(app.favoriteTeamIds);
+      _trackedCompetitionIds = Set<int>.from(app.favoriteCompetitionIds);
+      _trackedMatchIds = Set<int>.from(app.favoriteMatchIds);
+    });
   }
 
   @override
@@ -29,7 +93,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final app = AppScope.of(context);
     final text = AppText.of(context);
 
-    if (app.favoritesLoading) {
+    if (app.favoritesLoading || _loadingItems) {
       return const SafeArea(
         child: Center(
           child: SizedBox(
@@ -41,16 +105,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    final teams =
-        MockData.teams.where((team) => app.favoriteTeamIds.contains(team.id)).toList();
-    final competitions = MockData.competitions
-        .where((c) => app.favoriteCompetitionIds.contains(c.id))
-        .toList();
-    final matches = MockData.matches()
-        .where((m) => app.favoriteMatchIds.contains(m.id))
-        .toList();
+    final teams = _snapshot.teams;
+    final competitions = _snapshot.competitions;
+    final matches = _snapshot.matches;
 
-    if (teams.isEmpty && competitions.isEmpty && matches.isEmpty) {
+    if (_snapshot.isEmpty) {
       return SafeArea(
         child: Center(
           child: TweenAnimationBuilder<double>(
@@ -74,9 +133,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
 
     return SafeArea(
-      child: ListenableBuilder(
-        listenable: app,
-        builder: (context, _) => RefreshIndicator(
+      child: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -136,7 +193,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ],
           ],
         ),
-      ),
       ),
     );
   }

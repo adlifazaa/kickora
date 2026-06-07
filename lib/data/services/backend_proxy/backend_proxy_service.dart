@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../../core/cache/cache_manager.dart';
 import '../../../core/cache/cache_service.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/api_mode_service.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/network/api_debug_log.dart';
 import '../../api/clients/football_remote_client.dart';
@@ -39,7 +40,7 @@ class BackendProxyService {
 
   /// True when backend proxy mode and [KICKORA_BACKEND_URL] are configured.
   bool get isEnabled =>
-      ApiConstants.isBackendProxy &&
+      ApiModeService.isBackendProxy &&
       ApiConstants.hasBackendUrl &&
       _client.isConfigured;
 

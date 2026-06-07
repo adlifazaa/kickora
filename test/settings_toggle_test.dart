@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kickora/app/app_scope.dart';
 import 'package:kickora/app/theme.dart';
 import 'package:kickora/screens/settings_screen.dart';
+import 'package:kickora/data/providers/mock_football_data_provider.dart';
+import 'package:kickora/data/repositories/football_repository.dart';
 import 'package:kickora/services/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,7 +30,11 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final controller = AppController(prefs);
+    final controller = AppController(
+      prefs,
+      footballRepository:
+          FootballRepository(dataProvider: MockFootballDataProvider()),
+    );
     await controller.load();
     await controller.setLocale(const Locale('en'));
 
@@ -73,7 +79,11 @@ void main() {
     expect(controller.notificationsEnabled, isFalse);
     expect(_switchValue(tester, 'Enable notifications'), isFalse);
 
-    final controller2 = AppController(prefs);
+    final controller2 = AppController(
+      prefs,
+      footballRepository:
+          FootballRepository(dataProvider: MockFootballDataProvider()),
+    );
     await controller2.load();
     expect(controller2.notificationsEnabled, isFalse);
     expect(controller2.notifyFavoriteTeamUpdatesEnabled, isFalse);

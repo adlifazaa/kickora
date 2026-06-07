@@ -9,7 +9,7 @@ class ApiDeveloperConfig {
   /// Active football data mode after release safety rules.
   static ApiMode get apiMode => ApiReleasePolicy.effectiveMode;
 
-  static bool get isMockDefault => ApiConstants.isMock;
+  static bool get isMockDefault => ApiConstants.isExplicitMock;
 
   /// True when remote HTTP can run (credentials present).
   static bool get remoteActive => ApiReleasePolicy.usesRemoteApi;
@@ -29,17 +29,9 @@ class ApiDeveloperConfig {
     if (ApiConstants.isDirectApi && !ApiConstants.hasApiKey) {
       warnings.add(
         'directApi mode requested but KICKORA_API_KEY is missing. '
-        'Using mock data — app will not crash. '
+        'Using backend proxy — app will not crash. '
         'Run: flutter run --dart-define=KICKORA_API_MODE=direct '
         '--dart-define=KICKORA_API_KEY=YOUR_KEY',
-      );
-    }
-    if (ApiConstants.isBackendProxy && !ApiConstants.hasBackendUrl) {
-      warnings.add(
-        'backendProxy mode requested but KICKORA_BACKEND_URL is missing. '
-        'Using mock data — app will not crash. '
-        'Run: flutter run --dart-define=KICKORA_API_MODE=backend '
-        '--dart-define=KICKORA_BACKEND_URL=https://your-api.example.com',
       );
     }
     return warnings;

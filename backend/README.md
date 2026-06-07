@@ -64,16 +64,48 @@ Recommendation for Kickora MVP: **Railway** or **Render Web Service** with this 
 2. Variables: `API_FOOTBALL_KEY`, `PORT=8080`, `TRUST_PROXY=true`.
 3. Deploy → copy public URL (e.g. `https://kickora-api.up.railway.app`).
 
-### Render (example)
+### Render (recommended)
 
-1. New **Web Service** → connect repo → **Root Directory** `backend`.
-2. Build: `npm install` · Start: `npm start`.
-3. Add `API_FOOTBALL_KEY` in Environment.
-4. Use the `*.onrender.com` URL as `KICKORA_BACKEND_URL`.
+1. **New Web Service** → connect this GitHub repo.
+2. **Root Directory:** `backend`
+3. **Runtime:** Node
+4. **Build command:** `npm install`
+5. **Start command:** `npm start`
+6. **Health check path:** `/health` (optional but recommended)
+7. **Environment variables** (Render dashboard → Environment):
+
+| Variable | Value |
+|----------|--------|
+| `API_FOOTBALL_KEY` | Your API-SPORTS key (**required**, secret) |
+| `PORT` | `8080` (Render sets this automatically; explicit is fine) |
+| `TRUST_PROXY` | `true` |
+| `RATE_LIMIT_MAX` | `120` (optional) |
+| `RATE_LIMIT_WINDOW_MS` | `900000` (optional, 15 min) |
+| `ENABLE_CORS` | `false` (optional; set `true` only for browser testing) |
+
+Alternatively, import `render.yaml` from the repo root (Blueprint) — it pre-configures the above.
+
+8. Deploy → copy the public URL (e.g. `https://kickora-api.onrender.com`).
+9. Use that URL as `KICKORA_BACKEND_URL` in Flutter (no API key in the app).
+
+**Free tier note:** Render free web services spin down after inactivity (cold start ~30–60s on first request). For production traffic, use a paid instance ($7/mo always-on).
+
+Verify:
+
+```bash
+curl https://YOUR_SERVICE.onrender.com/health
+curl "https://YOUR_SERVICE.onrender.com/competitions"
+```
 
 ## Point the Flutter app at the proxy
 
-Mock stays the default (no dart-define). For production data:
+Mock stays the default when no backend URL is set. For production data, pass only the backend URL (mode auto-detects):
+
+```bash
+flutter run --dart-define=KICKORA_BACKEND_URL=https://YOUR_DEPLOYED_URL
+```
+
+Explicit mode (optional):
 
 ```bash
 flutter run --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND_URL=https://YOUR_DEPLOYED_URL
@@ -82,9 +114,7 @@ flutter run --dart-define=KICKORA_API_MODE=backend --dart-define=KICKORA_BACKEND
 Release (no version bump in this step):
 
 ```bash
-flutter build appbundle --release \
-  --dart-define=KICKORA_API_MODE=backend \
-  --dart-define=KICKORA_BACKEND_URL=https://YOUR_DEPLOYED_URL
+flutter build appbundle --release --dart-define=KICKORA_BACKEND_URL=https://YOUR_DEPLOYED_URL
 ```
 
 Do **not** pass `KICKORA_API_KEY` in store builds.

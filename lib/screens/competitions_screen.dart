@@ -5,6 +5,7 @@ import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../core/competition/competition_country_filter.dart';
 import '../core/constants/api_constants.dart';
+import '../core/constants/api_mode_service.dart';
 import '../core/debug/competition_debug_log.dart';
 import '../data/mock_data.dart';
 import '../models/competition_model.dart';
@@ -78,7 +79,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
       final app = AppScope.of(context);
       return app.isCompetitionFavorite(c.id);
     }
-    if (ApiConstants.isMock) {
+    if (ApiModeService.isMock) {
       if (_category == 'all') return true;
       return c.region.toLowerCase().contains(_category);
     }
@@ -86,7 +87,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
   }
 
   void _logCompetitionFilterDebug(List<CompetitionModel> visible) {
-    if (!ApiConstants.isDirectApi && !ApiConstants.isBackendProxy) return;
+    if (!ApiModeService.usesRemoteApi) return;
     for (final c in visible.take(12)) {
       logCompetitionDebug(
         name: c.name,

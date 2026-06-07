@@ -39,6 +39,14 @@ void main() {
       BackendProxyRoutes.playersSearch(query: 'salah', season: season).path,
       ApiConstants.backendPlayersSearch,
     );
+    expect(
+      BackendProxyRoutes.topScorers(competitionId: 39, season: season).path,
+      '/competitions/39/top-scorers',
+    );
+    expect(
+      BackendProxyRoutes.playerById(id: 276, season: season).path,
+      '/players/276',
+    );
     expect(BackendProxyRoutes.matchById(1001).path, '/matches/1001');
     expect(BackendProxyRoutes.matchEvents(1001).path, '/matches/1001/events');
     expect(

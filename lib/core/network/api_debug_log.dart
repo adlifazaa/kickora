@@ -18,18 +18,18 @@ class ApiDebugLog {
       'remoteActive=${ApiModeService.remoteActive} '
       'apiDevMode=${ApiConstants.apiDevMode}',
     );
-    debugPrint('[Kickora Dev] baseUrl=${ApiConstants.effectiveBaseUrl}');
-    if (ApiConstants.isMock) {
+    debugPrint('[Kickora Dev] baseUrl=${ApiModeService.effectiveBaseUrl}');
+    if (ApiModeService.isMock) {
       debugPrint(
         '[Kickora Dev] default=mock (Play Store / release builds use mock unless dart-define is set)',
       );
     }
-    if (ApiConstants.isDirectApi && ApiConstants.hasApiKey) {
+    if (ApiModeService.isDirectApi && ApiConstants.hasApiKey) {
       debugPrint(
         '[Kickora Dev] directApi header=${ApiConstants.headerApiKey} (value not logged)',
       );
     }
-    if (ApiConstants.isBackendProxy) {
+    if (ApiModeService.isBackendProxy) {
       debugPrint('[Kickora Dev] backendProxy: no API key header from app');
     }
   }

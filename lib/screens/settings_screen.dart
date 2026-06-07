@@ -2,6 +2,7 @@
 
 import '../app/app_colors.dart';
 import '../app/app_contact.dart';
+import '../app/app_locale.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
@@ -72,7 +73,9 @@ class SettingsScreen extends StatelessWidget {
                     ? 'دعم كامل لاتجاه RTL'
                     : 'Full RTL & LTR support',
                 value: app.isArabic,
-                onChanged: (v) => app.setLocale(Locale(v ? 'ar' : 'en')),
+                onChanged: (v) => app.setLocale(
+                  Locale(v ? AppLocale.arabicCode : AppLocale.englishCode),
+                ),
               ),
               const SizedBox(height: 12),
               _SettingsSwitchTile(

@@ -11,7 +11,8 @@ import 'remote_football_data_provider.dart';
 
 /// Builds the active [FootballDataProvider] from compile-time [ApiMode].
 ///
-/// Default: mock (no remote calls). Direct API requires
+/// Default: backend proxy (production). Mock requires
+/// `--dart-define=KICKORA_API_MODE=mock`. Direct API requires
 /// `--dart-define=KICKORA_API_MODE=direct --dart-define=KICKORA_API_KEY=...`
 class FootballDataProviderFactory {
   FootballDataProviderFactory._();

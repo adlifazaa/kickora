@@ -1,6 +1,6 @@
 # Kickora
 
-Flutter football app (`com.kickora.live`). **Mock data is the default** for Play Store and everyday development — no API keys in the repo or release binaries.
+Flutter football app (`com.kickora.worldcup`). **Mock data is the default** for Play Store and everyday development — no API keys in the repo or release binaries.
 
 ## API modes and production cost control
 

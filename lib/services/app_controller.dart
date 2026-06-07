@@ -8,6 +8,7 @@ import '../notifications/notification_manager.dart';
 import '../notifications/services/kickora_notification_service.dart';
 import '../subscription/premium_service.dart';
 import '../subscription/premium_subscription_service.dart';
+import '../app/app_locale.dart';
 import 'favorite_manager.dart';
 
 class AppController extends ChangeNotifier {
@@ -58,13 +59,13 @@ class AppController extends ChangeNotifier {
   final SharedPreferences _preferences;
 
   ThemeMode _themeMode = ThemeMode.dark;
-  Locale _locale = const Locale('ar');
+  Locale _locale = AppLocale.defaultLocale;
   bool _notificationsEnabled = false;
   List<String> _recentSearches = const <String>[];
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
-  bool get isArabic => _locale.languageCode == 'ar';
+  bool get isArabic => AppLocale.isArabic(_locale);
 
   bool get favoritesLoading => favoriteManager.isLoading;
   Set<int> get favoriteTeamIds => favoriteManager.teamIds;
@@ -99,8 +100,10 @@ class AppController extends ChangeNotifier {
     _themeMode =
         themeValue == ThemeMode.light.name ? ThemeMode.light : ThemeMode.dark;
 
-    final languageCode = _preferences.getString(_languageKey) ?? 'ar';
-    _locale = Locale(languageCode);
+    if (!_preferences.containsKey(_languageKey)) {
+      await _preferences.setString(_languageKey, AppLocale.arabicCode);
+    }
+    _locale = AppLocale.fromLanguageCode(_preferences.getString(_languageKey));
 
     await favoriteManager.load();
     await premiumSubscriptionService.load();
@@ -239,8 +242,8 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setLocale(Locale locale) async {
-    _locale = locale;
-    await _preferences.setString(_languageKey, locale.languageCode);
+    _locale = AppLocale.fromLanguageCode(locale.languageCode);
+    await _preferences.setString(_languageKey, _locale.languageCode);
     notifyListeners();
   }
 

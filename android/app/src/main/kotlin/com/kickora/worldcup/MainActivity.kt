@@ -1,4 +1,4 @@
-package com.kickora.live
+package com.kickora.worldcup
 
 import io.flutter.embedding.android.FlutterActivity
 

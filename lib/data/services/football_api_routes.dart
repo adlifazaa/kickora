@@ -1,8 +1,8 @@
 import '../../core/constants/api_constants.dart';
-import '../../core/constants/api_mode.dart';
+import '../../core/constants/api_mode_service.dart';
 import '../models/match_model.dart';
 
-/// Resolves HTTP path + query for [FootballApiService] based on [ApiMode].
+/// Resolves HTTP path + query for [FootballApiService] based on effective [ApiMode].
 ///
 /// Backend responses should mirror API-Football JSON (`response` array) so existing
 /// parsers keep working until a dedicated DTO layer is added.
@@ -14,7 +14,7 @@ class FootballApiRoutes {
     int? competitionId,
     required int season,
   }) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(
         path: ApiConstants.backendMatchesLive,
         queryParameters: _backendMatchQuery(
@@ -40,7 +40,7 @@ class FootballApiRoutes {
     MatchStatus? status,
     required int season,
   }) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       final path = switch (status) {
         MatchStatus.live => ApiConstants.backendMatchesLive,
         MatchStatus.upcoming => ApiConstants.backendMatchesUpcoming,
@@ -70,7 +70,7 @@ class FootballApiRoutes {
   }
 
   static ApiRouteRequest matchById(int id) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(path: ApiConstants.backendMatch(id));
     }
     return ApiRouteRequest(
@@ -80,7 +80,7 @@ class FootballApiRoutes {
   }
 
   static ApiRouteRequest matchEvents(int matchId) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(path: ApiConstants.backendMatchEvents(matchId));
     }
     return ApiRouteRequest(
@@ -90,7 +90,7 @@ class FootballApiRoutes {
   }
 
   static ApiRouteRequest matchStatistics(int matchId) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(path: ApiConstants.backendMatchStatistics(matchId));
     }
     return ApiRouteRequest(
@@ -100,7 +100,7 @@ class FootballApiRoutes {
   }
 
   static ApiRouteRequest matchLineups(int matchId) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(path: ApiConstants.backendMatchLineups(matchId));
     }
     return ApiRouteRequest(
@@ -110,7 +110,7 @@ class FootballApiRoutes {
   }
 
   static ApiRouteRequest competitions() {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return const ApiRouteRequest(path: ApiConstants.backendCompetitions);
     }
     return const ApiRouteRequest(
@@ -120,7 +120,7 @@ class FootballApiRoutes {
   }
 
   static ApiRouteRequest competitionById(int id, {required int season}) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(
         path: ApiConstants.backendCompetition(id),
         queryParameters: {'season': '$season'},
@@ -136,7 +136,7 @@ class FootballApiRoutes {
     required int leagueId,
     required int season,
   }) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(
         path: ApiConstants.backendStandings(leagueId),
         queryParameters: {'season': '$season'},
@@ -148,15 +148,13 @@ class FootballApiRoutes {
     );
   }
 
-  /// Top scorers / player profile remain direct-API only until backend exposes them.
-  static bool get supportsExtendedPlayerRoutes =>
-      ApiConstants.apiMode == ApiMode.directApi;
+  static bool get supportsExtendedPlayerRoutes => !ApiModeService.isMock;
 
   static ApiRouteRequest teams({
     int? competitionId,
     required int season,
   }) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy && competitionId != null) {
+    if (ApiModeService.isBackendProxy && competitionId != null) {
       return ApiRouteRequest(
         path: ApiConstants.backendTeams(competitionId),
         queryParameters: {'season': '$season'},
@@ -175,7 +173,7 @@ class FootballApiRoutes {
     required String query,
     required int season,
   }) {
-    if (ApiConstants.apiMode == ApiMode.backendProxy) {
+    if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(
         path: ApiConstants.backendPlayersSearch,
         queryParameters: {'q': query, 'season': '$season'},
@@ -191,6 +189,12 @@ class FootballApiRoutes {
     required int competitionId,
     required int season,
   }) {
+    if (ApiModeService.isBackendProxy) {
+      return ApiRouteRequest(
+        path: ApiConstants.backendTopScorers(competitionId),
+        queryParameters: {'season': '$season'},
+      );
+    }
     return ApiRouteRequest(
       path: ApiConstants.playersTopScorers,
       queryParameters: {'league': '$competitionId', 'season': '$season'},
@@ -201,6 +205,12 @@ class FootballApiRoutes {
     required int id,
     required int season,
   }) {
+    if (ApiModeService.isBackendProxy) {
+      return ApiRouteRequest(
+        path: ApiConstants.backendPlayer(id),
+        queryParameters: {'season': '$season'},
+      );
+    }
     return ApiRouteRequest(
       path: ApiConstants.players,
       queryParameters: {'id': '$id', 'season': '$season'},

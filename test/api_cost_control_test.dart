@@ -51,9 +51,11 @@ void main() {
       );
     });
 
-    test('mock remains default mode', () {
-      expect(ApiConstants.isMock, isTrue);
+    test('backend proxy remains default production mode', () {
+      expect(ApiConstants.isMock, isFalse);
+      expect(ApiConstants.isBackendProxy, isTrue);
       expect(ApiConstants.isDirectApi, isFalse);
+      expect(ApiConstants.backendBaseUrl, ApiConstants.productionBackendUrl);
     });
   });
 

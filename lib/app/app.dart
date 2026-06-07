@@ -8,6 +8,7 @@ import '../widgets/notification_tap_listener.dart';
 import 'app_scope.dart';
 import 'kickora_navigator.dart';
 import 'routes.dart';
+import 'app_locale.dart';
 import 'theme.dart';
 
 class KickoraApp extends StatelessWidget {
@@ -38,17 +39,22 @@ class KickoraApp extends StatelessWidget {
             themeMode: controller.themeMode,
             initialRoute: AppRoutes.splash,
             onGenerateRoute: AppRoutes.onGenerateRoute,
-            supportedLocales: const [Locale('ar'), Locale('en')],
+            supportedLocales: AppLocale.supportedLocales,
             locale: controller.locale,
+            localeListResolutionCallback: (deviceLocales, supported) =>
+                AppLocale.resolveList(
+                  deviceLocales,
+                  supported,
+                  controller.locale,
+                ),
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
             builder: (context, child) {
-              final isArabic = controller.locale.languageCode == 'ar';
               return Directionality(
-                textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: AppLocale.textDirection(controller.locale),
                 child: child ?? const SplashScreen(),
               );
             },

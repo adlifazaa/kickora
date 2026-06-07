@@ -3,23 +3,27 @@ import 'api_constants.dart';
 import 'api_developer_config.dart';
 import 'api_mode.dart';
 import 'api_production_guidance.dart';
+import 'api_release_policy.dart';
 
 /// Resolves and exposes the active football data mode (compile-time via dart-define).
 class ApiModeService {
   ApiModeService._();
 
-  static ApiMode get mode => ApiConstants.apiMode;
+  /// Resolved mode after release rules (backend when URL is configured).
+  static ApiMode get mode => ApiReleasePolicy.effectiveMode;
 
-  static bool get isMock => ApiConstants.isMock;
+  static bool get isMock => mode == ApiMode.mock;
 
-  static bool get isDirectApi => ApiConstants.isDirectApi;
+  static bool get isDirectApi => mode == ApiMode.directApi;
 
-  static bool get isBackendProxy => ApiConstants.isBackendProxy;
+  static bool get isBackendProxy => mode == ApiMode.backendProxy;
 
   /// True when remote HTTP should be used (direct key or backend URL configured).
-  static bool get usesRemoteApi => ApiConstants.hasRemoteApi;
+  static bool get usesRemoteApi => ApiReleasePolicy.usesRemoteApi;
 
-  static String get effectiveBaseUrl => ApiConstants.effectiveBaseUrl;
+  static String get effectiveBaseUrl => isBackendProxy
+      ? ApiConstants.backendBaseUrl
+      : ApiConstants.apiFootballBaseUrl;
 
   /// Label for developer console traces (`mock`, `directApi`, `backendProxy`).
   static String get effectiveDataSource => ApiDeveloperConfig.dataSourceLabel;
