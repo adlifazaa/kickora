@@ -403,3 +403,77 @@ test('worker getStatus reports dry run and disabled defaults', () => {
   assert.equal(status.dryRun, true);
   assert.equal(status.realFcmActive, false);
 });
+
+test('canSendReal returns boolean even when Firebase JSON is configured', async () => {
+  const fakeServiceAccount =
+    '{"type":"service_account","private_key":"-----BEGIN PRIVATE KEY-----\\nTEST\\n-----END PRIVATE KEY-----\\n"}';
+  const dryRunLog = new DryRunLog(10);
+  const dedupStore = new DedupStore({ ttlSeconds: 3600 });
+  const sender = createFcmSender(
+    mockConfig({
+      notificationsEnabled: true,
+      notificationsDryRun: false,
+      firebaseServiceAccountJson: fakeServiceAccount,
+    }),
+    { dryRunLog, dedupStore },
+  );
+  assert.equal(typeof sender.canSendReal(), 'boolean');
+  assert.equal(sender.canSendReal(), true);
+});
+
+test('getStatus realFcmActive is boolean when Firebase JSON is configured', () => {
+  const fakeServiceAccount =
+    '{"type":"service_account","private_key":"-----BEGIN PRIVATE KEY-----\\nTEST\\n-----END PRIVATE KEY-----\\n"}';
+  const worker = createNotificationWorker(
+    mockConfig({
+      notificationsEnabled: true,
+      notificationsDryRun: false,
+      firebaseServiceAccountJson: fakeServiceAccount,
+    }),
+  );
+  const status = worker.getStatus();
+  assert.equal(typeof status.realFcmActive, 'boolean');
+  assert.equal(status.realFcmActive, true);
+  assert.equal(typeof status.realFcmConfigured, 'boolean');
+});
+
+test('/notifications/status response never contains secrets', () => {
+  const {
+    toPublicNotificationStatus,
+    assertNoSecretsInJson,
+  } = require('../src/notifications/notificationStatus');
+  const { createNotificationRouter } = require('../src/notifications/routes');
+
+  const fakeServiceAccount =
+    '{"type":"service_account","project_id":"test","private_key":"-----BEGIN PRIVATE KEY-----\\nLEAK\\n-----END PRIVATE KEY-----\\n","client_email":"firebase-adminsdk@test.iam.gserviceaccount.com"}';
+
+  const worker = createNotificationWorker(
+    mockConfig({
+      notificationsEnabled: true,
+      notificationsDryRun: false,
+      firebaseServiceAccountJson: fakeServiceAccount,
+    }),
+  );
+
+  const publicStatus = toPublicNotificationStatus(worker.getStatus());
+  assert.equal(typeof publicStatus.realFcmActive, 'boolean');
+  assert.equal(publicStatus.realFcmActive, true);
+
+  const router = createNotificationRouter({ worker });
+  const layer = router.stack.find((l) => l.route?.path === '/notifications/status');
+  assert.ok(layer);
+
+  const handler = layer.route.stack[0].handle;
+  let body;
+  const res = {
+    json(payload) {
+      body = payload;
+    },
+  };
+  handler({}, res);
+  const json = JSON.stringify(body);
+  assertNoSecretsInJson(json);
+  assert.equal(body.realFcmActive, true);
+  assert.equal(typeof body.realFcmActive, 'boolean');
+  assert.equal(body.ok, true);
+});

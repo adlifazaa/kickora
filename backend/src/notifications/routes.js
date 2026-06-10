@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const { toPublicNotificationStatus } = require('./notificationStatus');
 
 /**
  * @param {{ worker: ReturnType<import('./worker').createNotificationWorker> }} deps
@@ -11,7 +12,7 @@ function createNotificationRouter({ worker }) {
   router.get('/notifications/status', (_req, res) => {
     res.json({
       ok: true,
-      ...worker.getStatus(),
+      ...toPublicNotificationStatus(worker.getStatus()),
     });
   });
 

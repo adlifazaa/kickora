@@ -18,10 +18,10 @@ function createFcmSender(config, deps = {}) {
   let initError = null;
 
   function canSendReal() {
-    return (
+    return Boolean(
       config.notificationsEnabled &&
-      !config.notificationsDryRun &&
-      config.firebaseServiceAccountJson
+        !config.notificationsDryRun &&
+        config.firebaseServiceAccountJson,
     );
   }
 

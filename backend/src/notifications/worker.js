@@ -200,7 +200,7 @@ function createNotificationWorker(config, deps = {}) {
       dryRun: config.notificationsDryRun,
       pollSeconds: config.notificationsPollSeconds,
       realFcmConfigured: Boolean(config.firebaseServiceAccountJson),
-      realFcmActive: sender.canSendReal(),
+      realFcmActive: Boolean(sender.canSendReal()),
       running: Boolean(timer),
       pollInFlight,
       lastPollAt,
