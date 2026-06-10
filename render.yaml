@@ -18,8 +18,12 @@ services:
       - key: RATE_LIMIT_WINDOW_MS
         value: "900000"
       - key: NOTIFICATIONS_ENABLED
-        value: "false"
+        value: "true"
       - key: NOTIFICATIONS_DRY_RUN
         value: "true"
       - key: NOTIFICATIONS_POLL_SECONDS
         value: "60"
+      - key: NOTIFICATIONS_DEDUP_TTL_SECONDS
+        value: "21600"
+      - key: NOTIFICATIONS_DRY_RUN_LOG_MAX
+        value: "200"
