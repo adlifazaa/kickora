@@ -17,3 +17,9 @@ services:
         value: "120"
       - key: RATE_LIMIT_WINDOW_MS
         value: "900000"
+      - key: NOTIFICATIONS_ENABLED
+        value: "false"
+      - key: NOTIFICATIONS_DRY_RUN
+        value: "true"
+      - key: NOTIFICATIONS_POLL_SECONDS
+        value: "60"

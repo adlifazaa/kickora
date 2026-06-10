@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { MemoryCache } = require('./cache');
 const { createRouter } = require('./routes');
+const { createNotificationWorker } = require('./notifications/worker');
+const { createNotificationRouter } = require('./notifications/routes');
 
 const app = express();
 const cache = new MemoryCache();
@@ -42,6 +44,8 @@ function sendJson(res, body) {
   res.status(200).json(body);
 }
 
+const notificationWorker = createNotificationWorker(config);
+app.use(createNotificationRouter({ worker: notificationWorker }));
 app.use(createRouter({ cache, sendJson }));
 
 app.use((_req, res) => {
@@ -71,10 +75,12 @@ if (!config.apiFootballKey) {
 
 const server = app.listen(config.port, () => {
   console.log(`[kickora-proxy] listening on port ${config.port}`);
+  notificationWorker.start();
 });
 
 setInterval(() => cache.purgeExpired(), 5 * 60 * 1000).unref?.();
 
 process.on('SIGTERM', () => {
+  notificationWorker.stop();
   server.close(() => process.exit(0));
 });

@@ -18,6 +18,10 @@ The Flutter app never receives the API-Football key. It calls Kickora-shaped rou
 | `RATE_LIMIT_WINDOW_MS` | No | Rate-limit window in ms (default `900000` = 15 min) |
 | `ENABLE_CORS` | No | Set `true` for browser testing only |
 | `TRUST_PROXY` | No | Set `false` if not behind a reverse proxy |
+| `NOTIFICATIONS_ENABLED` | No | `true` to start live notification worker (default `false`) |
+| `NOTIFICATIONS_DRY_RUN` | No | `true` = log only, no FCM send (default `true`) |
+| `NOTIFICATIONS_POLL_SECONDS` | No | Live poll interval (default `60`) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | No | Firebase Admin JSON (single line); required only when enabled **and** dry run is `false` |
 
 Alias: `KICKORA_API_FOOTBALL_KEY` (same as `API_FOOTBALL_KEY`).
 
@@ -150,3 +154,27 @@ In-memory TTL cache per route (see `src/cache.js` and `docs/backend_proxy_cachin
 | `GET /matches/:id/lineups` | `/fixtures/lineups` |
 
 Query params from the app: `season`, `competitionId`, `date`, `q`.
+
+## Live notification worker (Phase 1)
+
+Polls API-Football live fixtures, detects goals/cards/status changes, and fans out FCM topic messages. **DRY_RUN is on by default** — no real pushes until you opt in.
+
+Local dry-run:
+
+```bash
+# .env
+NOTIFICATIONS_ENABLED=true
+NOTIFICATIONS_DRY_RUN=true
+NOTIFICATIONS_POLL_SECONDS=60
+```
+
+```bash
+npm start
+curl http://localhost:8080/notifications/status
+curl http://localhost:8080/notifications/dry-run-events
+curl -X POST http://localhost:8080/notifications/test-dry-run \
+  -H "Content-Type: application/json" \
+  -d '{"type":"goal_scored","fixtureId":42,"homeTeam":"ريال","awayTeam":"برشلونة","homeScore":1,"awayScore":0}'
+```
+
+Admin routes: `GET /notifications/status`, `GET /notifications/dry-run-events`, `POST /notifications/test-dry-run`.
