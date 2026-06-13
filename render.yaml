@@ -22,7 +22,13 @@ services:
       - key: NOTIFICATIONS_DRY_RUN
         value: "true"
       - key: NOTIFICATIONS_POLL_SECONDS
-        value: "60"
+        value: "120"
+      - key: NOTIFICATIONS_MAX_EVENT_CALLS
+        value: "15"
+      - key: USAGE_DAILY_THRESHOLD
+        value: "6000"
+      - key: USAGE_PROTECTION_POLL_SECONDS
+        value: "300"
       - key: NOTIFICATIONS_DEDUP_TTL_SECONDS
         value: "21600"
       - key: NOTIFICATIONS_DRY_RUN_LOG_MAX
