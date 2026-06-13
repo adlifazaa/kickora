@@ -33,9 +33,13 @@ function mockConfig(overrides = {}) {
   return {
     notificationsEnabled: false,
     notificationsDryRun: true,
-    notificationsPollSeconds: 60,
+    notificationsPollSeconds: 120,
+    notificationsMaxEventCallsPerCycle: 15,
+    notificationsWorldCupLeagueId: 1,
     notificationsDedupTtlSeconds: 3600,
     notificationsDryRunLogMax: 50,
+    usageDailyThreshold: 6000,
+    usageProtectionPollSeconds: 300,
     firebaseServiceAccountJson: '',
     ...overrides,
   };
@@ -310,7 +314,7 @@ test('createFcmSender does nothing when notifications disabled', async () => {
   assert.equal(dryRunLog.size, 0);
 });
 
-test('worker seeds first-seen fixtures without sending notifications', async () => {
+test('worker seeds first-seen World Cup fixtures without sending notifications', async () => {
   const dryRunLog = new DryRunLog(20);
   const dedupStore = new DedupStore({ ttlSeconds: 3600 });
 
@@ -318,7 +322,7 @@ test('worker seeds first-seen fixtures without sending notifications', async () 
     response: [
       {
         fixture: { id: 500, status: { short: '1H', elapsed: 30 } },
-        league: { id: 39 },
+        league: { id: 1 },
         teams: {
           home: { id: 1, name: 'H' },
           away: { id: 2, name: 'A' },

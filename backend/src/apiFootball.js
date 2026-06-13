@@ -1,6 +1,7 @@
 'use strict';
 
 const config = require('./config');
+const { usageTracker } = require('./usageTracker');
 
 const FINISHED_SHORT = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
 const UPCOMING_SHORT = new Set(['NS', 'TBD', 'PST']);
@@ -29,7 +30,20 @@ function filterFixtureResponse(body, predicate) {
   };
 }
 
-async function fetchUpstream(path, query = {}) {
+function buildUrlPattern(path, query = {}) {
+  const keys = Object.keys(query).filter(
+    (k) => query[k] != null && `${query[k]}`.trim() !== '',
+  );
+  if (keys.length === 0) return path;
+  return `${path}?${keys.sort().join('&')}`;
+}
+
+/**
+ * @param {string} path
+ * @param {Record<string, string|number>} query
+ * @param {{ callerRoute?: string, source?: string }} [meta]
+ */
+async function fetchUpstream(path, query = {}, meta = {}) {
   if (!config.apiFootballKey) {
     const err = new Error('API_FOOTBALL_KEY is not configured on the server');
     err.statusCode = 503;
@@ -79,6 +93,12 @@ async function fetchUpstream(path, query = {}) {
       throw err;
     }
 
+    usageTracker.recordUpstream({
+      callerRoute: meta.callerRoute,
+      urlPattern: buildUrlPattern(path, query),
+      source: meta.source || 'proxy',
+    });
+
     return body;
   } catch (e) {
     if (e.name === 'AbortError') {
@@ -105,7 +125,9 @@ module.exports = {
   todayIso,
   fetchUpstream,
   filterFixtureResponse,
+  statusShort,
   FINISHED_SHORT,
   UPCOMING_SHORT,
   leagueSeasonQuery,
+  buildUrlPattern,
 };

@@ -12,6 +12,8 @@ const apiFootballKey =
   process.env.KICKORA_API_FOOTBALL_KEY?.trim() ||
   '';
 
+const newsApiKey = process.env.NEWS_API_KEY?.trim() || '';
+
 function envBool(name, fallback) {
   const raw = process.env[name];
   if (raw == null || raw.trim() === '') return fallback;
@@ -21,6 +23,7 @@ function envBool(name, fallback) {
 module.exports = {
   port: envInt('PORT', 8080),
   apiFootballKey,
+  newsApiKey,
   apiFootballBaseUrl:
     process.env.API_FOOTBALL_BASE_URL?.trim() ||
     'https://v3.football.api-sports.io',
@@ -31,9 +34,19 @@ module.exports = {
 
   notificationsEnabled: envBool('NOTIFICATIONS_ENABLED', false),
   notificationsDryRun: envBool('NOTIFICATIONS_DRY_RUN', true),
-  notificationsPollSeconds: envInt('NOTIFICATIONS_POLL_SECONDS', 60),
+  /** Poll interval for live fixtures (seconds). Default 120 to reduce API quota. */
+  notificationsPollSeconds: envInt('NOTIFICATIONS_POLL_SECONDS', 120),
+  /** Max event API calls per worker poll cycle. */
+  notificationsMaxEventCallsPerCycle: envInt('NOTIFICATIONS_MAX_EVENT_CALLS', 15),
+  /** World Cup league id — event polling priority when quota is tight. */
+  notificationsWorldCupLeagueId: envInt('NOTIFICATIONS_WC_LEAGUE_ID', 1),
   notificationsDedupTtlSeconds: envInt('NOTIFICATIONS_DEDUP_TTL_SECONDS', 6 * 60 * 60),
   notificationsDryRunLogMax: envInt('NOTIFICATIONS_DRY_RUN_LOG_MAX', 200),
   firebaseServiceAccountJson:
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim() || '',
+
+  /** Daily upstream API-Football call budget before quota protection kicks in. */
+  usageDailyThreshold: envInt('USAGE_DAILY_THRESHOLD', 6000),
+  /** Poll interval when quota protection is active (seconds). */
+  usageProtectionPollSeconds: envInt('USAGE_PROTECTION_POLL_SECONDS', 300),
 };

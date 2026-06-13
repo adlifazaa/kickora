@@ -10,11 +10,14 @@ class MemoryCache {
   get(key) {
     const entry = this._store.get(key);
     if (!entry) return null;
-    if (Date.now() >= entry.expiresAt) {
-      this._store.delete(key);
-      return null;
-    }
+    if (Date.now() >= entry.expiresAt) return null;
     return entry.body;
+  }
+
+  /** Expired entries kept until [purgeExpired] — used for quota-protection fallback. */
+  getStale(key) {
+    const entry = this._store.get(key);
+    return entry ? entry.body : null;
   }
 
   set(key, body, ttlSeconds) {
@@ -33,23 +36,30 @@ class MemoryCache {
   }
 }
 
-/** TTL seconds per Kickora route pattern (see docs/backend_proxy_caching.md). */
+const LIVE_STATUSES = new Set([
+  '1H', '2H', 'LIVE', 'INPLAY', 'ET', 'BT', 'P', 'INT', 'HT',
+]);
+const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
+
+/** TTL seconds per Kickora route pattern. */
 const ROUTE_TTL_SECONDS = [
-  { pattern: /^\/matches\/live$/, ttl: 60 },
-  { pattern: /^\/matches\/today$/, ttl: 5 * 60 },
-  { pattern: /^\/matches\/upcoming$/, ttl: 5 * 60 },
-  { pattern: /^\/matches\/finished$/, ttl: 10 * 60 },
+  { pattern: /^\/news\/world-cup$/, ttl: 30 * 60 },
+  { pattern: /^\/matches\/live$/, ttl: 45 },
+  { pattern: /^\/matches\/today$/, ttl: 10 * 60 },
+  { pattern: /^\/matches\/upcoming$/, ttl: 10 * 60 },
+  { pattern: /^\/matches\/finished$/, ttl: 12 * 60 * 60 },
   { pattern: /^\/competitions$/, ttl: 24 * 60 * 60 },
   { pattern: /^\/competitions\/\d+$/, ttl: 24 * 60 * 60 },
-  { pattern: /^\/competitions\/\d+\/top-scorers$/, ttl: 24 * 60 * 60 },
-  { pattern: /^\/standings\/\d+$/, ttl: 10 * 60 },
+  { pattern: /^\/competitions\/\d+\/top-scorers$/, ttl: 20 * 60 },
+  { pattern: /^\/competitions\/\d+\/matches$/, ttl: 15 * 60 },
+  { pattern: /^\/standings\/\d+$/, ttl: 15 * 60 },
   { pattern: /^\/teams\/\d+$/, ttl: 24 * 60 * 60 },
   { pattern: /^\/players\/search$/, ttl: 24 * 60 * 60 },
   { pattern: /^\/players\/\d+$/, ttl: 24 * 60 * 60 },
-  { pattern: /^\/matches\/\d+$/, ttl: 2 * 60 },
-  { pattern: /^\/matches\/\d+\/events$/, ttl: 2 * 60 },
-  { pattern: /^\/matches\/\d+\/statistics$/, ttl: 2 * 60 },
-  { pattern: /^\/matches\/\d+\/lineups$/, ttl: 2 * 60 },
+  { pattern: /^\/matches\/\d+$/, ttl: 45 },
+  { pattern: /^\/matches\/\d+\/events$/, ttl: 45 },
+  { pattern: /^\/matches\/\d+\/statistics$/, ttl: 45 },
+  { pattern: /^\/matches\/\d+\/lineups$/, ttl: 45 },
 ];
 
 function ttlForPath(pathname) {
@@ -57,6 +67,24 @@ function ttlForPath(pathname) {
     if (pattern.test(pathname)) return ttl;
   }
   return 60;
+}
+
+/** Status-aware TTL for match detail and sub-resources. */
+function ttlForMatchStatus(statusShort) {
+  const s = (statusShort || '').toUpperCase();
+  if (LIVE_STATUSES.has(s)) return 45;
+  if (FINISHED_STATUSES.has(s)) return 6 * 60 * 60;
+  return 10 * 60;
+}
+
+function ttlForMatchResource(pathname, statusShort) {
+  if (
+    /^\/matches\/\d+$/.test(pathname) ||
+    /^\/matches\/\d+\/(events|statistics|lineups)$/.test(pathname)
+  ) {
+    return ttlForMatchStatus(statusShort);
+  }
+  return ttlForPath(pathname);
 }
 
 function cacheKey(req) {
@@ -71,5 +99,9 @@ function cacheKey(req) {
 module.exports = {
   MemoryCache,
   ttlForPath,
+  ttlForMatchStatus,
+  ttlForMatchResource,
   cacheKey,
+  LIVE_STATUSES,
+  FINISHED_STATUSES,
 };
