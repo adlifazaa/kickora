@@ -8,7 +8,6 @@ import '../core/constants/world_cup_config.dart';
 import '../core/refresh/match_refresh_category.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../core/startup/startup_timing.dart';
-import '../core/state/data_state.dart';
 import '../core/world_cup/world_cup_priority.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
