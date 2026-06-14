@@ -63,10 +63,15 @@ class UsageTracker {
     );
   }
 
-  recordCache(route, hit) {
+  recordCache(route, hit, meta = {}) {
     this._rollDayIfNeeded();
     const map = hit ? this._cacheHits : this._cacheMisses;
     map.set(route, (map.get(route) || 0) + 1);
+    const status = meta.statusShort ? ` status=${meta.statusShort}` : '';
+    const ttl = meta.ttlSeconds ? ` ttl=${meta.ttlSeconds}s` : '';
+    console.log(
+      `[kickora-usage] cache ${hit ? 'HIT' : 'MISS'} route=${route}${status}${ttl}`,
+    );
   }
 
   totalUpstreamToday() {

@@ -28,6 +28,8 @@ function createRouter({ cache, sendJson }) {
   const router = express.Router();
   /** @type {Map<string, Promise<object>>} */
   const todayInFlight = new Map();
+  /** @type {Map<string, Promise<object>>} */
+  const fetchInFlight = new Map();
 
   function protectionActive() {
     return usageTracker.isProtectionActive(config.usageDailyThreshold);
@@ -49,14 +51,21 @@ function createRouter({ cache, sendJson }) {
   async function cachedFetch(req, res, fetcher, options = {}) {
     const pathname = new URL(req.originalUrl, 'http://x').pathname;
     const key = cacheKey(req);
+    const matchId = /^\/matches\/(\d+)/.exec(pathname)?.[1];
+    const statusHint =
+      options.matchStatus ??
+      (matchId && /^\/matches\/\d+\/(events|statistics|lineups)$/.test(pathname)
+        ? matchStatusFromCache(matchId)
+        : '');
+
     const hit = cache.get(key);
     if (hit) {
-      usageTracker.recordCache(pathname, true);
+      usageTracker.recordCache(pathname, true, {
+        statusShort: statusHint || undefined,
+      });
       res.setHeader('X-Kickora-Cache', 'HIT');
       return sendJson(res, hit);
     }
-
-    usageTracker.recordCache(pathname, false);
 
     if (protectionActive() && options.allowStaleOnProtection !== false) {
       const stale = cache.getStale(key);
@@ -67,23 +76,42 @@ function createRouter({ cache, sendJson }) {
       }
     }
 
-    const body = await fetcher();
-    let ttl = options.ttlOverride ?? ttlForPath(pathname);
+    let pending = fetchInFlight.get(key);
+    if (!pending) {
+      pending = (async () => {
+        const body = await fetcher();
+        let ttl = options.ttlOverride ?? ttlForPath(pathname);
+        let resolvedStatus = options.matchStatus;
 
-    if (options.matchStatus != null) {
-      ttl = ttlForMatchResource(pathname, options.matchStatus);
-    } else if (/^\/matches\/\d+$/.test(pathname)) {
-      ttl = ttlForMatchResource(pathname, matchStatusFromBody(body));
-    } else if (/^\/matches\/\d+\/(events|statistics|lineups)$/.test(pathname)) {
-      const matchId = pathname.split('/')[2];
-      ttl = ttlForMatchResource(pathname, matchStatusFromCache(matchId));
+        if (resolvedStatus != null) {
+          ttl = ttlForMatchResource(pathname, resolvedStatus);
+        } else if (/^\/matches\/\d+$/.test(pathname)) {
+          resolvedStatus = matchStatusFromBody(body);
+          ttl = ttlForMatchResource(pathname, resolvedStatus);
+        } else if (/^\/matches\/\d+\/(events|statistics|lineups)$/.test(pathname)) {
+          const id = pathname.split('/')[2];
+          resolvedStatus = matchStatusFromCache(id);
+          ttl = ttlForMatchResource(pathname, resolvedStatus);
+        }
+
+        if (protectionActive()) {
+          ttl = Math.max(ttl, ttl * 3);
+        }
+
+        cache.set(key, body, ttl);
+        usageTracker.recordCache(pathname, false, {
+          statusShort: resolvedStatus || statusHint || undefined,
+          ttlSeconds: ttl,
+        });
+        return { body, ttlStored: true };
+      })().finally(() => {
+        fetchInFlight.delete(key);
+      });
+      fetchInFlight.set(key, pending);
     }
 
-    if (protectionActive()) {
-      ttl = Math.max(ttl, ttl * 3);
-    }
-
-    cache.set(key, body, ttl);
+    const result = await pending;
+    const body = result.body ?? result;
     res.setHeader('X-Kickora-Cache', 'MISS');
     if (protectionActive()) {
       res.setHeader('X-Kickora-Quota-Protection', 'active');

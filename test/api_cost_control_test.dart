@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kickora/core/constants/api_cache_policy.dart';
+import 'package:kickora/data/models/match_model.dart';
 import 'package:kickora/core/refresh/match_refresh_config.dart';
 import 'package:kickora/core/constants/api_constants.dart';
 import 'package:kickora/core/constants/api_production_guidance.dart';
@@ -37,11 +38,26 @@ void main() {
       expect(ApiCachePolicy.competitionFixtures, const Duration(minutes: 15));
     });
 
-    test('match details and sub-resources 30–60 seconds', () {
+    test('match details and sub-resources 30–60 seconds live default', () {
       expect(ApiCachePolicy.matchDetails.inSeconds, inInclusiveRange(30, 60));
       expect(ApiCachePolicy.matchEvents.inSeconds, inInclusiveRange(30, 60));
       expect(ApiCachePolicy.matchStatistics.inSeconds, inInclusiveRange(30, 60));
       expect(ApiCachePolicy.matchLineups.inSeconds, inInclusiveRange(30, 60));
+    });
+
+    test('match detail resource TTL varies by fixture status', () {
+      expect(
+        ApiCachePolicy.matchDetailResourceTtl(MatchStatus.finished),
+        const Duration(hours: 24),
+      );
+      expect(
+        ApiCachePolicy.matchDetailResourceTtl(MatchStatus.upcoming),
+        const Duration(hours: 1),
+      );
+      expect(
+        ApiCachePolicy.matchDetailResourceTtl(MatchStatus.live).inSeconds,
+        inInclusiveRange(30, 60),
+      );
     });
 
     test('all matches refresh interval at least ten minutes', () {

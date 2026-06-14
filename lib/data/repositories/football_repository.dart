@@ -305,49 +305,68 @@ class FootballRepository {
   }) async {
     final fid = _resolvedFixtureId(fixtureId, id);
     final allowMock = _allowMockFallback(fid);
+    final memKey = 'mem_match_$fid';
+    final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, id));
 
     if (!_remoteFetchEnabled) {
       return DataState.success(_mockMatchById(id), fromMock: true);
     }
-    try {
-      final remote = await _remote.fetchMatchDetails(fid);
-      if (remote != null) {
-        return DataState.success(
-          remote.copyWith(fixtureId: fid),
-          fromMock: false,
-        );
-      }
-      final stale = _remote.readCachedMatchDetails(fid);
-      if (stale != null) {
-        return DataState.success(
-          stale.copyWith(fixtureId: fid),
-          fromMock: false,
-          fromCache: true,
-        );
-      }
-      if (allowMock) {
-        return DataState.success(_mockMatchById(id), fromMock: true);
-      }
-      return const DataState.success(null, fromMock: false);
-    } on ApiException catch (e) {
-      final stale = _remote.readCachedMatchDetails(fid);
-      if (stale != null) {
-        return DataState.success(
-          stale.copyWith(fixtureId: fid),
-          fromMock: false,
-          fromCache: true,
-        );
-      }
-      if (e.isNotConfigured || allowMock) {
-        return DataState.success(_mockMatchById(id), fromMock: true);
-      }
-      return DataState.failure(_friendlyError(e));
-    } catch (e) {
-      if (allowMock) {
-        return DataState.success(_mockMatchById(id), fromMock: true);
-      }
-      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+
+    if (!allowMock) {
+      final hit = _readMemory<MatchModel?>(memKey, ttl);
+      if (hit != null) return hit;
     }
+
+    return _dedupe(memKey, () async {
+      try {
+        final remote = await _remote.fetchMatchDetails(fid);
+        if (remote != null) {
+          _rememberFixtureStatus(fid, remote.status);
+          final result = DataState.success(
+            remote.copyWith(fixtureId: fid),
+            fromMock: false,
+          );
+          _storeMemory(memKey, result, false);
+          return result;
+        }
+        final stale = _remote.readCachedMatchDetails(fid);
+        if (stale != null) {
+          _rememberFixtureStatus(fid, stale.status);
+          final result = DataState.success(
+            stale.copyWith(fixtureId: fid),
+            fromMock: false,
+            fromCache: true,
+          );
+          _storeMemory(memKey, result, false);
+          return result;
+        }
+        if (allowMock) {
+          return DataState.success(_mockMatchById(id), fromMock: true);
+        }
+        return const DataState.success(null, fromMock: false);
+      } on ApiException catch (e) {
+        final stale = _remote.readCachedMatchDetails(fid);
+        if (stale != null) {
+          _rememberFixtureStatus(fid, stale.status);
+          final result = DataState.success(
+            stale.copyWith(fixtureId: fid),
+            fromMock: false,
+            fromCache: true,
+          );
+          _storeMemory(memKey, result, false);
+          return result;
+        }
+        if (e.isNotConfigured || allowMock) {
+          return DataState.success(_mockMatchById(id), fromMock: true);
+        }
+        return DataState.failure(_friendlyError(e));
+      } catch (e) {
+        if (allowMock) {
+          return DataState.success(_mockMatchById(id), fromMock: true);
+        }
+        return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
+      }
+    });
   }
 
   Future<DataState<List<MatchEventModel>>> getMatchEvents(
@@ -356,14 +375,16 @@ class FootballRepository {
     int? leagueId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
+    final memKey = 'mem_events_$fid';
+    final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
     return _loadRemoteFixtureDetail(
       operation: 'getMatchEvents',
       endpoint: '/events',
       leagueId: leagueId ?? _mockMatchById(matchId)?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      memoryKey: 'mem_events_$fid',
-      memoryTtl: ApiCachePolicy.matchEvents,
+      memoryKey: memKey,
+      memoryTtl: ttl,
       fetch: () => _remote.fetchMatchEvents(fid),
       mockValue: () => _mockMatchById(matchId)?.events ?? const [],
       emptyValue: () => const <MatchEventModel>[],
@@ -376,14 +397,16 @@ class FootballRepository {
     int? leagueId,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
+    final memKey = 'mem_stats_$fid';
+    final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
     return _loadRemoteFixtureDetail(
       operation: 'getMatchStatistics',
       endpoint: '/statistics',
       leagueId: leagueId ?? _mockMatchById(matchId)?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      memoryKey: 'mem_stats_$fid',
-      memoryTtl: ApiCachePolicy.matchStatistics,
+      memoryKey: memKey,
+      memoryTtl: ttl,
       fetch: () => _remote.fetchMatchStatistics(fid),
       mockValue: () => _mockMatchById(matchId)?.stats ?? const [],
       emptyValue: () => const <MatchStatisticModel>[],
@@ -397,14 +420,16 @@ class FootballRepository {
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
+    final memKey = 'mem_lineups_$fid';
+    final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
     return _loadRemoteFixtureDetail(
       operation: 'getMatchLineups',
       endpoint: '/lineups',
       leagueId: leagueId ?? match?.competition.id,
       fixtureId: fid,
       allowMock: _allowMockFallback(fid),
-      memoryKey: 'mem_lineups_$fid',
-      memoryTtl: ApiCachePolicy.matchLineups,
+      memoryKey: memKey,
+      memoryTtl: ttl,
       fetch: () => _remote.fetchLineups(fid),
       mockValue: () => (home: match?.homeLineup, away: match?.awayLineup),
       emptyValue: () => (home: null, away: null),
@@ -418,15 +443,35 @@ class FootballRepository {
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
-    final lineup = isHome ? match?.homeLineup : match?.awayLineup;
-    return _loadRemoteFixtureDetail(
-      operation: 'getFormation',
-      fixtureId: fid,
-      allowMock: _allowMockFallback(fid),
-      fetch: () => _remote.fetchFormation(fid, isHome: isHome),
-      mockValue: () => lineup?.resolvedFormation,
-      emptyValue: () => null,
-    );
+    final memKey = 'mem_formation_${fid}_${isHome ? 'home' : 'away'}';
+    final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
+    if (!_remoteFetchEnabled) {
+      final lineup = isHome ? match?.homeLineup : match?.awayLineup;
+      return DataState.success(lineup?.resolvedFormation, fromMock: true);
+    }
+    final hit = _readMemory<FormationModel?>(memKey, ttl);
+    if (hit != null) return hit;
+
+    return _dedupe(memKey, () async {
+      final lineupsState = await getMatchLineups(
+        matchId,
+        fixtureId: fixtureId,
+        leagueId: match?.competition.id,
+      );
+      if (lineupsState.hasError) {
+        return DataState.failure(lineupsState.errorMessage ?? 'Could not load lineups.');
+      }
+      final lineup =
+          isHome ? lineupsState.data?.home : lineupsState.data?.away;
+      final formation = lineup?.resolvedFormation;
+      final result = DataState.success(
+        formation,
+        fromMock: lineupsState.fromMock,
+        fromCache: lineupsState.fromCache,
+      );
+      _storeMemory(memKey, result, false);
+      return result;
+    });
   }
 
   Future<DataState<List<StandingModel>>> getStandings({
@@ -958,74 +1003,78 @@ class FootballRepository {
     if (!_remoteFetchEnabled) {
       return DataState.success(mockValue(), fromMock: true);
     }
+    final dedupeKey = memoryKey ?? 'detail_${operation}_$fixtureId';
     if (memoryKey != null && memoryTtl != null) {
       final hit = _readMemory<T>(memoryKey, memoryTtl);
       if (hit != null) return hit;
     }
     final path = endpoint ?? operation;
     final leagueLabel = leagueId?.toString() ?? 'unknown';
-    try {
-      final data = await fetch();
-      final empty = isEmpty?.call(data) ?? _isEmptyDetailValue(data);
-      logMatchDetailsEndpoint(
-        matchId: fixtureId,
-        league: leagueLabel,
-        endpoint: path,
-        statusCode: 200,
-        itemCount: _detailItemCount(data),
-        empty: empty,
-        failed: false,
-      );
-      final result = DataState.success(data, fromMock: false);
-      if (memoryKey != null) _storeMemory(memoryKey, result, false);
-      return result;
-    } on ApiException catch (e) {
-      if (e.isNotConfigured || allowMock) {
-        return DataState.success(mockValue(), fromMock: true);
-      }
-      if (e.isEmptyResponse) {
-        final empty = emptyValue();
+
+    return _dedupe(dedupeKey, () async {
+      try {
+        final data = await fetch();
+        final empty = isEmpty?.call(data) ?? _isEmptyDetailValue(data);
         logMatchDetailsEndpoint(
           matchId: fixtureId,
           league: leagueLabel,
           endpoint: path,
           statusCode: 200,
-          itemCount: 0,
-          empty: true,
+          itemCount: _detailItemCount(data),
+          empty: empty,
           failed: false,
         );
-        final result = DataState.success(empty, fromMock: false);
+        final result = DataState.success(data, fromMock: false);
         if (memoryKey != null) _storeMemory(memoryKey, result, false);
         return result;
-      }
-      logMatchDetailsEndpoint(
-        matchId: fixtureId,
-        league: leagueLabel,
-        endpoint: path,
-        statusCode: e.statusCode ?? 0,
-        itemCount: 0,
-        empty: false,
-        failed: true,
-      );
-      if (e.isRateLimited) {
+      } on ApiException catch (e) {
+        if (e.isNotConfigured || allowMock) {
+          return DataState.success(mockValue(), fromMock: true);
+        }
+        if (e.isEmptyResponse) {
+          final empty = emptyValue();
+          logMatchDetailsEndpoint(
+            matchId: fixtureId,
+            league: leagueLabel,
+            endpoint: path,
+            statusCode: 200,
+            itemCount: 0,
+            empty: true,
+            failed: false,
+          );
+          final result = DataState.success(empty, fromMock: false);
+          if (memoryKey != null) _storeMemory(memoryKey, result, false);
+          return result;
+        }
+        logMatchDetailsEndpoint(
+          matchId: fixtureId,
+          league: leagueLabel,
+          endpoint: path,
+          statusCode: e.statusCode ?? 0,
+          itemCount: 0,
+          empty: false,
+          failed: true,
+        );
+        if (e.isRateLimited) {
+          return DataState.failure(_friendlyError(e));
+        }
         return DataState.failure(_friendlyError(e));
+      } catch (e) {
+        logMatchDetailsEndpoint(
+          matchId: fixtureId,
+          league: leagueLabel,
+          endpoint: path,
+          statusCode: 0,
+          itemCount: 0,
+          empty: false,
+          failed: true,
+        );
+        if (allowMock) {
+          return DataState.success(mockValue(), fromMock: true);
+        }
+        return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
       }
-      return DataState.failure(_friendlyError(e));
-    } catch (e) {
-      logMatchDetailsEndpoint(
-        matchId: fixtureId,
-        league: leagueLabel,
-        endpoint: path,
-        statusCode: 0,
-        itemCount: 0,
-        empty: false,
-        failed: true,
-      );
-      if (allowMock) {
-        return DataState.success(mockValue(), fromMock: true);
-      }
-      return DataState.failure(ApiErrorMessages.friendlyFromObject(e));
-    }
+    });
   }
 
   bool _isEmptyDetailValue(Object? value) {
@@ -1047,6 +1096,28 @@ class FootballRepository {
 
   bool _isSameCalendarDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  MatchStatus _knownFixtureStatus(int fixtureId, int matchId) {
+    final remembered = _memory.get<MatchStatus>(
+      _fixtureStatusKey(fixtureId),
+      const Duration(hours: 24),
+    );
+    if (remembered != null) return remembered;
+
+    final disk = _remote.readCachedMatchDetails(fixtureId);
+    if (disk != null) return disk.status;
+
+    final mock = _mockMatchById(matchId);
+    if (mock != null) return mock.status;
+
+    return MatchStatus.upcoming;
+  }
+
+  void _rememberFixtureStatus(int fixtureId, MatchStatus status) {
+    _memory.put(_fixtureStatusKey(fixtureId), status);
+  }
+
+  String _fixtureStatusKey(int fixtureId) => 'mem_fixture_status_$fixtureId';
 
   Future<DataState<T>> _dedupe<T>(
     String key,

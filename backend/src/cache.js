@@ -73,8 +73,8 @@ function ttlForPath(pathname) {
 function ttlForMatchStatus(statusShort) {
   const s = (statusShort || '').toUpperCase();
   if (LIVE_STATUSES.has(s)) return 45;
-  if (FINISHED_STATUSES.has(s)) return 6 * 60 * 60;
-  return 10 * 60;
+  if (FINISHED_STATUSES.has(s)) return 24 * 60 * 60;
+  return 60 * 60;
 }
 
 function ttlForMatchResource(pathname, statusShort) {

@@ -30,13 +30,14 @@ test('ttlForPath assigns expected buckets', () => {
 
 test('ttlForMatchStatus uses live, finished, and upcoming buckets', () => {
   assert.equal(ttlForMatchStatus('1H'), 45);
-  assert.equal(ttlForMatchStatus('FT'), 6 * 60 * 60);
-  assert.equal(ttlForMatchStatus('NS'), 10 * 60);
+  assert.equal(ttlForMatchStatus('FT'), 24 * 60 * 60);
+  assert.equal(ttlForMatchStatus('NS'), 60 * 60);
 });
 
 test('ttlForMatchResource applies status-aware TTL', () => {
-  assert.equal(ttlForMatchResource('/matches/123/events', 'FT'), 6 * 60 * 60);
+  assert.equal(ttlForMatchResource('/matches/123/events', 'FT'), 24 * 60 * 60);
   assert.equal(ttlForMatchResource('/matches/123/events', '1H'), 45);
+  assert.equal(ttlForMatchResource('/matches/123/lineups', 'NS'), 60 * 60);
 });
 
 test('cacheKey is stable for query order', () => {

@@ -15,6 +15,8 @@ enum CacheBucket {
   teams,
   upcomingMatches,
   finishedMatches,
+  competitionFixtures,
+  standingGroups,
   playerProfile,
 }
 
@@ -48,6 +50,10 @@ class CacheService {
         return ApiCachePolicy.fixturesUpcoming;
       case CacheBucket.finishedMatches:
         return ApiCachePolicy.fixturesFinished;
+      case CacheBucket.competitionFixtures:
+        return ApiCachePolicy.competitionFixtures;
+      case CacheBucket.standingGroups:
+        return ApiCachePolicy.standingGroups;
       case CacheBucket.playerProfile:
         return ApiCachePolicy.playerProfile;
     }
@@ -78,18 +84,20 @@ class CacheService {
   Future<void> writeJson(
     String key,
     Object value,
-    CacheBucket bucket,
-  ) async {
-    await _manager.setJson(key, value, ttl: ttlFor(bucket));
+    CacheBucket bucket, {
+    Duration? ttl,
+  }) async {
+    await _manager.setJson(key, value, ttl: ttl ?? ttlFor(bucket));
     ApiDebugLog.cacheWrite(key: key, bucket: bucket.name, layer: 'disk');
   }
 
   Future<void> writeJsonList(
     String key,
     List<dynamic> value,
-    CacheBucket bucket,
-  ) async {
-    await _manager.setJsonList(key, value, ttl: ttlFor(bucket));
+    CacheBucket bucket, {
+    Duration? ttl,
+  }) async {
+    await _manager.setJsonList(key, value, ttl: ttl ?? ttlFor(bucket));
     ApiDebugLog.cacheWrite(key: key, bucket: bucket.name, layer: 'disk');
   }
 

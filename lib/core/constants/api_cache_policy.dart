@@ -1,3 +1,5 @@
+import '../../data/models/match_model.dart';
+
 /// TTL durations for football API caching (production cost control).
 class ApiCachePolicy {
   ApiCachePolicy._();
@@ -33,10 +35,22 @@ class ApiCachePolicy {
   /// Match header / fixture row (opened match only).
   static const Duration matchDetails = Duration(seconds: 45);
 
-  /// Events, statistics, lineups — match details screen only.
+  /// Events, statistics, lineups — live default; use [matchDetailResourceTtl].
   static const Duration matchEvents = Duration(seconds: 45);
   static const Duration matchStatistics = Duration(seconds: 45);
   static const Duration matchLineups = Duration(seconds: 45);
+
+  /// Status-aware TTL for match detail sub-resources (events, stats, lineups).
+  static Duration matchDetailResourceTtl(MatchStatus status) {
+    switch (status) {
+      case MatchStatus.finished:
+        return const Duration(hours: 24);
+      case MatchStatus.upcoming:
+        return const Duration(hours: 1);
+      case MatchStatus.live:
+        return const Duration(seconds: 45);
+    }
+  }
 
   /// @deprecated Use [todayMatches].
   static const Duration fixturesByDate = todayMatches;

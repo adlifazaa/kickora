@@ -1,5 +1,6 @@
 import '../../core/cache/cache_manager.dart';
 import '../../core/cache/cache_service.dart';
+import '../../core/constants/api_cache_policy.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/api_mode_service.dart';
 import '../../core/errors/api_exception.dart';
@@ -314,7 +315,12 @@ class RemoteFootballSource {
       () => _backendProxy.getMatchDetails(matchId),
     );
     if (match != null) {
-      await _writeMatches(cacheKey, [match], CacheBucket.matchDetails);
+      await _writeMatches(
+        cacheKey,
+        [match],
+        CacheBucket.matchDetails,
+        ttl: ApiCachePolicy.matchDetailResourceTtl(match.status),
+      );
     }
     _log('getMatchById', _sourceLabel, match == null ? 0 : 1);
     return match;
@@ -337,7 +343,7 @@ class RemoteFootballSource {
       () => _apiFootball.getMatchEvents(matchId),
       () => _backendProxy.getMatchEvents(matchId),
     );
-    await _writeMatchEvents(cacheKey, list);
+    await _writeMatchEvents(cacheKey, list, ttl: _detailDiskTtl(matchId));
     _log('getMatchEvents', _sourceLabel, list.length);
     return list;
   }
@@ -354,7 +360,7 @@ class RemoteFootballSource {
       () => _apiFootball.getMatchStatistics(matchId),
       () => _backendProxy.getMatchStatistics(matchId),
     );
-    await _writeMatchStatistics(cacheKey, list);
+    await _writeMatchStatistics(cacheKey, list, ttl: _detailDiskTtl(matchId));
     _log('getMatchStatistics', _sourceLabel, list.length);
     return list;
   }
@@ -370,6 +376,12 @@ class RemoteFootballSource {
     final count = (lineups.home != null ? 1 : 0) + (lineups.away != null ? 1 : 0);
     _log('getMatchLineups', _sourceLabel, count);
     return lineups;
+  }
+
+  Duration _detailDiskTtl(int matchId) {
+    final status =
+        readCachedMatchDetails(matchId)?.status ?? MatchStatus.upcoming;
+    return ApiCachePolicy.matchDetailResourceTtl(status);
   }
 
   Future<FormationModel?> fetchFormation(
@@ -528,12 +540,14 @@ class RemoteFootballSource {
   Future<void> _writeMatches(
     String key,
     List<MatchModel> matches,
-    CacheBucket bucket,
-  ) async {
+    CacheBucket bucket, {
+    Duration? ttl,
+  }) async {
     await _cache?.writeJsonList(
       key,
       matches.map(_matchToJson).toList(),
       bucket,
+      ttl: ttl,
     );
   }
 
@@ -651,7 +665,11 @@ class RemoteFootballSource {
         .toList(growable: false);
   }
 
-  Future<void> _writeMatchEvents(String key, List<MatchEventModel> list) async {
+  Future<void> _writeMatchEvents(
+    String key,
+    List<MatchEventModel> list, {
+    Duration? ttl,
+  }) async {
     await _cache?.writeJsonList(
       key,
       list
@@ -667,6 +685,7 @@ class RemoteFootballSource {
           )
           .toList(),
       CacheBucket.matchEvents,
+      ttl: ttl,
     );
   }
 
@@ -681,8 +700,9 @@ class RemoteFootballSource {
 
   Future<void> _writeMatchStatistics(
     String key,
-    List<MatchStatisticModel> list,
-  ) async {
+    List<MatchStatisticModel> list, {
+    Duration? ttl,
+  }) async {
     await _cache?.writeJsonList(
       key,
       list
@@ -697,6 +717,7 @@ class RemoteFootballSource {
           )
           .toList(),
       CacheBucket.matchStatistics,
+      ttl: ttl,
     );
   }
 
