@@ -5,12 +5,18 @@ const {
   todayIso,
   fetchUpstream,
   filterFixtureResponse,
+  filterByLeague,
   statusShort,
   FINISHED_SHORT,
   UPCOMING_SHORT,
   leagueSeasonQuery,
 } = require('./apiFootball');
-const { cacheKey, ttlForPath, ttlForMatchResource } = require('./cache');
+const {
+  cacheKey,
+  canonicalTodayCacheKey,
+  ttlForPath,
+  ttlForMatchResource,
+} = require('./cache');
 const { fetchWorldCupNews } = require('./newsProvider');
 const { usageTracker } = require('./usageTracker');
 const config = require('./config');
@@ -20,6 +26,8 @@ const config = require('./config');
  */
 function createRouter({ cache, sendJson }) {
   const router = express.Router();
+  /** @type {Map<string, Promise<object>>} */
+  const todayInFlight = new Map();
 
   function protectionActive() {
     return usageTracker.isProtectionActive(config.usageDailyThreshold);
@@ -113,15 +121,68 @@ function createRouter({ cache, sendJson }) {
     }).catch(next);
   });
 
-  router.get('/matches/today', (req, res, next) => {
-    cachedFetch(req, res, async () => {
-      const date = req.query.date ?? todayIso();
-      return fetchUpstream(
+  async function cachedTodayMatches(req, res) {
+    const date = req.query.date ?? todayIso();
+    const leagueId = req.query.competitionId ?? req.query.league;
+    const season = req.query.season;
+    const canonKey = canonicalTodayCacheKey(date);
+    const pathname = '/matches/today';
+
+    const serve = (body, cacheHeader) => {
+      res.setHeader('X-Kickora-Cache', cacheHeader);
+      const payload =
+        leagueId != null && `${leagueId}`.trim() !== ''
+          ? filterByLeague(body, leagueId, season)
+          : body;
+      return sendJson(res, payload);
+    };
+
+    const hit = cache.get(canonKey);
+    if (hit) {
+      usageTracker.recordCache(pathname, true);
+      return serve(hit, 'HIT');
+    }
+
+    usageTracker.recordCache(pathname, false);
+
+    if (protectionActive()) {
+      const stale = cache.getStale(canonKey);
+      if (stale) {
+        res.setHeader('X-Kickora-Quota-Protection', 'active');
+        return serve(stale, 'STALE');
+      }
+    }
+
+    let pending = todayInFlight.get(canonKey);
+    if (!pending) {
+      pending = fetchUpstream(
         '/fixtures',
-        { date, ...leagueSeasonQuery(req) },
-        upstreamMeta('/matches/today'),
-      );
-    }).catch(next);
+        { date },
+        upstreamMeta(pathname),
+      )
+        .then((body) => {
+          let ttl = ttlForPath(pathname);
+          if (protectionActive()) ttl = Math.max(ttl, ttl * 3);
+          cache.set(canonKey, body, ttl);
+          todayInFlight.delete(canonKey);
+          return body;
+        })
+        .catch((err) => {
+          todayInFlight.delete(canonKey);
+          throw err;
+        });
+      todayInFlight.set(canonKey, pending);
+    }
+
+    const body = await pending;
+    if (protectionActive()) {
+      res.setHeader('X-Kickora-Quota-Protection', 'active');
+    }
+    return serve(body, 'MISS');
+  }
+
+  router.get('/matches/today', (req, res, next) => {
+    cachedTodayMatches(req, res).catch(next);
   });
 
   router.get('/matches/upcoming', (req, res, next) => {

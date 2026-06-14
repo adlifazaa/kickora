@@ -2,7 +2,11 @@ import 'dart:async';
 
 import '../../../core/cache/cache_manager.dart';
 import '../../../core/cache/cache_service.dart';
+import '../../../core/competition/competition_season_resolver.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/world_cup/world_cup_debug_log.dart';
+import '../../../core/world_cup/world_cup_discovery.dart';
+import '../../../core/world_cup/world_cup_priority.dart';
 import '../../../core/constants/api_mode_service.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/network/api_debug_log.dart';
@@ -13,8 +17,10 @@ import '../../models/competition_model.dart';
 import '../../models/lineup_model.dart';
 import '../../models/match_model.dart';
 import '../../models/player_model.dart';
+import '../../models/standing_group_model.dart';
 import '../../models/standing_model.dart';
 import '../../models/team_model.dart';
+import '../../models/news_article_model.dart';
 import '../api_football_parser.dart';
 import '../football_api_routes.dart' as shared;
 import 'backend_proxy_routes.dart';
@@ -36,7 +42,13 @@ class BackendProxyService {
   final BackendProxyFootballClient _client;
   final CacheService? _cache;
 
-  int get _season => ApiConstants.currentSeason();
+  int get _defaultSeason => ApiConstants.currentSeason();
+
+  int? _seasonForLeague(int? competitionId) {
+    if (competitionId == null) return null;
+    return CompetitionSeasonResolver.seasonFor(competitionId) ??
+        _defaultSeason;
+  }
 
   /// True when backend proxy mode and [KICKORA_BACKEND_URL] are configured.
   bool get isEnabled =>
@@ -80,12 +92,20 @@ class BackendProxyService {
         final cached = _readMatches(cacheKey, CacheBucket.liveMatches);
         if (cached != null) return cached;
 
+        final season = _seasonForLeague(competitionId);
         final route = BackendProxyRoutes.liveMatches(
           competitionId: competitionId,
-          season: _season,
+          season: season,
         );
         final envelope = await _get(route);
         final matches = FootballApiMapper.liveMatches(envelope);
+        _logWorldCupFixtures(
+          operation: 'liveMatches',
+          competitionId: competitionId,
+          season: season,
+          envelope: envelope,
+          matches: matches,
+        );
         await _writeMatches(cacheKey, matches, CacheBucket.liveMatches);
         return matches;
       });
@@ -95,19 +115,27 @@ class BackendProxyService {
     int? competitionId,
   }) =>
       safe(() async {
-        final cacheKey = _cacheKey('today', date: date, league: competitionId);
+        final cacheKey = _cacheKey('today', date: date, league: null);
         final cached = _readMatches(cacheKey, CacheBucket.todayMatches);
-        if (cached != null) return cached;
+        if (cached != null) {
+          return competitionId == null
+              ? cached
+              : cached.where((m) => m.competition.id == competitionId).toList();
+        }
 
-        final route = BackendProxyRoutes.matchesToday(
-          date: date,
-          competitionId: competitionId,
-          season: _season,
-        );
+        final route = BackendProxyRoutes.matchesToday(date: date);
         final envelope = await _get(route);
         final matches = FootballApiMapper.matchesByDate(envelope);
+        _logWorldCupFixtures(
+          operation: 'matchesToday',
+          competitionId: competitionId,
+          season: _seasonForLeague(competitionId),
+          envelope: envelope,
+          matches: matches,
+        );
         await _writeMatches(cacheKey, matches, CacheBucket.todayMatches);
-        return matches;
+        if (competitionId == null) return matches;
+        return matches.where((m) => m.competition.id == competitionId).toList();
       });
 
   Future<List<MatchModel>> getUpcomingMatches({
@@ -120,13 +148,21 @@ class BackendProxyService {
         final cached = _readMatches(cacheKey, CacheBucket.upcomingMatches);
         if (cached != null) return cached;
 
+        final season = _seasonForLeague(competitionId);
         final route = BackendProxyRoutes.upcomingMatches(
           date: date,
           competitionId: competitionId,
-          season: _season,
+          season: season,
         );
         final envelope = await _get(route);
         final matches = FootballApiMapper.matchesByDate(envelope);
+        _logWorldCupFixtures(
+          operation: 'upcomingMatches',
+          competitionId: competitionId,
+          season: season,
+          envelope: envelope,
+          matches: matches,
+        );
         await _writeMatches(cacheKey, matches, CacheBucket.upcomingMatches);
         return matches;
       });
@@ -141,14 +177,49 @@ class BackendProxyService {
         final cached = _readMatches(cacheKey, CacheBucket.finishedMatches);
         if (cached != null) return cached;
 
+        final season = _seasonForLeague(competitionId);
         final route = BackendProxyRoutes.finishedMatches(
           date: date,
           competitionId: competitionId,
-          season: _season,
+          season: season,
         );
         final envelope = await _get(route);
         final matches = FootballApiMapper.matchesByDate(envelope);
+        _logWorldCupFixtures(
+          operation: 'finishedMatches',
+          competitionId: competitionId,
+          season: season,
+          envelope: envelope,
+          matches: matches,
+        );
         await _writeMatches(cacheKey, matches, CacheBucket.finishedMatches);
+        return matches;
+      });
+
+  /// All fixtures for a league/season — one upstream call (World Cup schedule).
+  Future<List<MatchModel>> getCompetitionMatches({
+    required int competitionId,
+    required int season,
+  }) =>
+      safe(() async {
+        final cacheKey = 'backend_competition_matches_${competitionId}_$season';
+        final cached = _readMatches(cacheKey, CacheBucket.competitionFixtures);
+        if (cached != null) return cached;
+
+        final route = BackendProxyRoutes.competitionMatches(
+          competitionId: competitionId,
+          season: season,
+        );
+        final envelope = await _get(route);
+        final matches = FootballApiMapper.matchesByDate(envelope);
+        _logWorldCupFixtures(
+          operation: 'competitionMatches',
+          competitionId: competitionId,
+          season: season,
+          envelope: envelope,
+          matches: matches,
+        );
+        await _writeMatches(cacheKey, matches, CacheBucket.competitionFixtures);
         return matches;
       });
 
@@ -159,6 +230,8 @@ class BackendProxyService {
 
         final envelope = await _get(BackendProxyRoutes.competitions);
         final list = FootballApiMapper.competitions(envelope);
+        CompetitionSeasonResolver.registerAll(list);
+        WorldCupDiscovery.applyFromCompetitions(list);
         await _cache?.writeJsonList(
           cacheKey,
           list.map((c) => c.toJson()).toList(),
@@ -177,7 +250,7 @@ class BackendProxyService {
 
         final route = BackendProxyRoutes.standings(
           competitionId: competitionId,
-          season: _season,
+          season: CompetitionSeasonResolver.seasonForOrDefault(competitionId),
         );
         final envelope = await _get(route);
         final list = FootballApiMapper.standings(envelope);
@@ -203,6 +276,18 @@ class BackendProxyService {
         return list;
       });
 
+  Future<List<StandingGroupModel>> getStandingGroups({
+    required int competitionId,
+  }) =>
+      safe(() async {
+        final route = BackendProxyRoutes.standings(
+          competitionId: competitionId,
+          season: CompetitionSeasonResolver.seasonForOrDefault(competitionId),
+        );
+        final envelope = await _get(route);
+        return ApiFootballParser.parseStandingGroups(envelope.raw);
+      });
+
   Future<List<TeamModel>> getTeams({required int competitionId}) =>
       safe(() async {
         final cacheKey = 'backend_cache_teams_$competitionId';
@@ -211,7 +296,7 @@ class BackendProxyService {
 
         final route = BackendProxyRoutes.teams(
           competitionId: competitionId,
-          season: _season,
+          season: CompetitionSeasonResolver.seasonForOrDefault(competitionId),
         );
         final envelope = await _get(route);
         final list = FootballApiMapper.teams(envelope);
@@ -229,7 +314,7 @@ class BackendProxyService {
 
         final route = BackendProxyRoutes.playersSearch(
           query: trimmed,
-          season: _season,
+          season: _defaultSeason,
         );
         final envelope = await _get(route);
         return FootballApiMapper.searchPlayers(envelope);
@@ -289,8 +374,9 @@ class BackendProxyService {
         final cached = _readCompetitions(cacheKey);
         if (cached != null && cached.isNotEmpty) return cached.first;
 
+        final season = CompetitionSeasonResolver.seasonFor(id);
         final envelope = await _get(
-          BackendProxyRoutes.competitionById(id: id, season: _season),
+          BackendProxyRoutes.competitionById(id: id, season: season),
         );
         final competition = FootballApiMapper.competitionById(envelope);
         if (competition != null) {
@@ -303,6 +389,12 @@ class BackendProxyService {
         return competition;
       });
 
+  Future<WorldCupNewsResult> getWorldCupNews() => safe(() async {
+        if (!isEnabled) return WorldCupNewsResult.notConfigured;
+        final envelope = await _get(BackendProxyRoutes.worldCupNews);
+        return WorldCupNewsResult.fromJson(envelope.raw);
+      });
+
   Future<List<PlayerModel>> getTopScorers(int competitionId) => safe(() async {
         final cacheKey = 'backend_scorers_$competitionId';
         final cached = _readPlayers(cacheKey);
@@ -311,7 +403,7 @@ class BackendProxyService {
         final envelope = await _get(
           BackendProxyRoutes.topScorers(
             competitionId: competitionId,
-            season: _season,
+            season: CompetitionSeasonResolver.seasonForOrDefault(competitionId),
           ),
         );
         final list = FootballApiMapper.players(envelope);
@@ -325,7 +417,7 @@ class BackendProxyService {
         if (cached != null && cached.isNotEmpty) return cached.first;
 
         final envelope = await _get(
-          BackendProxyRoutes.playerById(id: id, season: _season),
+          BackendProxyRoutes.playerById(id: id, season: _defaultSeason),
         );
         final player = FootballApiMapper.playerById(envelope);
         if (player != null) {
@@ -451,5 +543,64 @@ class BackendProxyService {
       case MatchStatus.upcoming:
         return 'NS';
     }
+  }
+
+  void _logWorldCupFixtures({
+    required String operation,
+    required int? competitionId,
+    required int? season,
+    required FootballApiEnvelope envelope,
+    required List<MatchModel> matches,
+  }) {
+    final wcId = WorldCupDiscovery.leagueId;
+    if (wcId == null && competitionId == null) return;
+    final targetId = competitionId ?? wcId;
+    if (targetId == null) return;
+    if (competitionId != null && competitionId != wcId) return;
+
+    final raw = envelope.raw['response'];
+    final rawList = raw is List ? raw : const [];
+    final rawCount = rawList.length;
+    final wcMatches = matches
+        .where((m) => WorldCupPriority.isWorldCupMatch(m))
+        .toList();
+    final first = wcMatches.isNotEmpty ? wcMatches.first : null;
+    final next = wcMatches
+        .where((m) => m.status == MatchStatus.upcoming)
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final rawFirst = rawList.isNotEmpty && rawList.first is Map
+        ? Map<String, dynamic>.from(rawList.first as Map)
+        : null;
+    String? snippet;
+    if (rawFirst != null) {
+      final fixture = rawFirst['fixture'];
+      final league = rawFirst['league'];
+      final teams = rawFirst['teams'];
+      String? homeName;
+      if (teams is Map) {
+        final home = teams['home'];
+        if (home is Map) homeName = home['name']?.toString();
+      }
+      snippet =
+          'fixtureId=${fixture is Map ? fixture['id'] : null} '
+          'leagueId=${league is Map ? league['id'] : null} '
+          'season=${league is Map ? league['season'] : null} '
+          'home=$homeName';
+    }
+
+    WorldCupDebugLog.fixtureProbe(
+      operation: operation,
+      leagueId: targetId,
+      season: season,
+      rawCount: rawCount,
+      parsedCount: wcMatches.length,
+      firstFixtureSummary: first == null
+          ? null
+          : '${first.homeTeam.name} vs ${first.awayTeam.name} '
+              '(${first.competition.name} ${first.date.toIso8601String()})',
+      nextFixtureDate: next.isNotEmpty ? next.first.date.toIso8601String() : null,
+      apiSnippet: snippet,
+    );
   }
 }

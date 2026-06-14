@@ -6,7 +6,7 @@ class MatchRefreshConfig {
     this.liveInterval = const Duration(seconds: 45),
     this.upcomingInterval = const Duration(minutes: 3),
     this.finishedInterval = const Duration(minutes: 12),
-    this.allMatchesInterval = const Duration(minutes: 2),
+    this.allMatchesInterval = const Duration(minutes: 10),
     this.minGapBetweenSameCategory = const Duration(seconds: 25),
     this.enableBackgroundTimers = true,
   });

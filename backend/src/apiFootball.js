@@ -20,6 +20,25 @@ function statusShort(fixtureItem) {
   ).toUpperCase();
 }
 
+function filterByLeague(body, leagueId, season) {
+  if (leagueId == null || `${leagueId}`.trim() === '') return body;
+  if (!body || !Array.isArray(body.response)) return body;
+  const id = parseInt(`${leagueId}`, 10);
+  const seasonNum =
+    season != null && `${season}`.trim() !== '' ? parseInt(`${season}`, 10) : null;
+  const response = body.response.filter((item) => {
+    const league = item?.league ?? {};
+    if (league.id !== id) return false;
+    if (seasonNum != null && league.season !== seasonNum) return false;
+    return true;
+  });
+  return {
+    ...body,
+    results: response.length,
+    response,
+  };
+}
+
 function filterFixtureResponse(body, predicate) {
   if (!body || !Array.isArray(body.response)) return body;
   const response = body.response.filter((item) => predicate(statusShort(item)));
@@ -125,6 +144,7 @@ module.exports = {
   todayIso,
   fetchUpstream,
   filterFixtureResponse,
+  filterByLeague,
   statusShort,
   FINISHED_SHORT,
   UPCOMING_SHORT,

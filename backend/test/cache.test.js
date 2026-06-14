@@ -7,13 +7,19 @@ const {
   ttlForMatchStatus,
   ttlForMatchResource,
   cacheKey,
+  canonicalTodayCacheKey,
 } = require('../src/cache');
-const { leagueSeasonQuery, filterFixtureResponse } = require('../src/apiFootball');
+const {
+  leagueSeasonQuery,
+  filterFixtureResponse,
+  filterByLeague,
+} = require('../src/apiFootball');
 const { UsageTracker } = require('../src/usageTracker');
 
 test('ttlForPath assigns expected buckets', () => {
   assert.equal(ttlForPath('/news/world-cup'), 30 * 60);
   assert.equal(ttlForPath('/matches/live'), 45);
+  assert.equal(ttlForPath('/matches/today'), 20 * 60);
   assert.equal(ttlForPath('/competitions'), 24 * 60 * 60);
   assert.equal(ttlForPath('/competitions/1/top-scorers'), 20 * 60);
   assert.equal(ttlForPath('/competitions/1/matches'), 15 * 60);
@@ -50,6 +56,28 @@ test('leagueSeasonQuery maps competitionId to league', () => {
     query: { competitionId: '39', season: '2024' },
   });
   assert.deepEqual(q, { league: '39', season: '2024' });
+});
+
+test('filterByLeague keeps only matching league (and optional season)', () => {
+  const body = {
+    response: [
+      { league: { id: 39, season: 2024 }, fixture: { id: 1 } },
+      { league: { id: 1, season: 2026 }, fixture: { id: 2 } },
+      { league: { id: 39, season: 2025 }, fixture: { id: 3 } },
+    ],
+  };
+  const byLeague = filterByLeague(body, '39');
+  assert.equal(byLeague.results, 2);
+  const bySeason = filterByLeague(body, '39', '2024');
+  assert.equal(bySeason.results, 1);
+  assert.equal(bySeason.response[0].fixture.id, 1);
+});
+
+test('canonicalTodayCacheKey ignores competition query params', () => {
+  assert.equal(
+    canonicalTodayCacheKey('2026-06-09'),
+    'GET:/matches/today?date=2026-06-09',
+  );
 });
 
 test('filterFixtureResponse keeps only matching statuses', () => {

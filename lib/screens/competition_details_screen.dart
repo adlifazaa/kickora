@@ -4,6 +4,8 @@ import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
+import '../core/state/data_state.dart';
+import '../core/world_cup/world_cup_priority.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
@@ -16,6 +18,8 @@ import '../widgets/match_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/skeleton_box.dart';
 import '../widgets/live_update_indicator.dart';
+import '../ads/ad_placement.dart';
+import '../widgets/top_banner_ad.dart';
 import '../widgets/team_logo.dart';
 
 class CompetitionDetailsScreen extends StatefulWidget {
@@ -52,22 +56,76 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
 
     final repo = AppScope.footballRepositoryOf(context);
     final cid = widget.competition.id;
-    final matchState = await repo.getMatches(competitionId: cid);
-    final standingsState = await repo.getStandings(leagueId: cid);
-    final teamsState = await repo.getCompetitionTeams(cid);
-    final scorersState = await repo.getTopScorers(cid);
+    if (WorldCupPriority.isWorldCupCompetition(widget.competition)) {
+      await repo.ensureWorldCupReady();
+    }
+
+    final today = DateTime.now();
+    final results = await Future.wait([
+      repo.getLiveMatches(competitionId: cid),
+      repo.getUpcomingMatches(date: today, competitionId: cid),
+      repo.getFinishedMatches(date: today, competitionId: cid),
+      repo.getStandings(leagueId: cid),
+      repo.getCompetitionTeams(cid),
+      repo.getTopScorers(cid),
+    ]);
+    final liveState = results[0] as DataState<List<MatchModel>>;
+    final upcomingState = results[1] as DataState<List<MatchModel>>;
+    final finishedState = results[2] as DataState<List<MatchModel>>;
+    final standingsState = results[3] as DataState<List<StandingModel>>;
+    final teamsState = results[4] as DataState<List<TeamModel>>;
+    final scorersState = results[5] as DataState<List<PlayerModel>>;
+
+    final matches = _mergeCompetitionMatches([
+      if (!liveState.hasError) ...liveState.data ?? const [],
+      if (!upcomingState.hasError) ...upcomingState.data ?? const [],
+      if (!finishedState.hasError) ...finishedState.data ?? const [],
+    ]);
 
     if (mounted) {
       setState(() {
         _loading = false;
         _refreshing = false;
         _lastUpdated = DateTime.now();
-        _matches = matchState.data ?? [];
+        _matches = matches;
         _standings = standingsState.data ?? [];
         _teams = teamsState.data ?? [];
         _scorers = scorersState.data ?? [];
       });
     }
+  }
+
+  List<MatchModel> _mergeCompetitionMatches(List<MatchModel> raw) {
+    final byId = <int, MatchModel>{};
+    for (final m in raw) {
+      byId[m.id] = m;
+    }
+    final merged = byId.values.toList()
+      ..sort((a, b) {
+        final aw = a.status == MatchStatus.live
+            ? 0
+            : a.status == MatchStatus.upcoming
+                ? 1
+                : 2;
+        final bw = b.status == MatchStatus.live
+            ? 0
+            : b.status == MatchStatus.upcoming
+                ? 1
+                : 2;
+        if (aw != bw) return aw.compareTo(bw);
+        return a.date.compareTo(b.date);
+      });
+    return merged;
+  }
+
+  MatchModel? _pickFeaturedMatch(List<MatchModel> matches) {
+    for (final m in matches) {
+      if (m.status == MatchStatus.live) return m;
+    }
+    for (final m in matches) {
+      if (m.status == MatchStatus.upcoming) return m;
+    }
+    return matches.isNotEmpty ? matches.first : null;
   }
 
   Future<void> _onRefresh() => _load(silent: true);
@@ -79,10 +137,12 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
     final matches = _matches;
     final teams = _teams;
     final scorers = _scorers;
-    final featured = matches.isNotEmpty ? matches.first : null;
+    final isWorldCup = WorldCupPriority.isWorldCupCompetition(widget.competition);
+    final featured = _pickFeaturedMatch(matches);
 
     return DefaultTabController(
       length: 5,
+      initialIndex: 0,
       child: Scaffold(
         body: NestedScrollView(
           headerSliverBuilder: (context, inner) => [
@@ -193,10 +253,16 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
                   padding: const EdgeInsets.all(24),
                   child: AppEmptyState(
                     icon: Icons.article_outlined,
-                    title: text.isArabic ? 'الأخبار قريبًا' : 'News coming soon',
+                    title: text.isArabic
+                        ? (isWorldCup ? 'الأخبار قريباً' : 'الأخبار قريبًا')
+                        : 'News coming soon',
                     subtitle: text.isArabic
-                        ? 'نعمل على جلب أبرز أخبار البطولات.'
-                        : 'We are working on bringing top competition news.',
+                        ? (isWorldCup
+                            ? 'نعمل على جلب أبرز أخبار كأس العالم والتحديثات المهمة.'
+                            : 'نعمل على جلب أبرز أخبار البطولات.')
+                        : (isWorldCup
+                            ? 'We are working on top World Cup news and key updates.'
+                            : 'We are working on bringing top competition news.'),
                   ),
                 ),
               ),
@@ -340,6 +406,13 @@ class _MatchesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = AppText.of(context);
+    final live =
+        matches.where((m) => m.status == MatchStatus.live).toList();
+    final upcoming =
+        matches.where((m) => m.status == MatchStatus.upcoming).toList();
+    final finished =
+        matches.where((m) => m.status == MatchStatus.finished).toList();
+
     return RefreshIndicator(
       onRefresh: refresh,
       color: Theme.of(context).colorScheme.primary,
@@ -371,7 +444,8 @@ class _MatchesTab extends StatelessWidget {
               child: const SizedBox.shrink(),
             ),
           ] else ...[
-            if (featured != null) ...[
+            if (featured != null &&
+                !live.any((m) => m.id == featured!.id)) ...[
               SectionHeader(
                 title: text.isArabic
                     ? 'المباراة المميزة'
@@ -386,12 +460,35 @@ class _MatchesTab extends StatelessWidget {
               ),
               const SizedBox(height: 18),
             ],
-            SectionHeader(
-              title: text.isArabic ? 'كل المباريات' : 'All matches',
-              icon: Icons.sports_soccer_rounded,
-            ),
-            const SizedBox(height: 10),
-            ..._matchesWithSpotlights(context, matches),
+            if (live.isNotEmpty) ...[
+              SectionHeader(
+                title: text.liveNow,
+                subtitle: text.matchesCountLabel(live.length),
+                icon: Icons.flash_on_rounded,
+              ),
+              const SizedBox(height: 10),
+              ..._matchesWithSpotlights(context, live),
+              const SizedBox(height: 18),
+            ],
+            if (upcoming.isNotEmpty) ...[
+              SectionHeader(
+                title: text.isArabic ? 'القادمة' : 'Upcoming',
+                subtitle: text.matchesCountLabel(upcoming.length),
+                icon: Icons.schedule_rounded,
+              ),
+              const SizedBox(height: 10),
+              ..._matchesWithSpotlights(context, upcoming),
+              const SizedBox(height: 18),
+            ],
+            if (finished.isNotEmpty) ...[
+              SectionHeader(
+                title: text.isArabic ? 'المنتهية' : 'Finished',
+                subtitle: text.matchesCountLabel(finished.length),
+                icon: Icons.check_circle_outline_rounded,
+              ),
+              const SizedBox(height: 10),
+              ..._matchesWithSpotlights(context, finished),
+            ],
           ],
         ],
       ),
@@ -451,26 +548,33 @@ class _StandingsTab extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: Theme.of(context).colorScheme.primary,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        itemCount: standings.length + 2,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, i) {
-          if (i == 0) return const _StandingsLegend();
-          if (i == 1) return const _StandingsTableHeader();
-          final idx = i - 2;
-          final item = standings[idx];
-          return _StandingsRow(
-            item: item,
-            isUcl: idx < 4,
-            isRel: idx >= standings.length - 1,
-          );
-        },
-      ),
+    return Column(
+      children: [
+        const TopBannerAd(placement: AdPlacement.standingsBanner),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: onRefresh,
+            color: Theme.of(context).colorScheme.primary,
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: standings.length + 2,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                if (i == 0) return const _StandingsLegend();
+                if (i == 1) return const _StandingsTableHeader();
+                final idx = i - 2;
+                final item = standings[idx];
+                return _StandingsRow(
+                  item: item,
+                  isUcl: idx < 4,
+                  isRel: idx >= standings.length - 1,
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -45,7 +45,7 @@ const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
 const ROUTE_TTL_SECONDS = [
   { pattern: /^\/news\/world-cup$/, ttl: 30 * 60 },
   { pattern: /^\/matches\/live$/, ttl: 45 },
-  { pattern: /^\/matches\/today$/, ttl: 10 * 60 },
+  { pattern: /^\/matches\/today$/, ttl: 20 * 60 },
   { pattern: /^\/matches\/upcoming$/, ttl: 10 * 60 },
   { pattern: /^\/matches\/finished$/, ttl: 12 * 60 * 60 },
   { pattern: /^\/competitions$/, ttl: 24 * 60 * 60 },
@@ -96,12 +96,18 @@ function cacheKey(req) {
   return `${req.method}:${url.pathname}${qs ? `?${qs}` : ''}`;
 }
 
+/** One upstream fetch per calendar day — league filters are applied in-memory. */
+function canonicalTodayCacheKey(date) {
+  return `GET:/matches/today?date=${date}`;
+}
+
 module.exports = {
   MemoryCache,
   ttlForPath,
   ttlForMatchStatus,
   ttlForMatchResource,
   cacheKey,
+  canonicalTodayCacheKey,
   LIVE_STATUSES,
   FINISHED_STATUSES,
 };

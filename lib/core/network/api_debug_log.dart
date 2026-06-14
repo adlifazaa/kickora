@@ -131,6 +131,21 @@ class ApiDebugLog {
     requestOutcome(path: dedupeKey, cacheHit: false, deduped: true);
   }
 
+  static final Map<String, int> _routeCallCounts = {};
+
+  /// Logs repeated calls to the same route within a session (debug only).
+  static void routeCall(String routeKey) {
+    if (!kDebugMode) return;
+    final count = (_routeCallCounts[routeKey] ?? 0) + 1;
+    _routeCallCounts[routeKey] = count;
+    if (count > 1) {
+      debugPrint(
+        '[Kickora API] duplicate route call #$count → $routeKey '
+        '(session total=${_routeCallCounts.values.fold<int>(0, (a, b) => a + b)})',
+      );
+    }
+  }
+
   /// Unified debug line for cache + HTTP (never logs secrets).
   static void requestOutcome({
     required String path,

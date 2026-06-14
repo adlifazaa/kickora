@@ -54,6 +54,7 @@ class ApiClient {
     }
 
     final dedupeKey = _dedupeKey(path, queryParameters);
+    ApiDebugLog.routeCall(dedupeKey);
     return ApiRequestCoordinator.instance.run(
       dedupeKey,
       () => _getWithRetry(path, queryParameters: queryParameters),

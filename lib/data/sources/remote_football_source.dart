@@ -4,11 +4,13 @@ import '../../core/constants/api_constants.dart';
 import '../../core/constants/api_mode_service.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/network/api_debug_log.dart';
+import '../models/news_article_model.dart';
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
 import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
+import '../models/standing_group_model.dart';
 import '../models/standing_model.dart';
 import '../models/team_model.dart';
 import '../services/api_football_parser.dart';
@@ -77,21 +79,30 @@ class RemoteFootballSource {
     DateTime? date,
     int? competitionId,
     bool skipCache = false,
-  }) =>
-      _fetchMatches(
-        operation: 'getMatches',
-        cacheKey: _matchCacheKey('today', date: date, league: competitionId),
-        bucket: CacheBucket.todayMatches,
-        skipCache: skipCache,
-        fetch: () => _apiFootball.getMatchesToday(
-          date: date,
-          competitionId: competitionId,
-        ),
-        fetchBackend: () => _backendProxy.getMatchesToday(
-          date: date,
-          competitionId: competitionId,
-        ),
-      );
+  }) async {
+    _ensureActive();
+    final canonicalKey = _matchCacheKey('today', date: date, league: null);
+    if (!skipCache) {
+      final cached = _readMatches(canonicalKey, CacheBucket.todayMatches);
+      if (cached != null) {
+        final list = competitionId == null
+            ? cached
+            : cached.where((m) => m.competition.id == competitionId).toList();
+        _log('getMatches', 'cache', list.length);
+        return list;
+      }
+    }
+    final all = await _call(
+      () => _apiFootball.getMatchesToday(date: date, competitionId: competitionId),
+      () => _backendProxy.getMatchesToday(date: date),
+    );
+    await _writeMatches(canonicalKey, all, CacheBucket.todayMatches);
+    final list = competitionId == null
+        ? all
+        : all.where((m) => m.competition.id == competitionId).toList();
+    _log('getMatches', _sourceLabel, list.length);
+    return list;
+  }
 
   Future<List<MatchModel>> fetchUpcomingMatches({
     DateTime? date,
@@ -132,6 +143,35 @@ class RemoteFootballSource {
           competitionId: competitionId,
         ),
       );
+
+  Future<List<MatchModel>> fetchCompetitionMatches({
+    required int competitionId,
+    required int season,
+    bool skipCache = false,
+  }) async {
+    _ensureActive();
+    final cacheKey = 'remote_competition_matches_${competitionId}_$season';
+    if (!skipCache) {
+      final cached = _readMatches(cacheKey, CacheBucket.competitionFixtures);
+      if (cached != null) {
+        _log('getCompetitionMatches', 'cache', cached.length);
+        return cached;
+      }
+    }
+    final list = await _call(
+      () => _apiFootball.fetchCompetitionFixtures(
+        competitionId: competitionId,
+        season: season,
+      ),
+      () => _backendProxy.getCompetitionMatches(
+        competitionId: competitionId,
+        season: season,
+      ),
+    );
+    await _writeMatches(cacheKey, list, CacheBucket.competitionFixtures);
+    _log('getCompetitionMatches', _sourceLabel, list.length);
+    return list;
+  }
 
   List<MatchModel>? readCachedMatches({
     required String kind,
@@ -208,6 +248,19 @@ class RemoteFootballSource {
 
   List<StandingModel>? readCachedStandings(int leagueId) =>
       _readStandings('remote_standings_$leagueId');
+
+  Future<List<StandingGroupModel>> fetchStandingGroups({
+    required int leagueId,
+    bool skipCache = false,
+  }) async {
+    _ensureActive();
+    if (_backendProxy.isEnabled) {
+      return _backendProxy.getStandingGroups(competitionId: leagueId);
+    }
+    final list = await fetchStandings(leagueId: leagueId, skipCache: skipCache);
+    if (list.isEmpty) return const [];
+    return [StandingGroupModel(name: 'Group A', rows: list)];
+  }
 
   Future<List<TeamModel>> fetchTeams({
     required int competitionId,
@@ -382,6 +435,14 @@ class RemoteFootballSource {
 
   List<PlayerModel>? readCachedTopScorers(int competitionId) =>
       _readPlayers('remote_scorers_$competitionId');
+
+  Future<WorldCupNewsResult> fetchWorldCupNews() async {
+    _ensureActive();
+    if (!ApiModeService.isBackendProxy) {
+      return WorldCupNewsResult.notConfigured;
+    }
+    return _backendProxy.getWorldCupNews();
+  }
 
   Future<PlayerModel?> fetchPlayerById(int id) async {
     _ensureActive();

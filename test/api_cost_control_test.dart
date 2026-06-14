@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kickora/core/constants/api_cache_policy.dart';
+import 'package:kickora/core/refresh/match_refresh_config.dart';
 import 'package:kickora/core/constants/api_constants.dart';
 import 'package:kickora/core/constants/api_production_guidance.dart';
 import 'package:kickora/core/network/api_request_coordinator.dart';
@@ -12,13 +13,13 @@ void main() {
       expect(ApiCachePolicy.liveMatches.inSeconds, inInclusiveRange(30, 60));
     });
 
-    test('today and upcoming five minutes', () {
-      expect(ApiCachePolicy.todayMatches, const Duration(minutes: 5));
-      expect(ApiCachePolicy.fixturesUpcoming, const Duration(minutes: 5));
+    test('today and upcoming 5–15 minutes', () {
+      expect(ApiCachePolicy.todayMatches.inMinutes, inInclusiveRange(5, 15));
+      expect(ApiCachePolicy.fixturesUpcoming.inMinutes, inInclusiveRange(5, 15));
     });
 
-    test('finished ten minutes', () {
-      expect(ApiCachePolicy.fixturesFinished, const Duration(minutes: 10));
+    test('finished six to twenty-four hours', () {
+      expect(ApiCachePolicy.fixturesFinished.inHours, inInclusiveRange(6, 24));
     });
 
     test('stable data twenty-four hours', () {
@@ -27,15 +28,57 @@ void main() {
       expect(ApiCachePolicy.playerProfile, const Duration(hours: 24));
     });
 
-    test('standings ten–thirty minutes', () {
+    test('standings and scorers ten–thirty minutes', () {
       expect(ApiCachePolicy.standings.inMinutes, inInclusiveRange(10, 30));
+      expect(ApiCachePolicy.topScorers.inMinutes, inInclusiveRange(10, 30));
     });
 
-    test('match details and sub-resources two minutes', () {
-      expect(ApiCachePolicy.matchDetails, const Duration(minutes: 2));
-      expect(ApiCachePolicy.matchEvents, const Duration(minutes: 2));
-      expect(ApiCachePolicy.matchStatistics, const Duration(minutes: 2));
-      expect(ApiCachePolicy.matchLineups, const Duration(minutes: 2));
+    test('competition fixtures cached fifteen minutes', () {
+      expect(ApiCachePolicy.competitionFixtures, const Duration(minutes: 15));
+    });
+
+    test('match details and sub-resources 30–60 seconds', () {
+      expect(ApiCachePolicy.matchDetails.inSeconds, inInclusiveRange(30, 60));
+      expect(ApiCachePolicy.matchEvents.inSeconds, inInclusiveRange(30, 60));
+      expect(ApiCachePolicy.matchStatistics.inSeconds, inInclusiveRange(30, 60));
+      expect(ApiCachePolicy.matchLineups.inSeconds, inInclusiveRange(30, 60));
+    });
+
+    test('all matches refresh interval at least ten minutes', () {
+      expect(
+        const MatchRefreshConfig().allMatchesInterval.inMinutes,
+        greaterThanOrEqualTo(10),
+      );
+    });
+  });
+
+  group('today matches cost control', () {
+    test('home screen uses one global getMatches call (no per-competition today)', () {
+      final home = File('lib/screens/home_screen.dart').readAsStringSync();
+      expect(
+        RegExp(r"getMatches\(\s*date:\s*today,\s*competitionId:").hasMatch(home),
+        isFalse,
+      );
+      expect(
+        RegExp(r'getMatches\(date:\s*today').allMatches(home).length,
+        lessThanOrEqualTo(1),
+      );
+    });
+
+    test('competition details does not call getMatches for today', () {
+      final details =
+          File('lib/screens/competition_details_screen.dart').readAsStringSync();
+      expect(details.contains('getMatches(date: today'), isFalse);
+    });
+
+    test('backend proxy today fetch uses canonical unscoped route', () {
+      final proxy =
+          File('lib/data/services/backend_proxy/backend_proxy_service.dart')
+              .readAsStringSync();
+      expect(
+        proxy.contains('BackendProxyRoutes.matchesToday(date: date)'),
+        isTrue,
+      );
     });
   });
 

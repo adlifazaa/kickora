@@ -1,12 +1,19 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
+import '../core/constants/world_cup_config.dart';
 import '../core/refresh/match_refresh_category.dart';
 import '../core/refresh/match_refresh_service.dart';
+import '../core/startup/startup_timing.dart';
+import '../core/state/data_state.dart';
+import '../core/world_cup/world_cup_priority.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../data/mock_data.dart';
+import '../data/repositories/football_repository.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../widgets/banner_placeholder.dart';
@@ -19,6 +26,7 @@ import '../widgets/micro_interactions.dart';
 import '../widgets/section_header.dart';
 import '../widgets/skeleton_box.dart';
 import '../widgets/team_logo.dart';
+import '../widgets/world_cup_logo.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   List<MatchModel> _liveMatches = [];
   List<MatchModel> _todayMatches = [];
+  MatchModel? _featuredMatch;
   List<CompetitionModel> _competitions = [];
   CompetitionModel? _featuredCompetition;
   MatchRefreshService? _refresh;
@@ -56,11 +65,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onAutoRefresh() {
     final category = _refresh?.lastRefreshCategory;
-    if (category == null ||
-        category == MatchRefreshCategory.live ||
-        category == MatchRefreshCategory.all) {
+    if (category == MatchRefreshCategory.all) {
       _load(silent: true);
+    } else if (category == MatchRefreshCategory.live) {
+      _refreshLiveOnly(silent: true);
     }
+  }
+
+  Future<void> _refreshLiveOnly({bool silent = false}) async {
+    if (mounted && !silent) {
+      setState(() => _refreshing = true);
+    } else if (mounted) {
+      setState(() => _refreshing = true);
+    }
+
+    final repo = AppScope.footballRepositoryOf(context);
+    final liveState = await repo.getLiveMatches();
+    if (!mounted) return;
+
+    final liveMatches = liveState.hasError
+        ? _liveMatches
+        : WorldCupPriority.sortMatches(liveState.data ?? []);
+    final featuredMatch = WorldCupPriority.pickFeaturedMatch(
+      liveMatches: liveState.data ?? _liveMatches,
+      wcDayMatches: _todayMatches,
+    );
+
+    setState(() {
+      _refreshing = false;
+      _lastUpdated = DateTime.now();
+      _liveMatches = liveMatches;
+      _featuredMatch = featuredMatch;
+    });
   }
 
   Future<void> _load({bool silent = false, bool forceRefresh = false}) async {
@@ -74,51 +110,40 @@ class _HomeScreenState extends State<HomeScreen> {
     final today = DateTime.now();
     String? loadError;
 
-    var liveMatches = <MatchModel>[];
-    final liveState = await repo.getLiveMatches(forceRefresh: forceRefresh);
-    if (liveState.hasError) {
-      liveMatches = [];
-    } else {
-      liveMatches = liveState.data ?? [];
-    }
+    await repo.ensureWorldCupReady();
 
-    var todayMatches = <MatchModel>[];
-    final allState = await repo.getMatches(date: today, forceRefresh: forceRefresh);
-    if (allState.hasError) {
-      todayMatches = [];
-    } else {
-      final all = allState.data ?? [];
-      todayMatches =
-          all.where((m) => m.status != MatchStatus.finished).toList();
-    }
+    final critical = await Future.wait([
+      repo.getLiveMatches(forceRefresh: forceRefresh),
+      repo.getMatches(date: today, forceRefresh: forceRefresh),
+    ]);
 
-    final compState = await repo.getCompetitions(forceRefresh: forceRefresh);
-    List<CompetitionModel> competitions;
-    if (compState.hasError) {
-      competitions = [];
-    } else if (repo.usesLiveApi) {
-      competitions = compState.data ?? [];
-    } else {
-      competitions = compState.data ?? MockData.competitions;
-    }
+    final liveState = critical[0];
+    final allTodayState = critical[1];
+
+    var liveMatches = liveState.hasError
+        ? <MatchModel>[]
+        : WorldCupPriority.sortMatches(liveState.data ?? []);
+    final allToday = allTodayState.hasError ? <MatchModel>[] : (allTodayState.data ?? []);
+    final wcDayPool =
+        allToday.where(WorldCupPriority.isWorldCupMatch).toList();
+    var todayMatches = WorldCupPriority.sortMatches(
+      allToday.where((m) => m.status != MatchStatus.finished).toList(),
+    );
+    final featuredMatch = WorldCupPriority.pickFeaturedMatch(
+      liveMatches: liveState.data ?? [],
+      wcDayMatches: wcDayPool,
+    );
 
     if (repo.usesLiveApi) {
       if (liveState.hasError && liveMatches.isEmpty) {
         loadError = liveState.errorMessage;
       }
-      if (allState.hasError && todayMatches.isEmpty) {
-        loadError ??= allState.errorMessage;
+      if (allTodayState.hasError && todayMatches.isEmpty) {
+        loadError ??= allTodayState.errorMessage;
       }
     }
 
-    CompetitionModel? featured;
-    for (final c in competitions) {
-      if (c.isFeatured) {
-        featured = c;
-        break;
-      }
-    }
-    featured ??= competitions.isNotEmpty ? competitions.first : null;
+    CompetitionModel? featured = WorldCupPriority.findWorldCup(_competitions);
 
     if (mounted) {
       setState(() {
@@ -128,10 +153,62 @@ class _HomeScreenState extends State<HomeScreen> {
         _loadError = repo.usesLiveApi ? loadError : null;
         _liveMatches = liveMatches;
         _todayMatches = todayMatches;
-        _competitions = competitions;
+        _featuredMatch = featuredMatch;
         _featuredCompetition = featured;
       });
     }
+    StartupTiming.mark('home_critical_loaded');
+    StartupTiming.mark('backend_first_request');
+
+    unawaited(_loadHomeSecondary(
+      repo: repo,
+      today: today,
+      forceRefresh: forceRefresh,
+      silent: silent,
+    ));
+  }
+
+  Future<void> _loadHomeSecondary({
+    required FootballRepository repo,
+    required DateTime today,
+    required bool forceRefresh,
+    required bool silent,
+  }) async {
+    final secondary = await repo.getCompetitions(forceRefresh: forceRefresh);
+    final compState = secondary;
+
+    List<CompetitionModel> competitions;
+    if (compState.hasError) {
+      competitions = _competitions;
+    } else if (repo.usesLiveApi) {
+      competitions = compState.data ?? [];
+    } else {
+      competitions = compState.data ?? MockData.competitions;
+    }
+
+    final mergedToday = WorldCupPriority.sortMatches(_todayMatches);
+    final liveMerged = WorldCupPriority.sortMatches(_liveMatches);
+    final wcDayPool = mergedToday.where(WorldCupPriority.isWorldCupMatch).toList();
+    final featuredMatch = WorldCupPriority.pickFeaturedMatch(
+      liveMatches: liveMerged,
+      wcDayMatches: wcDayPool,
+    );
+
+    final featured =
+        WorldCupPriority.findWorldCup(competitions) ??
+            (competitions.isNotEmpty ? competitions.first : null);
+
+    if (!mounted) return;
+    setState(() {
+      _refreshing = false;
+      _lastUpdated = DateTime.now();
+      _liveMatches = liveMerged;
+      _todayMatches = mergedToday;
+      _featuredMatch = featuredMatch;
+      _competitions = competitions;
+      _featuredCompetition = featured;
+    });
+    StartupTiming.mark('home_data_loaded');
   }
 
   Future<void> _onRefresh() async {
@@ -157,6 +234,11 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             _HomeHeader(text: text),
+            const SizedBox(height: 12),
+            _WorldCupShortcutCard(
+              competition: featuredCompetition ?? WorldCupConfig.fallbackCompetition(),
+            ),
+            const SizedBox(height: 14),
             if (!_loading)
               LiveUpdateIndicator(
                 lastUpdated: _displayLastUpdated,
@@ -184,48 +266,72 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
               const MatchCardSkeleton(),
             ] else ...[
-              if (_liveMatches.isNotEmpty) ...[
+              if (_featuredMatch != null) ...[
                 SectionHeader(
                   title: text.featuredMatch,
-                  subtitle: text.homeFeaturedLiveSubtitle,
+                  subtitle: _featuredMatch!.status == MatchStatus.live
+                      ? text.homeFeaturedLiveSubtitle
+                      : (_featuredMatch!.status == MatchStatus.upcoming
+                          ? (text.isArabic ? 'مباراة كأس العالم القادمة' : 'Next World Cup match')
+                          : (text.isArabic ? 'آخر نتيجة كأس العالم' : 'Latest World Cup result')),
                   icon: Icons.star_rounded,
                 ),
                 const SizedBox(height: 10),
-                _FeaturedMatchSlot(match: _liveMatches.first),
+                _FeaturedMatchSlot(match: _featuredMatch!),
                 const SizedBox(height: 20),
-                SectionHeader(
-                  title: text.liveNow,
-                  subtitle: text.matchesCountLabel(_liveMatches.length),
-                  icon: Icons.flash_on_rounded,
-                  actionText: text.all,
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.liveMatches,
-                    arguments: _liveMatches,
+              ],
+              if (_liveMatches.isNotEmpty) ...[
+                if (_featuredMatch == null ||
+                    _featuredMatch!.status != MatchStatus.live) ...[
+                  SectionHeader(
+                    title: text.liveNow,
+                    subtitle: text.matchesCountLabel(_liveMatches.length),
+                    icon: Icons.flash_on_rounded,
+                    actionText: text.all,
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.liveMatches,
+                      arguments: _liveMatches,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
+                ] else ...[
+                  SectionHeader(
+                    title: text.liveNow,
+                    subtitle: text.matchesCountLabel(_liveMatches.length),
+                    icon: Icons.flash_on_rounded,
+                    actionText: text.all,
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.liveMatches,
+                      arguments: _liveMatches,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 ...insertFeedSpotlights(
                   context: context,
                   skipFirst: 0,
                   interval: 4,
                   items: [
                     for (var i = 0; i < _liveMatches.length; i++)
-                      _StaggeredItem(
-                        index: i,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: MatchCard(
-                            match: _liveMatches[i],
-                            onTap: () => Navigator.pushNamed(
-                                context, AppRoutes.matchDetails,
-                                arguments: _liveMatches[i]),
+                      if (_featuredMatch?.id != _liveMatches[i].id)
+                        _StaggeredItem(
+                          index: i,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: MatchCard(
+                              match: _liveMatches[i],
+                              onTap: () => Navigator.pushNamed(
+                                  context, AppRoutes.matchDetails,
+                                  arguments: _liveMatches[i]),
+                            ),
                           ),
                         ),
-                      ),
                   ],
                 ),
-              ] else if (_loadError == null) ...[
+                const SizedBox(height: 20),
+              ] else if (_loadError == null && _featuredMatch == null) ...[
                 SectionHeader(
                   title: text.liveNow,
                   subtitle: text.matchesCountLabel(0),
@@ -280,7 +386,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
             ],
-            if (featuredCompetition != null) ...[
+            if (featuredCompetition != null &&
+                !WorldCupPriority.isWorldCupCompetition(featuredCompetition)) ...[
               const SizedBox(height: 6),
               _FeaturedCompetitionStrip(competition: featuredCompetition),
             ],
@@ -395,6 +502,118 @@ class _HomeHeader extends StatelessWidget {
           icon: const Icon(Icons.info_outline_rounded),
         ),
       ],
+    );
+  }
+}
+
+class _WorldCupShortcutCard extends StatelessWidget {
+  const _WorldCupShortcutCard({required this.competition});
+
+  final CompetitionModel competition;
+
+  void _open(BuildContext context) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.competitionDetails,
+      arguments: competition,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppText.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return TapScale(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => _open(context),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _open(context),
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFD4AF37).withValues(alpha: 0.28),
+                  primary.withValues(alpha: 0.22),
+                  isDark
+                      ? const Color(0xFF0A3D32)
+                      : primary.withValues(alpha: 0.08),
+                ],
+              ),
+              border: Border.all(
+                color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const WorldCupLogo(size: 52),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        text.isArabic ? 'كأس العالم' : 'World Cup',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        text.isArabic
+                            ? '2026 • المباريات والنتائج والترتيب'
+                            : '2026 • Matches, results & standings',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.teal, AppColors.neonGreen],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    text.isArabic ? 'افتح' : 'Open',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
