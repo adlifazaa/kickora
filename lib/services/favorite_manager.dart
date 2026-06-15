@@ -61,6 +61,12 @@ class FavoriteManager extends ChangeNotifier {
 
   /// Loads persisted favorites (survives app restart).
   Future<void> load() async {
+    await loadEssentials();
+    await restoreSubscriptions();
+  }
+
+  /// Prefs-only favorites load — no FCM topic sync.
+  Future<void> loadEssentials() async {
     if (_favorites.isLoaded) return;
     _isLoading = true;
     notifyListeners();
@@ -69,8 +75,6 @@ class FavoriteManager extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
-
-    await restoreSubscriptions();
   }
 
   /// Re-syncs team_, competition_, and match_ topics when notifications are on.

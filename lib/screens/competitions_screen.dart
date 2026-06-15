@@ -4,8 +4,8 @@ import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../core/competition/competition_country_filter.dart';
-import '../core/constants/api_constants.dart';
 import '../core/constants/api_mode_service.dart';
+import '../core/startup/startup_timing.dart';
 import '../core/debug/competition_debug_log.dart';
 import '../data/mock_data.dart';
 import '../models/competition_model.dart';
@@ -63,6 +63,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
         _competitions = state.data ?? MockData.competitions;
       }
     });
+    StartupTiming.mark('competitions_loaded');
   }
 
   void _setQuery(String value) {

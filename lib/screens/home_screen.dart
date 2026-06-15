@@ -109,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final today = DateTime.now();
     String? loadError;
 
-    await repo.ensureWorldCupReady();
+    unawaited(repo.ensureWorldCupReady());
 
     final critical = await Future.wait([
       repo.getLiveMatches(forceRefresh: forceRefresh),
@@ -158,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     StartupTiming.mark('home_critical_loaded');
     StartupTiming.mark('backend_first_request');
+    unawaited(_refresh?.start());
 
     unawaited(_loadHomeSecondary(
       repo: repo,

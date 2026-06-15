@@ -1,8 +1,11 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/firebase/analytics_service.dart';
 import '../core/refresh/match_refresh_service.dart';
+import '../core/startup/startup_timing.dart';
 import '../data/repositories/football_repository.dart';
 import '../notifications/notification_manager.dart';
 import '../notifications/services/kickora_notification_service.dart';
@@ -95,7 +98,8 @@ class AppController extends ChangeNotifier {
   bool get adsEnabled => premiumSubscriptionService.adsEnabled;
   bool get trialAvailable => premiumSubscriptionService.trialAvailable;
 
-  Future<void> load() async {
+  /// Fast path before first frame — prefs only, no network/FCM.
+  Future<void> loadEssentials() async {
     final themeValue = _preferences.getString(_themeKey) ?? ThemeMode.dark.name;
     _themeMode =
         themeValue == ThemeMode.light.name ? ThemeMode.light : ThemeMode.dark;
@@ -105,20 +109,31 @@ class AppController extends ChangeNotifier {
     }
     _locale = AppLocale.fromLanguageCode(_preferences.getString(_languageKey));
 
-    await favoriteManager.load();
-    await premiumSubscriptionService.load();
-
+    await favoriteManager.loadEssentials();
     _notificationsEnabled =
         _preferences.getBool(NotificationManager.enabledPreferenceKey) ?? false;
     _recentSearches =
         _preferences.getStringList(_recentSearchesKey) ?? const <String>[];
-    await notificationService.restoreAfterStartup(
-      teamIds: favoriteManager.teamIds,
-      matchIds: favoriteManager.matchIds,
-      competitionIds: favoriteManager.competitionIds,
-    );
-    await matchRefreshService.start();
     notifyListeners();
+  }
+
+  /// Deferred after first frame — FCM, billing probe.
+  Future<void> completeDeferredStartup() async {
+    unawaited(
+      notificationService.restoreAfterStartup(
+        teamIds: favoriteManager.teamIds,
+        matchIds: favoriteManager.matchIds,
+        competitionIds: favoriteManager.competitionIds,
+      ),
+    );
+    notifyListeners();
+    StartupTiming.mark('app_controller_deferred');
+  }
+
+  @Deprecated('Use loadEssentials + completeDeferredStartup')
+  Future<void> load() async {
+    await loadEssentials();
+    await completeDeferredStartup();
   }
 
   Future<void> addRecentSearch(String query) async {

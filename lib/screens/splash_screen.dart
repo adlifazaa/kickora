@@ -1,5 +1,4 @@
-﻿import 'dart:async';
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -36,7 +35,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       setState(() => _versionName = info.version);
     });
-    Timer(const Duration(milliseconds: 1350), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(AppRoutes.mainNavigation);
     });
