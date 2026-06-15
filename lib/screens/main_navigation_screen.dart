@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../ads/ad_service.dart';
 import '../app/app_colors.dart';
 import '../app/app_text.dart';
 import 'competitions_screen.dart';
@@ -17,13 +18,21 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  int _tabNavigationCount = 0;
+  final Set<int> _visitedTabs = {0};
 
-  static const _screens = [
-    HomeScreen(),
-    MatchesScreen(),
-    CompetitionsScreen(),
-    FavoritesScreen(),
-    SettingsScreen(),
+  @override
+  void initState() {
+    super.initState();
+    AdService.instance.scheduleDeferredInitialize();
+  }
+
+  static final _screenBuilders = <Widget Function()>[
+    () => const HomeScreen(),
+    () => const MatchesScreen(),
+    () => const CompetitionsScreen(),
+    () => const FavoritesScreen(),
+    () => const SettingsScreen(),
   ];
 
   static const _icons = [
@@ -49,7 +58,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(_screenBuilders.length, (index) {
+          if (!_visitedTabs.contains(index)) {
+            return const SizedBox.shrink();
+          }
+          return _screenBuilders[index]();
+        }),
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -83,7 +100,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       icon: _icons[i],
                       label: labels[i],
                       selected: isSelected,
-                      onTap: () => setState(() => _currentIndex = i),
+                      onTap: () => _onTabSelected(i),
                     ),
                   );
                 }),
@@ -93,6 +110,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ),
       ),
     );
+  }
+
+  void _onTabSelected(int index) {
+    if (index != _currentIndex) {
+      if (_tabNavigationCount > 0) {
+        AdService.instance.onMainTabChanged(
+          from: _currentIndex,
+          to: index,
+        );
+      }
+      _tabNavigationCount++;
+      setState(() {
+        _visitedTabs.add(index);
+        _currentIndex = index;
+      });
+    }
   }
 }
 

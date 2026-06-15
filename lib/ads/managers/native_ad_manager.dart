@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import '../ad_debug_log.dart';
 import '../ad_placement.dart';
 import '../ad_remote_config.dart';
-import '../ad_unit_ids.dart';
 
 /// Native AdMob loads only — no banners, interstitials, or rewarded (Phase 5).
 class NativeAdManager {
@@ -14,7 +13,7 @@ class NativeAdManager {
 
   void updateConfig(AdRemoteConfig config) => _config = config;
 
-  String unitIdFor(AdPlacement placement) => AdUnitIds.nativeFor(placement);
+  String unitIdFor(AdPlacement placement) => '';
 
   bool canPrepare(AdPlacement placement) {
     if (!_config.nativePlacementEnabled(placement)) return false;

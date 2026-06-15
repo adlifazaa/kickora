@@ -64,7 +64,7 @@ abstract final class AdMobGeneratedConfig {
 }
 
 val admobConfig = loadAdmobLocalConfig()
-val admobAppId = admobConfig.first ?: "ca-app-pub-3940256099942544~3347511713"
+val admobAppId = admobConfig.first ?: "ca-app-pub-2257421593045125~1218804789"
 generateAdmobDartConfig(admobConfig.second, admobConfig.third, admobConfig.first)
 
 android {

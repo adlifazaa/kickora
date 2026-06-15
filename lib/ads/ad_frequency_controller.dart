@@ -44,6 +44,9 @@ class AdFrequencyController {
       case AdPlacement.matchDetailsNative:
         return _underCap(placement, 1);
       case AdPlacement.homeBanner:
+      case AdPlacement.matchesBanner:
+      case AdPlacement.competitionsBanner:
+      case AdPlacement.standingsBanner:
         return false;
     }
   }

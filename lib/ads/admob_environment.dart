@@ -3,9 +3,6 @@ import 'ad_placement.dart';
 import 'ad_unit_ids.dart';
 
 /// AdMob IDs from local config ([AdMobGeneratedConfig]) or `--dart-define` only.
-///
-/// Logical units: `kickora_native_main`, `kickora_native_feed` (see
-/// [config/admob.local.json.example]).
 abstract final class AdMobEnvironment {
   static const String nativeMainKey = 'kickora_native_main';
   static const String nativeFeedKey = 'kickora_native_feed';
@@ -28,6 +25,7 @@ abstract final class AdMobEnvironment {
   static String get androidAppId => _firstNonEmpty([
         _androidAppIdDefine,
         AdMobGeneratedConfig.androidAppId,
+        AdUnitIds.androidAppId,
       ]);
 
   static String get nativeMain => _firstNonEmpty([
@@ -43,7 +41,6 @@ abstract final class AdMobEnvironment {
   static bool get hasProductionNativeUnits =>
       nativeMain.isNotEmpty && nativeFeed.isNotEmpty;
 
-  /// Production native unit for a placement (`kickora_native_main` vs feed).
   static String nativeUnitId(AdPlacement placement) {
     final main = nativeMain;
     final feed = nativeFeed;
@@ -59,10 +56,7 @@ abstract final class AdMobEnvironment {
     };
   }
 
-  /// Google test App ID when local production App ID is absent.
-  static String get effectiveAndroidAppId => androidAppId.isNotEmpty
-      ? androidAppId
-      : AdUnitIds.testAndroidAppId;
+  static String get effectiveAndroidAppId => androidAppId;
 
   static String _firstNonEmpty(List<String> values) {
     for (final value in values) {

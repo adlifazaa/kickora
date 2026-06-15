@@ -12,6 +12,8 @@ import '../widgets/ad_placeholder.dart';
 import '../widgets/gentle_ad_slot.dart';
 import '../widgets/async_content_view.dart';
 import '../widgets/live_update_indicator.dart';
+import '../ads/ad_placement.dart';
+import '../widgets/top_banner_ad.dart';
 import '../widgets/match_card.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -210,6 +212,7 @@ class _MatchesScreenState extends State<MatchesScreen>
               refreshing: _refreshing || (_refresh?.isRefreshing ?? false),
               padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
             ),
+          const TopBannerAd(placement: AdPlacement.matchesBanner),
           Expanded(
             child: TabBarView(
               controller: _tabController,

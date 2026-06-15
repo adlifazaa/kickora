@@ -1,27 +1,32 @@
-import 'admob_environment.dart';
+import 'package:flutter/foundation.dart';
+
 import 'ad_placement.dart';
 import 'ad_unit_ids.dart';
+import 'admob_environment.dart';
 
-/// AdMob runtime flags — test units by default; production from local config only.
+/// AdMob runtime configuration — production units in release builds.
 class AdConfig {
   AdConfig._();
 
-  /// Master switch for real AdMob loads (default off).
-  static const bool productionAdsEnabled = bool.fromEnvironment(
-    'KICKORA_ADS_ENABLED',
-    defaultValue: false,
-  );
+  /// Release builds ship with real AdMob units enabled by default.
+  static bool get productionAdsEnabled =>
+      kReleaseMode ||
+      const bool.fromEnvironment(
+        'KICKORA_ADS_ENABLED',
+        defaultValue: false,
+      );
 
-  static bool get useTestAdUnits =>
-      !productionAdsEnabled || !AdMobEnvironment.hasProductionNativeUnits;
+  /// When true, MobileAds initializes and real ad requests are sent.
+  /// Debug APKs include this so verification works without dart-defines.
+  static bool get adsSdkEnabled => productionAdsEnabled || kDebugMode;
 
-  /// Native unit for a placement (Google test or local production config).
-  static String nativeUnitId(AdPlacement placement) {
-    if (useTestAdUnits) {
-      return AdUnitIds.nativeFor(placement);
-    }
-    final prod = AdMobEnvironment.nativeUnitId(placement);
-    if (prod.isNotEmpty) return prod;
-    return AdUnitIds.nativeFor(placement);
-  }
+  static String get androidAppId => AdUnitIds.androidAppId;
+
+  static String get bannerUnitId => AdUnitIds.banner;
+
+  static String get interstitialUnitId => AdUnitIds.interstitial;
+
+  /// Native units remain optional (banner + interstitial are production defaults).
+  static String nativeUnitId(AdPlacement placement) =>
+      AdMobEnvironment.nativeUnitId(placement);
 }

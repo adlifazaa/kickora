@@ -16,6 +16,7 @@ import '../widgets/competition_card.dart';
 import '../ads/ad_placement.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/gentle_ad_slot.dart';
+import '../widgets/top_banner_ad.dart';
 import '../widgets/skeleton_box.dart';
 
 /// Browse + search competitions. Includes a premium search field, category
@@ -206,6 +207,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
               ],
             ),
           ),
+          const TopBannerAd(placement: AdPlacement.competitionsBanner),
           Expanded(
             child: _buildBody(context, app, text, filtered),
           ),

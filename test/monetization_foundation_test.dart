@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kickora/ads/ad_config.dart';
 import 'package:kickora/ads/ad_placement.dart';
 import 'package:kickora/ads/ad_remote_config.dart';
 import 'package:kickora/ads/ad_service.dart';
+import 'package:kickora/ads/ad_unit_ids.dart';
 import 'package:kickora/subscription/premium_features.dart';
 import 'package:kickora/subscription/premium_service.dart';
 import 'package:kickora/subscription/premium_subscription_service.dart';
@@ -18,6 +20,30 @@ void main() {
     expect(config.placementEnabled(AdPlacement.matchListNative), isFalse);
     expect(config.placementEnabled(AdPlacement.competitionListNative), isFalse);
     expect(config.placementEnabled(AdPlacement.scrollBottomNative), isFalse);
+  });
+
+  test('AdRemoteConfig production enables banner and interstitial', () {
+    final config = AdRemoteConfig.production();
+    expect(config.adsMasterEnabled, isTrue);
+    expect(config.bannerEnabled, isTrue);
+    expect(config.interstitialEnabled, isTrue);
+    expect(config.placementEnabled(AdPlacement.matchesBanner), isTrue);
+    expect(config.placementEnabled(AdPlacement.competitionsBanner), isTrue);
+    expect(config.placementEnabled(AdPlacement.standingsBanner), isTrue);
+  });
+
+  test('production AdMob unit IDs are configured', () {
+    expect(
+      AdUnitIds.androidAppId,
+      'ca-app-pub-2257421593045125~1218804789',
+    );
+    expect(AdUnitIds.banner, 'ca-app-pub-2257421593045125/4567326770');
+    expect(
+      AdUnitIds.interstitial,
+      'ca-app-pub-2257421593045125/6590854884',
+    );
+    expect(AdConfig.bannerUnitId, AdUnitIds.banner);
+    expect(AdConfig.interstitialUnitId, AdUnitIds.interstitial);
   });
 
   test('AdService shows no placeholders by default', () {

@@ -1,8 +1,6 @@
 import 'ad_placement.dart';
 
 /// Remote-config placeholders (Firebase Remote Config / dart-define later).
-///
-/// Defaults: all ads off, native-only when explicitly enabled — no popups.
 class AdRemoteConfig {
   const AdRemoteConfig({
     this.adsMasterEnabled = false,
@@ -22,13 +20,23 @@ class AdRemoteConfig {
     this.feedNativeEnabled = false,
     this.competitionsNativeEnabled = false,
     this.interstitialEveryNActions = 5,
-    this.maxInterstitialsPerSession = 0,
+    this.maxInterstitialsPerSession = 20,
   });
 
-  /// MVP default — no placeholders, no real ads.
+  /// Debug / tests — no real ads.
   factory AdRemoteConfig.defaults() => const AdRemoteConfig();
 
   factory AdRemoteConfig.disabled() => const AdRemoteConfig();
+
+  /// Release builds — banner + interstitial only (non-intrusive).
+  factory AdRemoteConfig.production() => const AdRemoteConfig(
+        adsMasterEnabled: true,
+        bannerEnabled: true,
+        interstitialEnabled: true,
+        showPlaceholderSlots: false,
+        nativeEnabled: false,
+        maxInterstitialsPerSession: 20,
+      );
 
   final bool adsMasterEnabled;
   final bool showPlaceholderSlots;
@@ -41,7 +49,6 @@ class AdRemoteConfig {
   final int feedNativeInterval;
   final int maxNativeImpressionsPerSession;
 
-  /// Non-native formats — always off for Kickora MVP.
   final bool bannerEnabled;
   final bool interstitialEnabled;
   final bool rewardedEnabled;
@@ -63,21 +70,27 @@ class AdRemoteConfig {
         competitionListNativeEnabled || competitionsNativeEnabled,
       AdPlacement.scrollBottomNative => scrollBottomNativeEnabled,
       AdPlacement.matchDetailsNative => matchDetailsNativeEnabled,
-      AdPlacement.homeBanner => false,
+      AdPlacement.homeBanner ||
+      AdPlacement.matchesBanner ||
+      AdPlacement.competitionsBanner ||
+      AdPlacement.standingsBanner =>
+        false,
     };
   }
 
-  bool placementEnabled(AdPlacement placement) =>
-      nativePlacementEnabled(placement);
+  bool placementEnabled(AdPlacement placement) {
+    if (placement.isTopBanner) {
+      return adsMasterEnabled && bannerEnabled;
+    }
+    return nativePlacementEnabled(placement);
+  }
 
   bool allowsRealAds(AdPlacement placement) {
-    if (!adsMasterEnabled || !nativeEnabled) return false;
-    if (!placement.isNativeSlot &&
-        placement != AdPlacement.feedNative &&
-        placement != AdPlacement.competitionsNative &&
-        placement != AdPlacement.matchDetailsNative) {
-      return false;
+    if (!adsMasterEnabled) return false;
+    if (placement.isTopBanner) {
+      return bannerEnabled;
     }
+    if (!nativeEnabled) return false;
     return nativePlacementEnabled(placement);
   }
 }

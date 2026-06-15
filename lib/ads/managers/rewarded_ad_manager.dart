@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../ad_remote_config.dart';
-import '../ad_unit_ids.dart';
 
 /// Rewarded video (mock — for future premium unlocks / bonus content).
 class RewardedAdManager {
@@ -13,7 +12,7 @@ class RewardedAdManager {
 
   void updateConfig(AdRemoteConfig config) => _config = config;
 
-  String get unitId => AdUnitIds.rewarded;
+  String get unitId => '';
 
   bool get isReady => _ready;
 

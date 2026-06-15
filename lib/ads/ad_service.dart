@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'ad_config.dart';
@@ -6,10 +9,11 @@ import 'ad_frequency_controller.dart';
 import 'ad_placement.dart';
 import 'ad_remote_config.dart';
 import '../subscription/premium_subscription_service.dart';
+import 'managers/interstitial_ad_manager.dart';
 import 'managers/native_ad_manager.dart';
 
-/// Central AdMob orchestrator — **native placements only**, disabled by default.
-class AdService {
+/// Central AdMob orchestrator — production banner + interstitial in release.
+class AdService with WidgetsBindingObserver, ChangeNotifier {
   AdService._internal();
   static final AdService instance = AdService._internal();
   factory AdService() => instance;
@@ -17,11 +21,18 @@ class AdService {
   AdRemoteConfig _config = AdRemoteConfig.defaults();
   late final AdFrequencyController _frequency = AdFrequencyController(_config);
   late final NativeAdManager _native = NativeAdManager(_config);
+  late final InterstitialAdManager _interstitial =
+      InterstitialAdManager(_config);
 
-  bool _initialized = false;
+  bool _configured = false;
+  bool _sdkReady = false;
+  bool _sdkInitStarted = false;
+  bool _deferredScheduled = false;
+  bool _observerRegistered = false;
   PremiumSubscriptionService? _premium;
 
-  bool get isInitialized => _initialized;
+  bool get isInitialized => _configured;
+  bool get sdkReady => _sdkReady;
   AdRemoteConfig get config => _config;
   NativeAdManager get native => _native;
 
@@ -32,30 +43,73 @@ class AdService {
   bool get _suppressAds => _premium?.isPremium ?? false;
 
   bool get adsEnabled =>
-      !_suppressAds && (_config.showPlaceholderSlots || _config.adsMasterEnabled);
+      !_suppressAds &&
+      _config.adsMasterEnabled &&
+      (AdConfig.adsSdkEnabled || _config.showPlaceholderSlots);
 
-  /// Call once at app startup.
+  /// Lightweight config only — safe before [runApp] (tests / manual init).
   Future<void> initialize({AdRemoteConfig? remoteConfig}) async {
-    if (_initialized) return;
-    if (remoteConfig != null) {
-      await updateRemoteConfig(remoteConfig);
+    if (_configured) return;
+    _applyConfig(remoteConfig);
+    _configured = true;
+    await _startMobileAds();
+  }
+
+  /// Defers SDK init until after the first frame on the main navigation screen.
+  void scheduleDeferredInitialize({AdRemoteConfig? remoteConfig}) {
+    if (_deferredScheduled || _configured) return;
+    _deferredScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(initialize(remoteConfig: remoteConfig));
+    });
+  }
+
+  void _applyConfig(AdRemoteConfig? remoteConfig) {
+    _config = remoteConfig ??
+        (AdConfig.adsSdkEnabled
+            ? AdRemoteConfig.production()
+            : AdRemoteConfig.defaults());
+    _frequency.updateConfig(_config);
+    _native.updateConfig(_config);
+    _interstitial.updateConfig(_config);
+  }
+
+  Future<void> _startMobileAds() async {
+    if (_sdkInitStarted) return;
+    _sdkInitStarted = true;
+
+    if (!_observerRegistered) {
+      WidgetsBinding.instance.addObserver(this);
+      _observerRegistered = true;
     }
-    if (AdConfig.productionAdsEnabled) {
+
+    if (!_suppressAds && _config.adsMasterEnabled && AdConfig.adsSdkEnabled) {
       try {
+        AdDebugLog.mobileAdsInitStarted();
         await MobileAds.instance.initialize();
+        _sdkReady = true;
+        notifyListeners();
+        AdDebugLog.mobileAdsInitComplete();
+        unawaited(_interstitial.preload());
       } catch (e) {
-        AdDebugLog.nativeLoadSkipped(
-          AdPlacement.feedNative,
-          reason: 'MobileAds init failed',
-        );
+        AdDebugLog.initFailed(e.toString());
       }
+    } else {
+      AdDebugLog.mobileAdsInitSkipped(
+        adsMasterEnabled: _config.adsMasterEnabled,
+        sdkEnabled: AdConfig.adsSdkEnabled,
+        suppressAds: _suppressAds,
+      );
     }
-    await _native.prepareAllNativePlacements();
-    _initialized = true;
+
+    unawaited(_native.prepareAllNativePlacements());
+    notifyListeners();
     AdDebugLog.initialized(
       adsEnabled: adsEnabled,
-      nativeOnly: true,
+      nativeOnly: false,
       placeholders: _config.showPlaceholderSlots,
+      sdkEnabled: AdConfig.adsSdkEnabled,
+      sdkReady: _sdkReady,
     );
   }
 
@@ -63,6 +117,14 @@ class AdService {
     _config = config;
     _frequency.updateConfig(config);
     _native.updateConfig(config);
+    _interstitial.updateConfig(config);
+    notifyListeners();
+  }
+
+  bool shouldShowBanner(AdPlacement placement) {
+    if (_suppressAds) return false;
+    if (!placement.isTopBanner) return false;
+    return _config.placementEnabled(placement);
   }
 
   bool shouldShowPlaceholder(AdPlacement placement, {int? feedItemIndex}) {
@@ -88,11 +150,41 @@ class AdService {
     _frequency.recordImpression(placement);
   }
 
-  /// Interstitials disabled for MVP — no-op.
-  Future<void> onNavigationAction() async {}
+  /// Interstitial after meaningful main-tab navigation (not favorites / startup).
+  Future<void> onMainTabChanged({required int from, required int to}) async {
+    if (!_sdkReady || _suppressAds || !_config.interstitialEnabled) {
+      return;
+    }
+    const favoritesIndex = 3;
+    if (from == favoritesIndex || to == favoritesIndex) return;
 
-  Future<void> dispose() async {
+    const majorTabs = {0, 1, 2, 4};
+    if (!majorTabs.contains(from) || !majorTabs.contains(to) || from == to) {
+      return;
+    }
+
+    await _interstitial.showIfAllowed();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _interstitial.markBackgrounded();
+    }
+  }
+
+  Future<void> shutdown() async {
+    if (_observerRegistered) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observerRegistered = false;
+    }
+    await _interstitial.dispose();
     await _native.dispose();
-    _initialized = false;
+    _configured = false;
+    _sdkReady = false;
+    _sdkInitStarted = false;
+    _deferredScheduled = false;
   }
 }
