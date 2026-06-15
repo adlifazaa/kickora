@@ -139,6 +139,15 @@ class ApiFootballRoutes {
         queryParameters: {'league': '$competitionId', 'season': '$season'},
       );
 
+  static ApiRouteRequest competitionFixtures({
+    required int competitionId,
+    required int season,
+  }) =>
+      ApiRouteRequest(
+        path: ApiConstants.fixtures,
+        queryParameters: {'league': '$competitionId', 'season': '$season'},
+      );
+
   static ApiRouteRequest playerById({
     required int id,
     required int season,

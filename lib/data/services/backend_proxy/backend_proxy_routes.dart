@@ -7,22 +7,20 @@ class BackendProxyRoutes {
 
   static ApiRouteRequest liveMatches({
     int? competitionId,
-    required int season,
+    int? season,
   }) =>
       ApiRouteRequest(
         path: ApiConstants.backendMatchesLive,
-        queryParameters: competitionId == null
-            ? {'season': '$season'}
-            : {
-                'competitionId': '$competitionId',
-                'season': '$season',
-              },
+        queryParameters: _matchQuery(
+          competitionId: competitionId,
+          season: season,
+        ),
       );
 
   static ApiRouteRequest matchesToday({
     DateTime? date,
     int? competitionId,
-    required int season,
+    int? season,
   }) =>
       ApiRouteRequest(
         path: ApiConstants.backendMatchesToday,
@@ -36,7 +34,7 @@ class BackendProxyRoutes {
   static ApiRouteRequest upcomingMatches({
     DateTime? date,
     int? competitionId,
-    required int season,
+    int? season,
   }) =>
       ApiRouteRequest(
         path: ApiConstants.backendMatchesUpcoming,
@@ -50,7 +48,7 @@ class BackendProxyRoutes {
   static ApiRouteRequest finishedMatches({
     DateTime? date,
     int? competitionId,
-    required int season,
+    int? season,
   }) =>
       ApiRouteRequest(
         path: ApiConstants.backendMatchesFinished,
@@ -94,11 +92,12 @@ class BackendProxyRoutes {
 
   static ApiRouteRequest competitionById({
     required int id,
-    required int season,
+    int? season,
   }) =>
       ApiRouteRequest(
         path: ApiConstants.backendCompetition(id),
-        queryParameters: {'season': '$season'},
+        queryParameters:
+            season != null ? {'season': '$season'} : null,
       );
 
   static ApiRouteRequest topScorers({
@@ -110,6 +109,15 @@ class BackendProxyRoutes {
         queryParameters: {'season': '$season'},
       );
 
+  static ApiRouteRequest competitionMatches({
+    required int competitionId,
+    required int season,
+  }) =>
+      ApiRouteRequest(
+        path: ApiConstants.backendCompetitionMatches(competitionId),
+        queryParameters: {'season': '$season'},
+      );
+
   static ApiRouteRequest playerById({
     required int id,
     required int season,
@@ -118,6 +126,10 @@ class BackendProxyRoutes {
         path: ApiConstants.backendPlayer(id),
         queryParameters: {'season': '$season'},
       );
+
+  static const ApiRouteRequest worldCupNews = ApiRouteRequest(
+    path: ApiConstants.backendWorldCupNews,
+  );
 
   static ApiRouteRequest matchById(int id) => ApiRouteRequest(
         path: ApiConstants.backendMatch(id),
@@ -138,12 +150,12 @@ class BackendProxyRoutes {
   static Map<String, String>? _matchQuery({
     DateTime? date,
     int? competitionId,
-    required int season,
+    int? season,
   }) {
     final query = <String, String>{
       if (date != null) 'date': ApiConstants.formatDate(date),
       if (competitionId != null) 'competitionId': '$competitionId',
-      'season': '$season',
+      if (competitionId != null && season != null) 'season': '$season',
     };
     return query.isEmpty ? null : query;
   }

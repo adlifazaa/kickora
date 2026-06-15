@@ -163,6 +163,33 @@ class FootballApiService {
     return matches;
   }
 
+  /// Full league/season fixture list — one upstream call (World Cup schedule).
+  Future<List<MatchModel>> fetchCompetitionFixtures({
+    required int competitionId,
+    required int season,
+    bool skipCache = false,
+  }) async {
+    if (!isLive) throw const ApiException.notConfigured();
+
+    final cacheKey = 'fixtures_league_${competitionId}_$season';
+    if (!skipCache) {
+      final cached = _readMatchCache(cacheKey, CacheBucket.competitionFixtures);
+      if (cached != null) return cached;
+    }
+
+    final route = ApiRouteRequest(
+      path: ApiConstants.fixtures,
+      queryParameters: {
+        'league': '$competitionId',
+        'season': '$season',
+      },
+    );
+    final response = await _fetchEnvelope(route);
+    final matches = FootballApiMapper.matchesByDate(response);
+    await _writeMatchCache(cacheKey, matches, CacheBucket.competitionFixtures);
+    return matches;
+  }
+
   /// Clears in-memory/disk fixture caches before a forced refresh.
   Future<void> invalidateMatchCaches({
     DateTime? date,

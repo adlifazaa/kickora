@@ -12,7 +12,7 @@ class FootballApiRoutes {
   static ApiRouteRequest liveMatches({
     DateTime? date,
     int? competitionId,
-    required int season,
+    int? season,
   }) {
     if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(
@@ -29,7 +29,7 @@ class FootballApiRoutes {
       queryParameters: {
         'live': 'all',
         if (competitionId != null) 'league': '$competitionId',
-        if (competitionId != null) 'season': '$season',
+        if (competitionId != null && season != null) 'season': '$season',
       },
     );
   }
@@ -38,7 +38,7 @@ class FootballApiRoutes {
     DateTime? date,
     int? competitionId,
     MatchStatus? status,
-    required int season,
+    int? season,
   }) {
     if (ApiModeService.isBackendProxy) {
       final path = switch (status) {
@@ -60,7 +60,7 @@ class FootballApiRoutes {
     final query = <String, String>{
       if (date != null) 'date': ApiConstants.formatDate(date),
       if (competitionId != null) 'league': '$competitionId',
-      if (competitionId != null) 'season': '$season',
+      if (competitionId != null && season != null) 'season': '$season',
     };
 
     return ApiRouteRequest(
@@ -119,16 +119,20 @@ class FootballApiRoutes {
     );
   }
 
-  static ApiRouteRequest competitionById(int id, {required int season}) {
+  static ApiRouteRequest competitionById(int id, {int? season}) {
     if (ApiModeService.isBackendProxy) {
       return ApiRouteRequest(
         path: ApiConstants.backendCompetition(id),
-        queryParameters: {'season': '$season'},
+        queryParameters:
+            season != null ? {'season': '$season'} : null,
       );
     }
     return ApiRouteRequest(
       path: ApiConstants.leagues,
-      queryParameters: {'id': '$id', 'season': '$season'},
+      queryParameters: {
+        'id': '$id',
+        if (season != null) 'season': '$season',
+      },
     );
   }
 
@@ -220,12 +224,12 @@ class FootballApiRoutes {
   static Map<String, String>? _backendMatchQuery({
     DateTime? date,
     int? competitionId,
-    required int season,
+    int? season,
   }) {
     final query = <String, String>{
       if (date != null) 'date': ApiConstants.formatDate(date),
       if (competitionId != null) 'competitionId': '$competitionId',
-      'season': '$season',
+      if (competitionId != null && season != null) 'season': '$season',
     };
     return query.isEmpty ? null : query;
   }

@@ -44,6 +44,11 @@ void main() {
       '/competitions/39/top-scorers',
     );
     expect(
+      BackendProxyRoutes.competitionMatches(competitionId: 1, season: season)
+          .path,
+      '/competitions/1/matches',
+    );
+    expect(
       BackendProxyRoutes.playerById(id: 276, season: season).path,
       '/players/276',
     );

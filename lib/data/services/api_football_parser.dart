@@ -6,6 +6,7 @@ import '../models/lineup_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../models/standing_model.dart';
+import '../models/standing_group_model.dart';
 import '../models/team_model.dart';
 
 /// Maps API-Football (`api-sports.io` v3) JSON into Kickora domain models.
@@ -70,6 +71,7 @@ class ApiFootballParser {
       date: DateTime.tryParse(fixture['date']?.toString() ?? '') ??
           DateTime.now(),
       stadium: _map(fixture['venue'])['name']?.toString() ?? '',
+      round: league['round']?.toString() ?? '',
     );
   }
 
@@ -466,7 +468,7 @@ class ApiFootballParser {
       countryCode: country.code,
       countryFlagUrl: country.flagUrl,
       competitionType: league['type']?.toString() ?? '',
-      isFeatured: false,
+      isFeatured: _int(league['id']) == 1,
     );
   }
 
@@ -505,6 +507,48 @@ class ApiFootballParser {
         .whereType<Map>()
         .map((e) => _parseStandingRow(Map<String, dynamic>.from(e)))
         .toList();
+  }
+
+  /// All group tables for World Cup–style standings.
+  static List<StandingGroupModel> parseStandingGroups(
+    Map<String, dynamic> body,
+  ) {
+    final response = body['response'];
+    if (response is! List || response.isEmpty) return const [];
+
+    final first = Map<String, dynamic>.from(response.first as Map);
+    final league = _map(first['league']);
+    final groupsRaw = league['standings'];
+    if (groupsRaw is! List || groupsRaw.isEmpty) {
+      final flat = parseStandings(body);
+      if (flat.isEmpty) return const [];
+      return [StandingGroupModel(name: 'Group A', rows: flat)];
+    }
+
+    final out = <StandingGroupModel>[];
+    for (var i = 0; i < groupsRaw.length; i++) {
+      final table = groupsRaw[i];
+      if (table is! List) continue;
+      final rows = table
+          .whereType<Map>()
+          .map((e) => _parseStandingRow(Map<String, dynamic>.from(e)))
+          .toList();
+      if (rows.isEmpty) continue;
+      out.add(
+        StandingGroupModel(
+          name: _worldCupGroupLabel(i, rows),
+          rows: rows,
+        ),
+      );
+    }
+    return out;
+  }
+
+  static String _worldCupGroupLabel(int index, List<StandingModel> rows) {
+    if (index >= 0 && index < 26) {
+      return 'Group ${String.fromCharCode(65 + index)}';
+    }
+    return 'Group ${index + 1}';
   }
 
   static StandingModel _parseStandingRow(Map<String, dynamic> json) {

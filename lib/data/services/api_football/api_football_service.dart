@@ -120,6 +120,20 @@ class ApiFootballService {
             .toList(growable: false);
       });
 
+  Future<List<MatchModel>> fetchCompetitionFixtures({
+    required int competitionId,
+    required int season,
+  }) =>
+      safe(() async {
+        final envelope = await _get(
+          ApiFootballRoutes.competitionFixtures(
+            competitionId: competitionId,
+            season: season,
+          ),
+        );
+        return FootballApiMapper.matchesByDate(envelope);
+      });
+
   Future<List<CompetitionModel>> getCompetitions() => safe(() async {
         final envelope = await _get(ApiFootballRoutes.competitions);
         return FootballApiMapper.competitions(envelope);
