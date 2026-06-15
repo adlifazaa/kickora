@@ -4,7 +4,9 @@ import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
 import '../screens/about_screen.dart';
+import '../core/world_cup/world_cup_priority.dart';
 import '../screens/competition_details_screen.dart';
+import '../screens/world_cup/world_cup_hub_screen.dart';
 import '../screens/competitions_screen.dart';
 import '../screens/global_search_screen.dart';
 import '../screens/home_screen.dart';
@@ -76,6 +78,12 @@ class AppRoutes {
             builder: (context) => const StandingsScreen());
       case competitionDetails:
         final competition = settings.arguments as CompetitionModel;
+        if (WorldCupPriority.isWorldCupCompetition(competition)) {
+          return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => WorldCupHubScreen(competition: competition),
+          );
+        }
         return PremiumPageRoute(
             settings: settings,
             builder: (context) =>

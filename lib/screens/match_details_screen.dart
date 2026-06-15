@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
@@ -21,6 +22,7 @@ import '../widgets/live_update_indicator.dart';
 import '../widgets/match_timeline.dart';
 import '../widgets/match/premium_football_pitch.dart';
 import '../widgets/player_avatar.dart';
+import '../utils/match_share_formatter.dart';
 import '../widgets/team_logo.dart';
 
 class MatchDetailsScreen extends StatefulWidget {
@@ -382,6 +384,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     return m.timeLabel;
   }
 
+  Future<void> _shareMatch(MatchModel match) async {
+    await Share.share(buildMatchShareText(match));
+  }
+
   Widget _buildSelectedTabBody(
     BuildContext context,
     MatchModel match,
@@ -737,14 +743,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         actions: [
           IconButton(
             tooltip: text.isArabic ? 'مشاركة' : 'Share',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(text.isArabic
-                        ? 'مشاركة قريبًا'
-                        : 'Share coming soon')),
-              );
-            },
+            onPressed: () => _shareMatch(match),
             icon: const Icon(Icons.ios_share_rounded),
           ),
         ],

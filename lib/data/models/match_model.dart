@@ -43,6 +43,7 @@ class MatchModel {
     required this.competition,
     required this.date,
     this.stadium = '',
+    this.round = '',
     this.events = const [],
     this.stats = const [],
     this.homeLineup,
@@ -75,6 +76,10 @@ class MatchModel {
   final CompetitionModel competition;
   final DateTime date;
   final String stadium;
+
+  /// API-Football `league.round` (e.g. Group Stage - 1, Round of 16).
+  final String round;
+
   final List<MatchEventModel> events;
   final List<MatchStatisticModel> stats;
   final LineupModel? homeLineup;
@@ -112,6 +117,7 @@ class MatchModel {
       competition: competition,
       date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
       stadium: (json['stadium'] ?? '').toString(),
+      round: (json['round'] ?? '').toString(),
       momentumHome: ((json['momentumHome'] ?? 0.5) as num).toDouble(),
       events: eventsJson
           .map((e) => MatchEventModel.fromJson(e as Map<String, dynamic>))
@@ -134,6 +140,7 @@ class MatchModel {
     CompetitionModel? competition,
     DateTime? date,
     String? stadium,
+    String? round,
     List<MatchEventModel>? events,
     List<MatchStatisticModel>? stats,
     LineupModel? homeLineup,
@@ -154,6 +161,7 @@ class MatchModel {
       competition: competition ?? this.competition,
       date: date ?? this.date,
       stadium: stadium ?? this.stadium,
+      round: round ?? this.round,
       events: events ?? this.events,
       stats: stats ?? this.stats,
       homeLineup: homeLineup ?? this.homeLineup,

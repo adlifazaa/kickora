@@ -2,7 +2,9 @@
 
 import '../app/app_colors.dart';
 import '../app/app_scope.dart';
+import '../core/constants/world_cup_config.dart';
 import '../core/refresh/match_refresh_service.dart';
+import '../core/world_cup/world_cup_priority.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../models/match_model.dart';
@@ -62,9 +64,21 @@ class _MatchesScreenState extends State<MatchesScreen>
     final repo = AppScope.footballRepositoryOf(context);
     final refresh = AppScope.matchRefreshServiceOf(context);
     refresh.setSelectedDate(_selectedDate);
+    await repo.ensureWorldCupReady();
+    final wcId = WorldCupConfig.competitionId;
     final results = await Future.wait([
       repo.getLiveMatches(
         date: _selectedDate,
+        competitionId: wcId,
+        forceRefresh: forceRefresh,
+      ),
+      repo.getLiveMatches(
+        date: _selectedDate,
+        forceRefresh: forceRefresh,
+      ),
+      repo.getUpcomingMatches(
+        date: _selectedDate,
+        competitionId: wcId,
         forceRefresh: forceRefresh,
       ),
       repo.getUpcomingMatches(
@@ -77,22 +91,30 @@ class _MatchesScreenState extends State<MatchesScreen>
       ),
     ]);
 
-    var live = results[0].hasError ? <MatchModel>[] : (results[0].data ?? []);
-    var upcoming =
-        results[1].hasError ? <MatchModel>[] : (results[1].data ?? []);
+    var live = _mergeMatchLists(
+      wc: results[0].hasError ? <MatchModel>[] : (results[0].data ?? []),
+      all: results[1].hasError ? <MatchModel>[] : (results[1].data ?? []),
+    );
+    var upcoming = _mergeMatchLists(
+      wc: results[2].hasError ? <MatchModel>[] : (results[2].data ?? []),
+      all: results[3].hasError ? <MatchModel>[] : (results[3].data ?? []),
+    );
     var finished =
-        results[2].hasError ? <MatchModel>[] : (results[2].data ?? []);
+        results[4].hasError ? <MatchModel>[] : (results[4].data ?? []);
+    live = WorldCupPriority.sortMatches(live);
+    upcoming = WorldCupPriority.sortMatches(upcoming);
+    finished = WorldCupPriority.sortMatches(finished);
 
     String? loadError;
     if (repo.usesLiveApi) {
-      if (results[0].hasError && live.isEmpty) {
-        loadError = results[0].errorMessage;
+      if (results[1].hasError && live.isEmpty) {
+        loadError = results[1].errorMessage;
       }
-      if (results[1].hasError && upcoming.isEmpty) {
-        loadError ??= results[1].errorMessage;
+      if (results[3].hasError && upcoming.isEmpty) {
+        loadError ??= results[3].errorMessage;
       }
-      if (results[2].hasError && finished.isEmpty) {
-        loadError ??= results[2].errorMessage;
+      if (results[4].hasError && finished.isEmpty) {
+        loadError ??= results[4].errorMessage;
       }
     }
 
@@ -223,6 +245,18 @@ class _MatchesScreenState extends State<MatchesScreen>
     );
   }
 
+  List<MatchModel> _mergeMatchLists({
+    required List<MatchModel> wc,
+    required List<MatchModel> all,
+  }) {
+    final out = <MatchModel>[...wc];
+    final seen = out.map((m) => m.id).toSet();
+    for (final m in all) {
+      if (!seen.contains(m.id)) out.add(m);
+    }
+    return out;
+  }
+
   List<Widget> _buildGrouped(
       List<MatchModel> matches, BuildContext context, AppText text) {
     final grouped = <String, List<MatchModel>>{};
@@ -236,7 +270,17 @@ class _MatchesScreenState extends State<MatchesScreen>
       ContentSpotlightVariant.matchSpotlight,
       ContentSpotlightVariant.matchPartner,
     ];
-    grouped.forEach((competition, list) {
+    final competitionKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        final aw =
+            WorldCupPriority.isWorldCupCompetitionName(a) ? 0 : 1;
+        final bw =
+            WorldCupPriority.isWorldCupCompetitionName(b) ? 0 : 1;
+        if (aw != bw) return aw.compareTo(bw);
+        return a.compareTo(b);
+      });
+    for (final competition in competitionKeys) {
+      final list = grouped[competition]!;
       widgets.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(2, 6, 2, 8),
@@ -291,7 +335,7 @@ class _MatchesScreenState extends State<MatchesScreen>
         }
       }
       widgets.add(const SizedBox(height: 6));
-    });
+    }
     return widgets;
   }
 }

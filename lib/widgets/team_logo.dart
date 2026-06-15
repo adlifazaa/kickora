@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
 import '../core/mock/mock_visual_resolver.dart';
+import '../core/world_cup/world_cup_priority.dart';
 import '../data/models/competition_model.dart';
 import '../data/models/team_model.dart';
 import 'api_display_text.dart';
 import 'mock_competition_badge.dart';
 import 'mock_flag_badge.dart';
 import 'network_logo_image.dart';
+import 'world_cup_logo.dart';
 
 /// Team crest — API logo, flag, local mock flag, then initials.
 class TeamLogo extends StatelessWidget {
@@ -346,6 +348,13 @@ class CompetitionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (WorldCupPriority.isWorldCupBadge(
+      competitionId: competitionId,
+      competitionName: competitionName,
+    )) {
+      return WorldCupLogo(size: size);
+    }
+
     final networkUrl = isNetworkImageUrl(logo) ? logo : null;
     return NetworkLogoImage(
       size: size,
