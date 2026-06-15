@@ -164,6 +164,21 @@ class SettingsScreen extends StatelessWidget {
                 value: app.notifyFavoriteMatchUpdatesEnabled,
                 onChanged: app.setNotifyFavoriteMatchUpdatesEnabled,
               ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: Icons.bug_report_outlined,
+                iconColor: Colors.amber,
+                title: text.isArabic ? 'تشخيص الإشعارات' : 'Notification diagnostics',
+                subtitle: text.isArabic
+                    ? 'الحالة، الاشتراكات، وخادم Render'
+                    : 'Status, subscriptions, and Render backend',
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.notificationDiagnostics,
+                ),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
+              ),
               const SizedBox(height: 26),
               SectionHeader(
                 title: text.isArabic ? 'Kickora Premium' : 'Kickora Premium',

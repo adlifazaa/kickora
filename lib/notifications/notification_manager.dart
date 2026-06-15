@@ -56,6 +56,26 @@ class NotificationManager {
       _readIdSet(_subscribedMatchesKey).length +
       _readIdSet(_subscribedCompetitionsKey).length;
 
+  Set<int> get subscribedTeamIds => _readIdSet(_subscribedTeamsKey);
+  Set<int> get subscribedMatchIds => _readIdSet(_subscribedMatchesKey);
+  Set<int> get subscribedCompetitionIds =>
+      _readIdSet(_subscribedCompetitionsKey);
+
+  List<String> get subscribedTopicNames {
+    final topics = <String>[
+      for (final id in subscribedTeamIds) NotificationTopics.team(id),
+      for (final id in subscribedMatchIds) NotificationTopics.match(id),
+      for (final id in subscribedCompetitionIds)
+        NotificationTopics.competition(id),
+    ]..sort();
+    return topics;
+  }
+
+  Future<bool> hasFcmTokenAvailable() async {
+    final token = await _fcm.getDeviceToken();
+    return token != null && token.isNotEmpty;
+  }
+
   Future<void> initialize() async {
     if (_initialized) return;
     await _fcm.initialize();

@@ -11,6 +11,7 @@ import '../screens/competitions_screen.dart';
 import '../screens/global_search_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/main_navigation_screen.dart';
+import '../screens/notification_diagnostics_screen.dart';
 import '../screens/match_details_screen.dart';
 import '../screens/live_matches_screen.dart';
 import '../screens/matches_screen.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const subscription = '/subscription';
   static const premium = '/premium';
   static const globalSearch = '/global-search';
+  static const notificationDiagnostics = '/notification-diagnostics';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -113,6 +115,10 @@ class AppRoutes {
         return PremiumPageRoute(
             settings: settings,
             builder: (context) => const GlobalSearchScreen());
+      case notificationDiagnostics:
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const NotificationDiagnosticsScreen());
       default:
         return MaterialPageRoute(
             settings: settings, builder: (context) => const HomeScreen());

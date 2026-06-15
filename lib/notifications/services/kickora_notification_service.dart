@@ -10,6 +10,7 @@ import '../models/kickora_notification.dart';
 import '../models/notification_permission_status.dart';
 import '../models/notification_tap_intent.dart';
 import '../models/notification_type.dart';
+import '../notification_diagnostics.dart';
 import '../notification_manager.dart';
 import '../notification_preferences.dart';
 import '../notification_debug_log.dart';
@@ -101,6 +102,17 @@ class KickoraNotificationService {
   bool get isEnabled => _manager.isEnabled;
 
   bool get usesMockFirebase => _manager.usesMockFirebase;
+
+  NotificationDiagnosticsSnapshot get diagnosticsSnapshot =>
+      NotificationDiagnosticsSnapshot(
+        subscribedTeamIds: _manager.subscribedTeamIds,
+        subscribedMatchIds: _manager.subscribedMatchIds,
+        subscribedCompetitionIds: _manager.subscribedCompetitionIds,
+        subscribedTopicCount: _manager.subscribedTopicCount,
+        subscribedTopicNames: _manager.subscribedTopicNames,
+      );
+
+  Future<bool> hasFcmTokenAvailable() => _manager.hasFcmTokenAvailable();
 
   MockFirebaseNotificationBridge? get mockFirebase =>
       _firebaseBridge is MockFirebaseNotificationBridge
