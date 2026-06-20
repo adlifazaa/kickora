@@ -21,6 +21,7 @@ import '../screens/splash_screen.dart';
 import '../screens/premium_screen.dart';
 import '../screens/terms_of_use_screen.dart';
 import '../screens/standings_screen.dart';
+import '../app/app_scope.dart';
 import '../widgets/micro_interactions.dart';
 
 class AppRoutes {
@@ -118,7 +119,12 @@ class AppRoutes {
       case notificationDiagnostics:
         return PremiumPageRoute(
             settings: settings,
-            builder: (context) => const NotificationDiagnosticsScreen());
+            builder: (context) {
+              if (!AppScope.of(context).showNotificationDiagnostics) {
+                return const MainNavigationScreen();
+              }
+              return const NotificationDiagnosticsScreen();
+            });
       default:
         return MaterialPageRoute(
             settings: settings, builder: (context) => const HomeScreen());

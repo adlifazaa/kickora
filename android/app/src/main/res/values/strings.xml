@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">كأس العالم 2026 | Kickora</string>
+
+    <!-- Meta / Facebook App Events — replace with your Meta app credentials -->
+    <!-- Facebook App ID: Meta Events Manager → Settings → Basic → App ID -->
+    <string name="facebook_app_id">1544663650345354</string>
+    <!-- Facebook Client Token: Meta Events Manager → Settings → Advanced → Security → Client token -->
+    <string name="facebook_client_token">2a7478e882de57ead4a7987d4b38b0c9</string>
+    <!-- Required by Facebook SDK: fb + App ID (no spaces) -->
+    <string name="fb_login_protocol_scheme">fb1544663650345354</string>
 </resources>

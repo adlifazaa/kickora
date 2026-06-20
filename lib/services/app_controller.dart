@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/dev/developer_mode.dart';
 import '../core/firebase/analytics_service.dart';
 import '../core/refresh/match_refresh_service.dart';
 import '../core/startup/startup_timing.dart';
@@ -98,6 +99,16 @@ class AppController extends ChangeNotifier {
   bool get adsEnabled => premiumSubscriptionService.adsEnabled;
   bool get trialAvailable => premiumSubscriptionService.trialAvailable;
 
+  /// Notification diagnostics: debug builds, or release after hidden unlock.
+  bool get showNotificationDiagnostics =>
+      DeveloperMode.showNotificationDiagnostics(_preferences);
+
+  Future<void> unlockDeveloperMode() async {
+    if (showNotificationDiagnostics) return;
+    await DeveloperMode.enable(_preferences);
+    notifyListeners();
+  }
+
   /// Fast path before first frame — prefs only, no network/FCM.
   Future<void> loadEssentials() async {
     final themeValue = _preferences.getString(_themeKey) ?? ThemeMode.dark.name;
@@ -147,6 +158,7 @@ class AppController extends ChangeNotifier {
     }
     _recentSearches = updated;
     await _preferences.setStringList(_recentSearchesKey, _recentSearches);
+    unawaited(AnalyticsService.instance.logSearch(q));
     notifyListeners();
   }
 

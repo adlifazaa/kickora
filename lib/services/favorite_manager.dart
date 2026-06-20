@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/firebase/analytics_service.dart';
 import '../data/models/match_model.dart';
 import '../notifications/models/notification_type.dart';
 import '../notifications/services/kickora_notification_service.dart';
@@ -128,6 +131,9 @@ class FavoriteManager extends ChangeNotifier {
     int id, {
     required bool subscribed,
   }) async {
+    if (subscribed) {
+      unawaited(AnalyticsService.instance.logFavoriteAdded(type.name, id));
+    }
     final notifications = _notifications;
     if (notifications == null) return;
 

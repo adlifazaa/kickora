@@ -1,4 +1,7 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../app/app_colors.dart';
 import '../app/app_contact.dart';
@@ -29,8 +32,41 @@ Future<void> _onMasterNotificationsChanged(
   );
 }
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  int _versionTapCount = 0;
+
+  void _onVersionTileTap(AppController app) {
+    if (app.showNotificationDiagnostics && !kDebugMode) return;
+    _versionTapCount += 1;
+    if (_versionTapCount >= 7) {
+      _versionTapCount = 0;
+      unawaited(app.unlockDeveloperMode().then((_) {
+        if (!mounted) return;
+        final isArabic = app.isArabic;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isArabic
+                  ? 'تم تفعيل وضع المطوّر'
+                  : 'Developer mode enabled',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }));
+      return;
+    }
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted) _versionTapCount = 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,21 +200,25 @@ class SettingsScreen extends StatelessWidget {
                 value: app.notifyFavoriteMatchUpdatesEnabled,
                 onChanged: app.setNotifyFavoriteMatchUpdatesEnabled,
               ),
-              const SizedBox(height: 12),
-              _SettingsTile(
-                icon: Icons.bug_report_outlined,
-                iconColor: Colors.amber,
-                title: text.isArabic ? 'تشخيص الإشعارات' : 'Notification diagnostics',
-                subtitle: text.isArabic
-                    ? 'الحالة، الاشتراكات، وخادم Render'
-                    : 'Status, subscriptions, and Render backend',
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.notificationDiagnostics,
+              if (app.showNotificationDiagnostics) ...[
+                const SizedBox(height: 12),
+                _SettingsTile(
+                  icon: Icons.bug_report_outlined,
+                  iconColor: Colors.amber,
+                  title: text.isArabic
+                      ? 'تشخيص الإشعارات'
+                      : 'Notification diagnostics',
+                  subtitle: text.isArabic
+                      ? 'الحالة، الاشتراكات، وخادم Render'
+                      : 'Status, subscriptions, and Render backend',
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.notificationDiagnostics,
+                  ),
+                  trailing: Icon(Icons.chevron_right_rounded,
+                      color: Theme.of(context).hintColor),
                 ),
-                trailing: Icon(Icons.chevron_right_rounded,
-                    color: Theme.of(context).hintColor),
-              ),
+              ],
               const SizedBox(height: 26),
               SectionHeader(
                 title: text.isArabic ? 'Kickora Premium' : 'Kickora Premium',
@@ -222,7 +262,7 @@ class SettingsScreen extends StatelessWidget {
                 iconColor: Theme.of(context).hintColor,
                 title: text.appVersion,
                 subtitle: 'v1.0.0 · Kickora',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                onTap: () => _onVersionTileTap(app),
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: Theme.of(context).hintColor),
               ),

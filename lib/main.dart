@@ -13,6 +13,7 @@ import 'core/constants/api_mode_service.dart';
 import 'core/firebase/analytics_service.dart';
 import 'core/firebase/crashlytics_service.dart';
 import 'core/firebase/firebase_service.dart';
+import 'core/meta/meta_app_events_service.dart';
 import 'core/startup/startup_timing.dart';
 import 'data/repositories/football_repository.dart';
 import 'data/providers/football_data_provider_factory.dart';
@@ -105,6 +106,7 @@ Future<void> _completeDeferredStartup({
   required FootballRepository footballRepository,
 }) async {
   try {
+    await MetaAppEventsService.instance.initialize(preferences);
     await AnalyticsService.instance.initialize();
     unawaited(AnalyticsService.instance.logAppOpen());
     await CrashlyticsService.instance.initialize();

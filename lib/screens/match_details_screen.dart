@@ -7,6 +7,7 @@ import '../app/app_colors.dart';
 import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../core/debug/match_details_log.dart';
+import '../core/firebase/analytics_service.dart';
 import '../core/state/data_state.dart';
 import '../core/refresh/match_refresh_category.dart';
 import '../core/refresh/match_refresh_service.dart';
@@ -66,6 +67,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       'apiFixture=$_isApiFixture '
       '${widget.match.homeTeam.name} vs ${widget.match.awayTeam.name}',
     );
+    unawaited(AnalyticsService.instance.logMatchOpened(_fixtureId));
     _tabController = TabController(
       length: 4,
       vsync: this,
