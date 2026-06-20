@@ -10,26 +10,69 @@ const {
   parseFixtureSnapshot,
 } = require('./eventDetector');
 const { createFcmSender } = require('./fcmSender');
+const {
+  filterWorldCupLiveItems,
+  isWorldCupFixture,
+  worldCupLiveQuery,
+} = require('./worldCupScope');
 
 /**
  * @param {import('../config')} config
  * @param {object} [deps]
  */
 function createNotificationWorker(config, deps = {}) {
-  const fetchLive =
+  const wcLeague = config.notificationsWorldCupLeagueId ?? 1;
+  const wcSeason = config.notificationsWorldCupSeason ?? 2026;
+
+  const fetchLiveWorldCup =
     deps.fetchLive ??
-    (() =>
-      fetchUpstream('/fixtures', { live: 'all' }, {
-        callerRoute: 'notification-worker/live',
+    (async () => {
+      const meta = {
+        callerRoute: 'notification-worker/live-wc',
         source: 'notification-worker',
-      }));
+      };
+      try {
+        const body = await fetchUpstream(
+          '/fixtures',
+          worldCupLiveQuery(wcLeague, wcSeason),
+          meta,
+        );
+        const items = Array.isArray(body?.response) ? body.response : [];
+        return {
+          ...body,
+          response: filterWorldCupLiveItems(items, wcLeague),
+        };
+      } catch (e) {
+        warn(
+          `[kickora-notify] WC league live fetch failed (league=${wcLeague} season=${wcSeason}) — falling back to live=all filter: ${e.message}`,
+        );
+        const body = await fetchUpstream(
+          '/fixtures',
+          { live: 'all' },
+          {
+            callerRoute: 'notification-worker/live-fallback',
+            source: 'notification-worker',
+          },
+        );
+        const items = Array.isArray(body?.response) ? body.response : [];
+        return {
+          ...body,
+          response: filterWorldCupLiveItems(items, wcLeague),
+        };
+      }
+    });
+
   const fetchEvents =
     deps.fetchEvents ??
     ((fixtureId) =>
-      fetchUpstream('/fixtures/events', { fixture: fixtureId }, {
-        callerRoute: 'notification-worker/events',
-        source: 'notification-worker',
-      }));
+      fetchUpstream(
+        '/fixtures/events',
+        { fixture: fixtureId },
+        {
+          callerRoute: 'notification-worker/events',
+          source: 'notification-worker',
+        },
+      ));
 
   const dedupStore =
     deps.dedupStore ??
@@ -56,6 +99,7 @@ function createNotificationWorker(config, deps = {}) {
   let lastPollError = null;
   let lastPollStats = {
     liveFixtures: 0,
+    worldCupLiveFixtures: 0,
     statusEvents: 0,
     fixtureEvents: 0,
     notificationsSent: 0,
@@ -79,16 +123,10 @@ function createNotificationWorker(config, deps = {}) {
     return config.notificationsPollSeconds ?? 120;
   }
 
-  /** World Cup + already-tracked fixtures get event polling priority. */
-  function shouldPollEvents(snapshot, isFirstSeen) {
-    if (quotaProtectionActive()) return false;
-
-    const wcLeague = config.notificationsWorldCupLeagueId ?? 1;
-    if (snapshot.leagueId === wcLeague) return true;
-
-    // Non-WC: only continue tracking fixtures we already follow (no seed spam).
-    if (isFirstSeen) return false;
-    return fixtureState.has(snapshot.fixtureId);
+  /** Event polling only for World Cup fixtures (never non-WC). */
+  function shouldPollEvents(snapshot, quotaProtection) {
+    if (quotaProtection) return false;
+    return isWorldCupFixture(snapshot, wcLeague);
   }
 
   async function pollOnce() {
@@ -102,11 +140,12 @@ function createNotificationWorker(config, deps = {}) {
     const maxEvents = config.notificationsMaxEventCallsPerCycle ?? 15;
 
     try {
-      const body = await fetchLive();
+      const body = await fetchLiveWorldCup();
       const items = Array.isArray(body?.response) ? body.response : [];
       const seenIds = new Set();
       const stats = {
         liveFixtures: items.length,
+        worldCupLiveFixtures: items.length,
         statusEvents: 0,
         fixtureEvents: 0,
         notificationsSent: 0,
@@ -115,24 +154,11 @@ function createNotificationWorker(config, deps = {}) {
         quotaProtection: protection,
       };
 
-      // World Cup fixtures first when capping event calls.
-      const sorted = [...items].sort((a, b) => {
-        const aWc =
-          parseFixtureSnapshot(a).leagueId ===
-          (config.notificationsWorldCupLeagueId ?? 1)
-            ? 0
-            : 1;
-        const bWc =
-          parseFixtureSnapshot(b).leagueId ===
-          (config.notificationsWorldCupLeagueId ?? 1)
-            ? 0
-            : 1;
-        return aWc - bWc;
-      });
-
-      for (const item of sorted) {
+      for (const item of items) {
         const snapshot = parseFixtureSnapshot(item);
         if (!snapshot.fixtureId) continue;
+        if (!isWorldCupFixture(snapshot, wcLeague)) continue;
+
         seenIds.add(snapshot.fixtureId);
 
         const prev = fixtureState.get(snapshot.fixtureId);
@@ -141,7 +167,7 @@ function createNotificationWorker(config, deps = {}) {
         if (isFirstSeen) {
           let eventKeys = new Set();
           if (
-            shouldPollEvents(snapshot, true) &&
+            shouldPollEvents(snapshot, protection) &&
             eventCallsThisCycle < maxEvents
           ) {
             try {
@@ -184,7 +210,7 @@ function createNotificationWorker(config, deps = {}) {
 
         let eventKeys = prev.eventKeys;
         if (
-          shouldPollEvents(snapshot, false) &&
+          shouldPollEvents(snapshot, protection) &&
           eventCallsThisCycle < maxEvents
         ) {
           try {
@@ -234,7 +260,7 @@ function createNotificationWorker(config, deps = {}) {
       lastPollAt = new Date().toISOString();
       lastPollStats = stats;
       log(
-        `[kickora-notify] poll complete live=${stats.liveFixtures} statusEvents=${stats.statusEvents} fixtureEvents=${stats.fixtureEvents} eventCalls=${eventCallsThisCycle} skipped=${stats.eventCallsSkipped} sent=${stats.notificationsSent} quotaProtection=${protection} dryRun=${config.notificationsDryRun}`,
+        `[kickora-notify] poll complete wcLive=${stats.worldCupLiveFixtures} statusEvents=${stats.statusEvents} fixtureEvents=${stats.fixtureEvents} eventCalls=${eventCallsThisCycle} skipped=${stats.eventCallsSkipped} sent=${stats.notificationsSent} quotaProtection=${protection} dryRun=${config.notificationsDryRun} scope=wc-only league=${wcLeague} season=${wcSeason}`,
       );
     } catch (e) {
       lastPollError = e.message;
@@ -257,7 +283,7 @@ function createNotificationWorker(config, deps = {}) {
     }
 
     log(
-      `[kickora-notify] worker starting interval=${effectivePollSeconds()}s maxEventCalls=${config.notificationsMaxEventCallsPerCycle} dryRun=${config.notificationsDryRun} realFcm=${sender.canSendReal()}`,
+      `[kickora-notify] worker starting interval=${effectivePollSeconds()}s maxEventCalls=${config.notificationsMaxEventCallsPerCycle} dryRun=${config.notificationsDryRun} realFcm=${sender.canSendReal()} scope=wc-only league=${wcLeague} season=${wcSeason}`,
     );
 
     const tick = () => {
@@ -289,6 +315,9 @@ function createNotificationWorker(config, deps = {}) {
       pollSeconds: config.notificationsPollSeconds,
       effectivePollSeconds: effectivePollSeconds(),
       maxEventCallsPerCycle: config.notificationsMaxEventCallsPerCycle,
+      worldCupLeagueId: wcLeague,
+      worldCupSeason: wcSeason,
+      worldCupScopeOnly: true,
       quotaProtectionActive: quotaProtectionActive(),
       realFcmConfigured: Boolean(config.firebaseServiceAccountJson),
       realFcmActive: Boolean(sender.canSendReal()),

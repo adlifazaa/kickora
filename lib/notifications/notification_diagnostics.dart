@@ -30,6 +30,7 @@ class BackendNotificationStatus {
     this.lastPollAt,
     this.lastPollError,
     this.fetchError,
+    this.worldCupScopeOnly,
   });
 
   final bool ok;
@@ -40,6 +41,7 @@ class BackendNotificationStatus {
   final String? lastPollAt;
   final String? lastPollError;
   final String? fetchError;
+  final bool? worldCupScopeOnly;
 
   factory BackendNotificationStatus.fromJson(Map<String, dynamic> json) {
     final stats = json['lastPollStats'];
@@ -53,6 +55,7 @@ class BackendNotificationStatus {
           : null,
       lastPollAt: json['lastPollAt']?.toString(),
       lastPollError: json['lastPollError']?.toString(),
+      worldCupScopeOnly: json['worldCupScopeOnly'] as bool?,
     );
   }
 

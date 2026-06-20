@@ -155,6 +155,7 @@ class _NotificationDiagnosticsScreenState
                   _row('Worker enabled', '${_backend?.enabled}'),
                   _row('Dry run', '${_backend?.dryRun}'),
                   _row('Real FCM active', '${_backend?.realFcmActive}'),
+                  _row('WC scope only', '${_backend?.worldCupScopeOnly}'),
                   _row(
                     text.isArabic ? 'إشعارات مُرسلة' : 'notificationsSent',
                     '${_backend?.notificationsSent ?? 0}',

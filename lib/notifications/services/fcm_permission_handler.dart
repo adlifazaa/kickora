@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/notification_permission_status.dart';
@@ -23,6 +27,15 @@ class FcmPermissionHandler implements NotificationPermissionHandler {
       return NotificationPermissionStatus.granted;
     }
     try {
+      if (!kIsWeb && Platform.isAndroid) {
+        final androidGranted = await _androidNotificationsGranted();
+        if (androidGranted == true) {
+          return NotificationPermissionStatus.granted;
+        }
+        if (androidGranted == false) {
+          return NotificationPermissionStatus.denied;
+        }
+      }
       final settings = await _messaging.getNotificationSettings();
       return _mapAuthorization(settings.authorizationStatus);
     } catch (_) {
@@ -33,6 +46,13 @@ class FcmPermissionHandler implements NotificationPermissionHandler {
   @override
   Future<NotificationPermissionStatus> request() async {
     try {
+      if (!kIsWeb && Platform.isAndroid) {
+        final androidPlugin = FlutterLocalNotificationsPlugin()
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        await androidPlugin?.requestNotificationsPermission();
+      }
+
       final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
@@ -54,6 +74,15 @@ class FcmPermissionHandler implements NotificationPermissionHandler {
 
   @override
   Future<bool> openAppSettings() async => false;
+
+  /// `true` granted, `false` denied, `null` when plugin cannot determine.
+  Future<bool?> _androidNotificationsGranted() async {
+    final androidPlugin = FlutterLocalNotificationsPlugin()
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return null;
+    return androidPlugin.areNotificationsEnabled();
+  }
 
   NotificationPermissionStatus _mapAuthorization(AuthorizationStatus status) {
     switch (status) {

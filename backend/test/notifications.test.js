@@ -36,6 +36,7 @@ function mockConfig(overrides = {}) {
     notificationsPollSeconds: 120,
     notificationsMaxEventCallsPerCycle: 15,
     notificationsWorldCupLeagueId: 1,
+    notificationsWorldCupSeason: 2026,
     notificationsDedupTtlSeconds: 3600,
     notificationsDryRunLogMax: 50,
     usageDailyThreshold: 6000,
@@ -372,7 +373,7 @@ test('worker seeds first-seen World Cup fixtures without sending notifications',
     response: [
       {
         fixture: { id: 500, status: { short: '1H', elapsed: 31 } },
-        league: { id: 39 },
+        league: { id: 1 },
         teams: {
           home: { id: 1, name: 'H' },
           away: { id: 2, name: 'A' },
@@ -406,6 +407,47 @@ test('worker getStatus reports dry run and disabled defaults', () => {
   assert.equal(status.enabled, false);
   assert.equal(status.dryRun, true);
   assert.equal(status.realFcmActive, false);
+  assert.equal(status.worldCupScopeOnly, true);
+  assert.equal(status.worldCupSeason, 2026);
+});
+
+test('worker ignores non-World-Cup live fixtures for event polling', async () => {
+  const dryRunLog = new DryRunLog(20);
+  const dedupStore = new DedupStore({ ttlSeconds: 3600 });
+  let eventFetches = 0;
+
+  const worker = createNotificationWorker(
+    mockConfig({ notificationsEnabled: true, notificationsDryRun: true }),
+    {
+      dryRunLog,
+      dedupStore,
+      fetchLive: async () => ({
+        response: [
+          {
+            fixture: { id: 900, status: { short: '1H', elapsed: 20 } },
+            league: { id: 39 },
+            teams: {
+              home: { id: 1, name: 'H' },
+              away: { id: 2, name: 'A' },
+            },
+            goals: { home: 0, away: 0 },
+          },
+        ],
+      }),
+      fetchEvents: async () => {
+        eventFetches += 1;
+        return { response: [] };
+      },
+      log: () => {},
+      warn: () => {},
+    },
+  );
+
+  await worker.pollOnce();
+  await worker.pollOnce();
+  assert.equal(eventFetches, 0);
+  assert.equal(worker.fixtureState.size, 0);
+  assert.equal(dryRunLog.size, 0);
 });
 
 test('canSendReal returns boolean even when Firebase JSON is configured', async () => {

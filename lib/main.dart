@@ -47,6 +47,11 @@ Future<void> main() async {
   await premiumSubscriptionService.load();
   PremiumService.configurePayments(enabled: false);
 
+  await FirebaseService.initialize();
+  if (FirebaseService.isInitialized && _registerFcmBackgroundHandler) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
+
   final notificationService = KickoraNotificationService.create(preferences);
   final favoriteManager = FavoriteManager(
     preferences,
@@ -100,10 +105,6 @@ Future<void> _completeDeferredStartup({
   required FootballRepository footballRepository,
 }) async {
   try {
-    await FirebaseService.initialize();
-    if (FirebaseService.isInitialized && _registerFcmBackgroundHandler) {
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    }
     await AnalyticsService.instance.initialize();
     unawaited(AnalyticsService.instance.logAppOpen());
     await CrashlyticsService.instance.initialize();
@@ -112,7 +113,7 @@ Future<void> _completeDeferredStartup({
     );
   } catch (e, st) {
     if (kDebugMode) {
-      debugPrint('[Kickora Startup] Firebase deferred init failed: $e\n$st');
+      debugPrint('[Kickora Startup] deferred Firebase products failed: $e\n$st');
     }
   }
 

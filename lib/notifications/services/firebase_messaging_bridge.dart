@@ -21,6 +21,7 @@ class FirebaseMessagingBridge implements FirebaseNotificationBridge {
 
   StreamSubscription<RemoteMessage>? _onMessageSub;
   StreamSubscription<RemoteMessage>? _onOpenedSub;
+  StreamSubscription<String>? _tokenRefreshSub;
 
   @override
   bool get isAvailable => true;
@@ -28,7 +29,7 @@ class FirebaseMessagingBridge implements FirebaseNotificationBridge {
   @override
   Future<void> initialize() async {
     if (kDebugMode) {
-      debugPrint('[Kickora Notifications] Firebase bridge → messaging');
+      debugPrint('[Kickora Notifications] Firebase bridge → messaging (live)');
     }
 
     await _messaging.setForegroundNotificationPresentationOptions(
@@ -39,6 +40,9 @@ class FirebaseMessagingBridge implements FirebaseNotificationBridge {
 
     _onMessageSub = FirebaseMessaging.onMessage.listen(_onForegroundMessage);
     _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen(_onOpenedMessage);
+    _tokenRefreshSub = _messaging.onTokenRefresh.listen((_) {
+      NotificationDebugLog.tokenRefreshed();
+    });
   }
 
   void _onForegroundMessage(RemoteMessage message) {
@@ -108,6 +112,7 @@ class FirebaseMessagingBridge implements FirebaseNotificationBridge {
   void dispose() {
     _onMessageSub?.cancel();
     _onOpenedSub?.cancel();
+    _tokenRefreshSub?.cancel();
     _foreground.close();
     _opened.close();
   }

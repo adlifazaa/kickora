@@ -34,6 +34,11 @@ class NotificationDebugLog {
     debugPrint('[Kickora Notifications] topic unsubscribe → $topic');
   }
 
+  static void tokenRefreshed() {
+    if (!kDebugMode) return;
+    debugPrint('[Kickora Notifications] FCM token refreshed');
+  }
+
   static void topicsRestored(int count) {
     if (!kDebugMode) return;
     debugPrint('[Kickora Notifications] restored topic count=$count');

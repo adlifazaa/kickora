@@ -38,8 +38,10 @@ module.exports = {
   notificationsPollSeconds: envInt('NOTIFICATIONS_POLL_SECONDS', 120),
   /** Max event API calls per worker poll cycle. */
   notificationsMaxEventCallsPerCycle: envInt('NOTIFICATIONS_MAX_EVENT_CALLS', 15),
-  /** World Cup league id — event polling priority when quota is tight. */
+  /** World Cup league id — notification worker tracks this league only. */
   notificationsWorldCupLeagueId: envInt('NOTIFICATIONS_WC_LEAGUE_ID', 1),
+  /** World Cup season year for league-scoped live fixture polling. */
+  notificationsWorldCupSeason: envInt('NOTIFICATIONS_WC_SEASON', 2026),
   notificationsDedupTtlSeconds: envInt('NOTIFICATIONS_DEDUP_TTL_SECONDS', 6 * 60 * 60),
   notificationsDryRunLogMax: envInt('NOTIFICATIONS_DRY_RUN_LOG_MAX', 200),
   firebaseServiceAccountJson:

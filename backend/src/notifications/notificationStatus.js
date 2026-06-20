@@ -37,6 +37,9 @@ function toPublicNotificationStatus(status) {
     trackedFixtures: Number(status.trackedFixtures) || 0,
     dedupEntries: Number(status.dedupEntries) || 0,
     dryRunLogSize: Number(status.dryRunLogSize) || 0,
+    worldCupScopeOnly: Boolean(status.worldCupScopeOnly),
+    worldCupLeagueId: Number(status.worldCupLeagueId) || 0,
+    worldCupSeason: Number(status.worldCupSeason) || 0,
   };
 }
 
