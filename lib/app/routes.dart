@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
+import '../screens/app_version_screen.dart';
 import '../screens/about_screen.dart';
 import '../core/world_cup/world_cup_priority.dart';
 import '../screens/competition_details_screen.dart';
@@ -35,6 +37,7 @@ class AppRoutes {
   static const competitionDetails = '/competition-details';
   static const playerDetails = '/player-details';
   static const about = '/about';
+  static const appVersion = '/app-version';
   static const privacy = '/privacy';
   static const terms = '/terms';
   static const subscription = '/subscription';
@@ -99,6 +102,10 @@ class AppRoutes {
       case about:
         return PremiumPageRoute(
             settings: settings, builder: (context) => const AboutScreen());
+      case appVersion:
+        return PremiumPageRoute(
+            settings: settings,
+            builder: (context) => const AppVersionScreen());
       case privacy:
         return PremiumPageRoute(
             settings: settings,
@@ -117,6 +124,12 @@ class AppRoutes {
             settings: settings,
             builder: (context) => const GlobalSearchScreen());
       case notificationDiagnostics:
+        if (!kDebugMode) {
+          return MaterialPageRoute(
+            settings: settings,
+            builder: (context) => const MainNavigationScreen(),
+          );
+        }
         return PremiumPageRoute(
             settings: settings,
             builder: (context) {

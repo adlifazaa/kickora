@@ -302,6 +302,7 @@ class FootballRepository {
   Future<DataState<MatchModel?>> getMatchById(
     int id, {
     int? fixtureId,
+    bool forceRefresh = false,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, id);
     final allowMock = _allowMockFallback(fid);
@@ -312,21 +313,24 @@ class FootballRepository {
       return DataState.success(_mockMatchById(id), fromMock: true);
     }
 
-    if (!allowMock) {
+    if (!forceRefresh && !allowMock) {
       final hit = _readMemory<MatchModel?>(memKey, ttl);
       if (hit != null) return hit;
     }
 
     return _dedupe(memKey, () async {
       try {
-        final remote = await _remote.fetchMatchDetails(fid);
+        final remote = await _remote.fetchMatchDetails(
+          fid,
+          skipCache: forceRefresh,
+        );
         if (remote != null) {
           _rememberFixtureStatus(fid, remote.status);
           final result = DataState.success(
             remote.copyWith(fixtureId: fid),
             fromMock: false,
           );
-          _storeMemory(memKey, result, false);
+          _storeMemory(memKey, result, forceRefresh);
           return result;
         }
         final stale = _remote.readCachedMatchDetails(fid);
@@ -337,7 +341,7 @@ class FootballRepository {
             fromMock: false,
             fromCache: true,
           );
-          _storeMemory(memKey, result, false);
+          _storeMemory(memKey, result, forceRefresh);
           return result;
         }
         if (allowMock) {
@@ -353,7 +357,7 @@ class FootballRepository {
             fromMock: false,
             fromCache: true,
           );
-          _storeMemory(memKey, result, false);
+          _storeMemory(memKey, result, forceRefresh);
           return result;
         }
         if (e.isNotConfigured || allowMock) {

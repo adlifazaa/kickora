@@ -7,7 +7,7 @@ class ApiCachePolicy {
   /// Live fixtures — refresh at most every 30–60s.
   static const Duration liveMatches = Duration(seconds: 45);
 
-  static const Duration todayMatches = Duration(minutes: 10);
+  static const Duration todayMatches = Duration(minutes: 3);
 
   static const Duration fixturesUpcoming = Duration(minutes: 10);
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/app_colors.dart';
 import '../app/app_contact.dart';
 import '../app/app_text.dart';
+import '../app/app_version_info.dart';
 
 /// "About Kickora" — explains what Kickora is, who it is for, and which
 /// features it ships with. Legal and data handling content lives in
@@ -10,12 +11,17 @@ import '../app/app_text.dart';
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  static const String appVersion = '1.0.0';
-  static const String buildNumber = '1';
-
-  void _snack(BuildContext context, String label) {
+  Future<void> _openEmail(BuildContext context, {required bool isArabic}) async {
+    final opened = await AppContact.openEmail(subject: 'Kickora');
+    if (!context.mounted || opened) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(label)),
+      SnackBar(
+        content: Text(
+          isArabic
+              ? 'تعذر فتح البريد. راسلنا على ${AppContact.email}'
+              : 'Could not open email. Contact us at ${AppContact.email}',
+        ),
+      ),
     );
   }
 
@@ -50,7 +56,7 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Center(child: _VersionPill(context: context)),
+            const Center(child: _VersionPill()),
             const SizedBox(height: 22),
             _Section(
               title: text.isArabic ? 'ما هو Kickora؟' : 'What is Kickora?',
@@ -154,14 +160,14 @@ class AboutScreen extends StatelessWidget {
                     icon: Icons.email_outlined,
                     title: text.isArabic ? 'البريد الإلكتروني' : 'Email',
                     subtitle: AppContact.email,
-                    onTap: () => _snack(context, AppContact.email),
+                    onTap: () => _openEmail(context, isArabic: text.isArabic),
                   ),
                   _linkTile(
                     context,
                     icon: Icons.support_agent_rounded,
                     title: text.isArabic ? 'الدعم الفني' : 'Support',
                     subtitle: AppContact.email,
-                    onTap: () => _snack(context, AppContact.email),
+                    onTap: () => _openEmail(context, isArabic: text.isArabic),
                   ),
                 ],
               ),
@@ -298,25 +304,33 @@ class AboutScreen extends StatelessWidget {
 }
 
 class _VersionPill extends StatelessWidget {
-  const _VersionPill({required this.context});
-  final BuildContext context;
+  const _VersionPill();
 
   @override
-  Widget build(BuildContext _) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        'v${AboutScreen.appVersion} · build ${AboutScreen.buildNumber}',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w800,
-          fontSize: 12,
-        ),
-      ),
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: AppVersionInfo.load(),
+      builder: (context, snapshot) {
+        final label = snapshot.hasData
+            ? AppVersionInfo.fullLabel(snapshot.data!)
+            : '…';
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        );
+      },
     );
   }
 }

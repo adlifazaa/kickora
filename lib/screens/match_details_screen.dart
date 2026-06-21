@@ -155,8 +155,12 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     var standings = _match.standings;
 
     try {
-      final matchState =
-          await repo.getMatchById(matchId, fixtureId: fixtureId);
+      final matchState = await repo.getMatchById(
+        matchId,
+        fixtureId: fixtureId,
+        forceRefresh:
+            _isApiFixture && (!silent || m.status == MatchStatus.live),
+      );
       logMatchDetails(
         'fixture=$fixtureId match=${matchState.fromMock ? "mock-fallback" : "api"} '
         'hasData=${matchState.data != null}',
@@ -1100,7 +1104,7 @@ class _GlowMatchHeader extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${match.stadium} • ${match.date.day}/${match.date.month}/${match.date.year}',
+                          '${match.stadium} • ${match.localDate.day}/${match.localDate.month}/${match.localDate.year}',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.72),
                             fontSize: 11.5,

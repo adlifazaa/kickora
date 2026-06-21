@@ -1,8 +1,7 @@
-﻿import 'dart:async';
-
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../app/app_version_info.dart';
 import '../app/app_colors.dart';
 import '../app/app_contact.dart';
 import '../app/app_locale.dart';
@@ -32,41 +31,32 @@ Future<void> _onMasterNotificationsChanged(
   );
 }
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+Future<void> _openContactEmail(BuildContext context, {required bool isArabic}) async {
+  final opened = await AppContact.openEmail(subject: 'Kickora');
+  if (!context.mounted || opened) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        isArabic
+            ? 'تعذر فتح البريد. راسلنا على ${AppContact.email}'
+            : 'Could not open email. Contact us at ${AppContact.email}',
+      ),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  int _versionTapCount = 0;
+void _showPremiumUnavailable(BuildContext context, {required bool isArabic}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(isArabic ? 'غير متوفر' : 'Unavailable'),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
 
-  void _onVersionTileTap(AppController app) {
-    if (app.showNotificationDiagnostics && !kDebugMode) return;
-    _versionTapCount += 1;
-    if (_versionTapCount >= 7) {
-      _versionTapCount = 0;
-      unawaited(app.unlockDeveloperMode().then((_) {
-        if (!mounted) return;
-        final isArabic = app.isArabic;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isArabic
-                  ? 'تم تفعيل وضع المطوّر'
-                  : 'Developer mode enabled',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }));
-      return;
-    }
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (mounted) _versionTapCount = 0;
-    });
-  }
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -200,14 +190,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: app.notifyFavoriteMatchUpdatesEnabled,
                 onChanged: app.setNotifyFavoriteMatchUpdatesEnabled,
               ),
-              if (app.showNotificationDiagnostics) ...[
-                const SizedBox(height: 12),
+              const SizedBox(height: 12),
+              if (kDebugMode)
                 _SettingsTile(
                   icon: Icons.bug_report_outlined,
                   iconColor: Colors.amber,
-                  title: text.isArabic
-                      ? 'تشخيص الإشعارات'
-                      : 'Notification diagnostics',
+                  title: text.isArabic ? 'تشخيص الإشعارات' : 'Notification diagnostics',
                   subtitle: text.isArabic
                       ? 'الحالة، الاشتراكات، وخادم Render'
                       : 'Status, subscriptions, and Render backend',
@@ -218,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: Icon(Icons.chevron_right_rounded,
                       color: Theme.of(context).hintColor),
                 ),
-              ],
+              if (kDebugMode) const SizedBox(height: 12),
               const SizedBox(height: 26),
               SectionHeader(
                 title: text.isArabic ? 'Kickora Premium' : 'Kickora Premium',
@@ -229,15 +217,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.block_rounded,
                 iconColor: AppColors.neonGreen,
                 title: text.removeAdsTitle,
-                subtitle: app.isPremium
-                    ? text.premiumActiveSubtitle
-                    : text.removeAdsSettingsSubtitle,
-                onTap: () => Navigator.pushNamed(context, AppRoutes.premium),
-                trailing: app.isPremium
-                    ? Icon(Icons.verified_rounded,
-                        color: Theme.of(context).colorScheme.primary)
-                    : Icon(Icons.chevron_right_rounded,
-                        color: Theme.of(context).hintColor),
+                subtitle: text.isArabic ? 'غير متوفر' : 'Unavailable',
+                onTap: () => _showPremiumUnavailable(
+                  context,
+                  isArabic: text.isArabic,
+                ),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: Theme.of(context).hintColor),
               ),
               const SizedBox(height: 26),
               SectionHeader(
@@ -261,8 +247,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.verified_outlined,
                 iconColor: Theme.of(context).hintColor,
                 title: text.appVersion,
-                subtitle: 'v1.0.0 · Kickora',
-                onTap: () => _onVersionTileTap(app),
+                subtitle: '',
+                subtitleWidget: const _VersionSubtitle(),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.appVersion),
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: Theme.of(context).hintColor),
               ),
@@ -272,7 +260,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.teal,
                 title: text.contactUs,
                 subtitle: AppContact.email,
-                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                onTap: () => _openContactEmail(
+                  context,
+                  isArabic: text.isArabic,
+                ),
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: Theme.of(context).hintColor),
               ),
@@ -442,6 +433,33 @@ class _NotificationPrefTile extends StatelessWidget {
   }
 }
 
+class _VersionSubtitle extends StatelessWidget {
+  const _VersionSubtitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: AppVersionInfo.load(),
+      builder: (context, snapshot) {
+        final label = snapshot.hasData
+            ? AppVersionInfo.shortLabel(snapshot.data!)
+            : '…';
+        return Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Theme.of(context).hintColor,
+            fontSize: 12,
+            height: 1.35,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _SettingsLeadingIcon extends StatelessWidget {
   const _SettingsLeadingIcon({
     required this.icon,
@@ -476,6 +494,7 @@ class _SettingsTile extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.subtitle,
+    this.subtitleWidget,
     this.trailing,
     this.onTap,
   });
@@ -484,6 +503,7 @@ class _SettingsTile extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String subtitle;
+  final Widget? subtitleWidget;
   static const int _subtitleMaxLines = 2;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -519,16 +539,17 @@ class _SettingsTile extends StatelessWidget {
                                 fontWeight: FontWeight.w800, fontSize: 14),
                           ),
                           const SizedBox(height: 3),
-                          Text(
-                            subtitle,
-                            maxLines: _subtitleMaxLines,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: Theme.of(context).hintColor,
-                                fontSize: 12,
-                                height: 1.35,
-                                fontWeight: FontWeight.w600),
-                          ),
+                          subtitleWidget ??
+                              Text(
+                                subtitle,
+                                maxLines: _subtitleMaxLines,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    color: Theme.of(context).hintColor,
+                                    fontSize: 12,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w600),
+                              ),
                         ],
                       ),
                     ),

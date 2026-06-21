@@ -302,13 +302,18 @@ class RemoteFootballSource {
 
   // --- Match details (lazy: only from match details screen via repository) ---
 
-  Future<MatchModel?> fetchMatchDetails(int matchId) async {
+  Future<MatchModel?> fetchMatchDetails(
+    int matchId, {
+    bool skipCache = false,
+  }) async {
     _ensureActive();
     final cacheKey = 'remote_fixture_$matchId';
-    final cached = _readMatches(cacheKey, CacheBucket.matchDetails);
-    if (cached != null && cached.isNotEmpty) {
-      _log('getMatchById', 'cache', 1);
-      return cached.first;
+    if (!skipCache) {
+      final cached = _readMatches(cacheKey, CacheBucket.matchDetails);
+      if (cached != null && cached.isNotEmpty) {
+        _log('getMatchById', 'cache', 1);
+        return cached.first;
+      }
     }
     final match = await _call(
       () => _apiFootball.getMatchDetails(matchId),
@@ -379,8 +384,8 @@ class RemoteFootballSource {
   }
 
   Duration _detailDiskTtl(int matchId) {
-    final status =
-        readCachedMatchDetails(matchId)?.status ?? MatchStatus.upcoming;
+    final status = readCachedMatchDetails(matchId)?.status;
+    if (status == null) return ApiCachePolicy.matchDetails;
     return ApiCachePolicy.matchDetailResourceTtl(status);
   }
 
@@ -529,12 +534,23 @@ class RemoteFootballSource {
     if (list == null) return null;
     return list
         .whereType<Map>()
-        .map(
-          (e) => ApiFootballParser.parseFixture(
-            Map<String, dynamic>.from(e),
-          ),
-        )
+        .map((e) => _matchFromCacheJson(Map<String, dynamic>.from(e)))
         .toList(growable: false);
+  }
+
+  MatchModel _matchFromCacheJson(Map<String, dynamic> json) {
+    final parsed = ApiFootballParser.parseFixture(json);
+    final meta = json['_kickora'];
+    if (meta is! Map) return parsed;
+    final map = Map<String, dynamic>.from(meta);
+    final statusRaw = map['status']?.toString();
+    final timeLabel = map['timeLabel']?.toString();
+    return parsed.copyWith(
+      status: statusRaw != null ? parseMatchStatus(statusRaw) : parsed.status,
+      timeLabel: (timeLabel != null && timeLabel.isNotEmpty)
+          ? timeLabel
+          : parsed.timeLabel,
+    );
   }
 
   Future<void> _writeMatches(
@@ -553,9 +569,12 @@ class RemoteFootballSource {
 
   Map<String, dynamic> _matchToJson(MatchModel m) => {
         'fixture': {
-          'id': m.id,
-          'date': m.date.toIso8601String(),
-          'status': {'short': _statusShort(m.status)},
+          'id': m.resolvedFixtureId,
+          'date': m.date.toUtc().toIso8601String(),
+          'status': {
+            'short': _apiStatusShort(m),
+            if (_elapsedMinutes(m) != null) 'elapsed': _elapsedMinutes(m),
+          },
           'venue': {'name': m.stadium},
         },
         'league': {
@@ -563,12 +582,20 @@ class RemoteFootballSource {
           'name': m.competition.name,
           'country': m.competition.region,
           'logo': m.competition.logo,
+          'round': m.round,
         },
         'teams': {
           'home': m.homeTeam.toJson(),
           'away': m.awayTeam.toJson(),
         },
         'goals': {'home': m.homeScore, 'away': m.awayScore},
+        'score': {
+          'fulltime': {'home': m.homeScore, 'away': m.awayScore},
+        },
+        '_kickora': {
+          'timeLabel': m.timeLabel,
+          'status': m.status.name,
+        },
       };
 
   List<CompetitionModel>? _readCompetitions(String key) {
@@ -737,14 +764,20 @@ class RemoteFootballSource {
         if (p.photoUrl.isNotEmpty) 'photoUrl': p.photoUrl,
       };
 
-  String _statusShort(MatchStatus status) {
-    switch (status) {
-      case MatchStatus.live:
-        return '1H';
-      case MatchStatus.finished:
-        return 'FT';
-      case MatchStatus.upcoming:
-        return 'NS';
-    }
+  String _apiStatusShort(MatchModel m) {
+    if (m.timeLabel == 'HT') return 'HT';
+    if (m.status == MatchStatus.finished) return 'FT';
+    if (m.status == MatchStatus.upcoming) return 'NS';
+    final minute = _elapsedMinutes(m);
+    if (minute != null && minute > 45) return '2H';
+    return '1H';
+  }
+
+  int? _elapsedMinutes(MatchModel m) {
+    if (m.timeLabel == 'HT') return 45;
+    if (m.timeLabel == 'FT') return 90;
+    final raw = RegExp(r'^(\d+)').firstMatch(m.timeLabel)?.group(1);
+    if (raw == null) return null;
+    return int.tryParse(raw);
   }
 }

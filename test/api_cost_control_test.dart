@@ -14,8 +14,11 @@ void main() {
       expect(ApiCachePolicy.liveMatches.inSeconds, inInclusiveRange(30, 60));
     });
 
-    test('today and upcoming 5–15 minutes', () {
-      expect(ApiCachePolicy.todayMatches.inMinutes, inInclusiveRange(5, 15));
+    test('today matches refresh quickly during live play', () {
+      expect(ApiCachePolicy.todayMatches.inMinutes, inInclusiveRange(2, 5));
+    });
+
+    test('upcoming fixtures 5–15 minutes', () {
       expect(ApiCachePolicy.fixturesUpcoming.inMinutes, inInclusiveRange(5, 15));
     });
 

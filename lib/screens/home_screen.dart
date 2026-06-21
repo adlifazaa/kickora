@@ -15,6 +15,7 @@ import '../data/mock_data.dart';
 import '../data/repositories/football_repository.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
+import '../utils/live_match_overlay.dart';
 import '../widgets/banner_placeholder.dart';
 import '../widgets/live_update_indicator.dart';
 import '../widgets/async_content_view.dart';
@@ -85,16 +86,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final liveMatches = liveState.hasError
         ? _liveMatches
         : WorldCupPriority.sortMatches(liveState.data ?? []);
-    final featuredMatch = WorldCupPriority.pickFeaturedMatch(
-      liveMatches: liveState.data ?? _liveMatches,
-      wcDayMatches: _todayMatches,
-    );
 
     setState(() {
       _refreshing = false;
       _lastUpdated = DateTime.now();
       _liveMatches = liveMatches;
-      _featuredMatch = featuredMatch;
+      _todayMatches = LiveMatchOverlay.overlay(_todayMatches, liveMatches);
+      _featuredMatch = WorldCupPriority.pickFeaturedMatch(
+        liveMatches: liveMatches,
+        wcDayMatches: LiveMatchOverlay.overlay(
+          _todayMatches.where(WorldCupPriority.isWorldCupMatch).toList(),
+          liveMatches,
+        ),
+      );
     });
   }
 
@@ -128,9 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
     var todayMatches = WorldCupPriority.sortMatches(
       allToday.where((m) => m.status != MatchStatus.finished).toList(),
     );
+    todayMatches = LiveMatchOverlay.overlay(todayMatches, liveMatches);
     final featuredMatch = WorldCupPriority.pickFeaturedMatch(
-      liveMatches: liveState.data ?? [],
-      wcDayMatches: wcDayPool,
+      liveMatches: liveMatches,
+      wcDayMatches: LiveMatchOverlay.overlay(wcDayPool, liveMatches),
     );
 
     if (repo.usesLiveApi) {

@@ -9,6 +9,7 @@ import '../core/world_cup/world_cup_priority.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../models/match_model.dart';
+import '../utils/live_match_overlay.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/gentle_ad_slot.dart';
 import '../widgets/async_content_view.dart';
@@ -105,6 +106,7 @@ class _MatchesScreenState extends State<MatchesScreen>
     var finished =
         results[4].hasError ? <MatchModel>[] : (results[4].data ?? []);
     live = WorldCupPriority.sortMatches(live);
+    upcoming = LiveMatchOverlay.overlay(upcoming, live);
     upcoming = WorldCupPriority.sortMatches(upcoming);
     finished = WorldCupPriority.sortMatches(finished);
 
