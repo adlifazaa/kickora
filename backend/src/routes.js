@@ -16,6 +16,7 @@ const {
   canonicalTodayCacheKey,
   ttlForPath,
   ttlForMatchResource,
+  ttlForFixtureListBody,
 } = require('./cache');
 const { fetchWorldCupNews } = require('./newsProvider');
 const { usageTracker } = require('./usageTracker');
@@ -43,8 +44,6 @@ function createRouter({ cache, sendJson }) {
   function matchStatusFromCache(matchId) {
     const cached = cache.get(`GET:/matches/${matchId}`);
     if (cached) return matchStatusFromBody(cached);
-    const stale = cache.getStale(`GET:/matches/${matchId}`);
-    if (stale) return matchStatusFromBody(stale);
     return '';
   }
 
@@ -92,6 +91,11 @@ function createRouter({ cache, sendJson }) {
           const id = pathname.split('/')[2];
           resolvedStatus = matchStatusFromCache(id);
           ttl = ttlForMatchResource(pathname, resolvedStatus);
+        } else if (
+          pathname === '/matches/today' ||
+          /^\/competitions\/\d+\/matches$/.test(pathname)
+        ) {
+          ttl = ttlForFixtureListBody(body, ttl);
         }
 
         if (protectionActive()) {
@@ -189,7 +193,7 @@ function createRouter({ cache, sendJson }) {
         upstreamMeta(pathname),
       )
         .then((body) => {
-          let ttl = ttlForPath(pathname);
+          let ttl = ttlForFixtureListBody(body, ttlForPath(pathname));
           if (protectionActive()) ttl = Math.max(ttl, ttl * 3);
           cache.set(canonKey, body, ttl);
           todayInFlight.delete(canonKey);

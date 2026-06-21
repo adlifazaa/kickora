@@ -6,6 +6,8 @@ const {
   ttlForPath,
   ttlForMatchStatus,
   ttlForMatchResource,
+  ttlForFixtureListBody,
+  responseHasLiveFixtures,
   cacheKey,
   canonicalTodayCacheKey,
 } = require('../src/cache');
@@ -19,7 +21,7 @@ const { UsageTracker } = require('../src/usageTracker');
 test('ttlForPath assigns expected buckets', () => {
   assert.equal(ttlForPath('/news/world-cup'), 30 * 60);
   assert.equal(ttlForPath('/matches/live'), 45);
-  assert.equal(ttlForPath('/matches/today'), 20 * 60);
+  assert.equal(ttlForPath('/matches/today'), 3 * 60);
   assert.equal(ttlForPath('/competitions'), 24 * 60 * 60);
   assert.equal(ttlForPath('/competitions/1/top-scorers'), 20 * 60);
   assert.equal(ttlForPath('/competitions/1/matches'), 15 * 60);
@@ -32,12 +34,40 @@ test('ttlForMatchStatus uses live, finished, and upcoming buckets', () => {
   assert.equal(ttlForMatchStatus('1H'), 45);
   assert.equal(ttlForMatchStatus('FT'), 24 * 60 * 60);
   assert.equal(ttlForMatchStatus('NS'), 60 * 60);
+  assert.equal(ttlForMatchStatus(''), 45);
+});
+
+test('ttlForFixtureListBody shortens TTL when live fixtures present', () => {
+  const liveBody = {
+    response: [{ fixture: { status: { short: '2H' } } }],
+  };
+  const quietBody = {
+    response: [{ fixture: { status: { short: 'NS' } } }],
+  };
+  assert.equal(ttlForFixtureListBody(liveBody, 3 * 60), 45);
+  assert.equal(ttlForFixtureListBody(quietBody, 3 * 60), 3 * 60);
+});
+
+test('responseHasLiveFixtures detects in-play rows', () => {
+  assert.equal(
+    responseHasLiveFixtures({
+      response: [{ fixture: { status: { short: 'HT' } } }],
+    }),
+    true,
+  );
+  assert.equal(
+    responseHasLiveFixtures({
+      response: [{ fixture: { status: { short: 'FT' } } }],
+    }),
+    false,
+  );
 });
 
 test('ttlForMatchResource applies status-aware TTL', () => {
   assert.equal(ttlForMatchResource('/matches/123/events', 'FT'), 24 * 60 * 60);
   assert.equal(ttlForMatchResource('/matches/123/events', '1H'), 45);
   assert.equal(ttlForMatchResource('/matches/123/lineups', 'NS'), 60 * 60);
+  assert.equal(ttlForMatchResource('/matches/123/lineups', ''), 45);
 });
 
 test('cacheKey is stable for query order', () => {

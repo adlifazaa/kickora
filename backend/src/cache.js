@@ -45,7 +45,7 @@ const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
 const ROUTE_TTL_SECONDS = [
   { pattern: /^\/news\/world-cup$/, ttl: 30 * 60 },
   { pattern: /^\/matches\/live$/, ttl: 45 },
-  { pattern: /^\/matches\/today$/, ttl: 20 * 60 },
+  { pattern: /^\/matches\/today$/, ttl: 3 * 60 },
   { pattern: /^\/matches\/upcoming$/, ttl: 10 * 60 },
   { pattern: /^\/matches\/finished$/, ttl: 12 * 60 * 60 },
   { pattern: /^\/competitions$/, ttl: 24 * 60 * 60 },
@@ -69,11 +69,34 @@ function ttlForPath(pathname) {
   return 60;
 }
 
+function statusShortFromItem(item) {
+  return (
+    item?.fixture?.status?.short ??
+    item?.status?.short ??
+    ''
+  ).toUpperCase();
+}
+
+/** True when any fixture in an API-Football list response is in play. */
+function responseHasLiveFixtures(body) {
+  if (!body || !Array.isArray(body.response)) return false;
+  return body.response.some((item) =>
+    LIVE_STATUSES.has(statusShortFromItem(item)),
+  );
+}
+
+/** Shorter TTL when a fixture list includes live matches. */
+function ttlForFixtureListBody(body, defaultTtlSeconds) {
+  if (responseHasLiveFixtures(body)) return 45;
+  return defaultTtlSeconds;
+}
+
 /** Status-aware TTL for match detail and sub-resources. */
 function ttlForMatchStatus(statusShort) {
   const s = (statusShort || '').toUpperCase();
   if (LIVE_STATUSES.has(s)) return 45;
   if (FINISHED_STATUSES.has(s)) return 24 * 60 * 60;
+  if (!s) return 45;
   return 60 * 60;
 }
 
@@ -106,6 +129,9 @@ module.exports = {
   ttlForPath,
   ttlForMatchStatus,
   ttlForMatchResource,
+  ttlForFixtureListBody,
+  responseHasLiveFixtures,
+  statusShortFromItem,
   cacheKey,
   canonicalTodayCacheKey,
   LIVE_STATUSES,
