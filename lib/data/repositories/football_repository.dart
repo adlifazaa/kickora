@@ -1,3 +1,5 @@
+import '../../utils/api_datetime.dart';
+import '../../utils/live_match_overlay.dart';
 import '../../core/cache/cache_manager.dart';
 import '../../core/cache/cache_service.dart';
 import '../../core/constants/api_cache_policy.dart';
@@ -51,13 +53,37 @@ class FootballRepository {
   final FootballDataProvider _provider;
   final CacheManager? _cache;
   final RepositoryMemoryCache _memory = RepositoryMemoryCache();
-  final Map<String, Future<Object?>> _inFlight = {};
+  final Map<String, Future<DataState<dynamic>>> _inFlight = {};
+  final Map<int, MatchModel> _liveSnapshotById = {};
   RemoteFootballSource? _remoteSource;
 
   bool get _remoteFetchEnabled =>
       !_provider.isMock && RemoteFootballSource.isRemoteActive;
 
   bool get usesLiveApi => _remoteFetchEnabled;
+
+  /// Latest live snapshot for a fixture (shared across all screens).
+  MatchModel? liveSnapshotFor(int fixtureId) => _liveSnapshotFor(fixtureId);
+
+  /// Merges [base] with the global live feed — single source of truth for lists.
+  Future<List<MatchModel>> syncMatchesWithLive(
+    List<MatchModel> base, {
+    bool forceRefresh = false,
+    int? competitionId,
+  }) async {
+    final live = await _fetchLiveSnapshot(
+      forceRefresh: forceRefresh,
+      competitionId: competitionId,
+    );
+    return LiveMatchOverlay.overlay(base, live);
+  }
+
+  /// Applies live truth to a single match (match details header).
+  MatchModel applyLiveTruth(MatchModel match) {
+    final snap = _liveSnapshotFor(match.resolvedFixtureId);
+    if (snap == null) return match;
+    return LiveMatchOverlay.preferNewer(match, snap);
+  }
 
   /// Resolves World Cup league id + season from cache or API before fixture calls.
   Future<void> ensureWorldCupReady() async {
@@ -108,6 +134,7 @@ class FootballRepository {
         competitionId: competitionId,
         forceRefresh: forceRefresh,
       );
+      _indexLiveSnapshot(result.data ?? const []);
       _storeMemory(memKey, result, forceRefresh);
       return result;
     });
@@ -270,11 +297,17 @@ class FootballRepository {
         season ?? CompetitionSeasonResolver.seasonForOrDefault(competitionId);
     final memKey = 'mem_competition_matches_${competitionId}_$resolvedSeason';
     if (!forceRefresh) {
-      final hit = _readMemory<List<MatchModel>>(
+      final hit = _readMemoryDynamic<List<MatchModel>>(
         memKey,
-        ApiCachePolicy.competitionFixtures,
+        (state) => ApiCachePolicy.competitionFixturesTtlFor(state.data ?? const []),
       );
-      if (hit != null) return hit;
+      if (hit != null) {
+        final synced = await syncMatchesWithLive(
+          hit.data ?? const [],
+          competitionId: competitionId,
+        );
+        return hit.copyWith(data: synced);
+      }
     } else {
       _memory.remove(memKey);
     }
@@ -288,7 +321,12 @@ class FootballRepository {
           season: resolvedSeason,
           skipCache: forceRefresh,
         );
-        final result = DataState.success(data, fromMock: false);
+        final synced = await syncMatchesWithLive(
+          data,
+          forceRefresh: forceRefresh,
+          competitionId: competitionId,
+        );
+        final result = DataState.success(synced, fromMock: false);
         _storeMemory(memKey, result, forceRefresh);
         return result;
       } on ApiException catch (e) {
@@ -315,7 +353,11 @@ class FootballRepository {
 
     if (!forceRefresh && !allowMock) {
       final hit = _readMemory<MatchModel?>(memKey, ttl);
-      if (hit != null) return hit;
+      if (hit != null) {
+        final data = hit.data;
+        if (data == null) return hit;
+        return hit.copyWith(data: _harmonizeMatch(data));
+      }
     }
 
     return _dedupe(memKey, () async {
@@ -325,9 +367,17 @@ class FootballRepository {
           skipCache: forceRefresh,
         );
         if (remote != null) {
+          final previousStatus = _knownFixtureStatus(fid, id);
+          if (previousStatus != MatchStatus.live &&
+              remote.status == MatchStatus.live) {
+            _memory.remove('mem_events_$fid');
+            _memory.remove('mem_stats_$fid');
+            await _remote.invalidateMatchDetailResources(fid);
+          }
           _rememberFixtureStatus(fid, remote.status);
+          final harmonized = _harmonizeMatch(remote.copyWith(fixtureId: fid));
           final result = DataState.success(
-            remote.copyWith(fixtureId: fid),
+            harmonized,
             fromMock: false,
           );
           _storeMemory(memKey, result, forceRefresh);
@@ -336,8 +386,9 @@ class FootballRepository {
         final stale = _remote.readCachedMatchDetails(fid);
         if (stale != null) {
           _rememberFixtureStatus(fid, stale.status);
+          final harmonized = _harmonizeMatch(stale.copyWith(fixtureId: fid));
           final result = DataState.success(
-            stale.copyWith(fixtureId: fid),
+            harmonized,
             fromMock: false,
             fromCache: true,
           );
@@ -352,8 +403,9 @@ class FootballRepository {
         final stale = _remote.readCachedMatchDetails(fid);
         if (stale != null) {
           _rememberFixtureStatus(fid, stale.status);
+          final harmonized = _harmonizeMatch(stale.copyWith(fixtureId: fid));
           final result = DataState.success(
-            stale.copyWith(fixtureId: fid),
+            harmonized,
             fromMock: false,
             fromCache: true,
           );
@@ -377,10 +429,15 @@ class FootballRepository {
     int matchId, {
     int? fixtureId,
     int? leagueId,
+    bool forceRefresh = false,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final memKey = 'mem_events_$fid';
     final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
+    if (forceRefresh) {
+      _memory.remove(memKey);
+      await _remote.invalidateMatchDetailResources(fid, statistics: false);
+    }
     return _loadRemoteFixtureDetail(
       operation: 'getMatchEvents',
       endpoint: '/events',
@@ -389,7 +446,8 @@ class FootballRepository {
       allowMock: _allowMockFallback(fid),
       memoryKey: memKey,
       memoryTtl: ttl,
-      fetch: () => _remote.fetchMatchEvents(fid),
+      forceRefresh: forceRefresh,
+      fetch: () => _remote.fetchMatchEvents(fid, skipCache: forceRefresh),
       mockValue: () => _mockMatchById(matchId)?.events ?? const [],
       emptyValue: () => const <MatchEventModel>[],
     );
@@ -399,10 +457,15 @@ class FootballRepository {
     int matchId, {
     int? fixtureId,
     int? leagueId,
+    bool forceRefresh = false,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final memKey = 'mem_stats_$fid';
     final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
+    if (forceRefresh) {
+      _memory.remove(memKey);
+      await _remote.invalidateMatchDetailResources(fid, events: false);
+    }
     return _loadRemoteFixtureDetail(
       operation: 'getMatchStatistics',
       endpoint: '/statistics',
@@ -411,7 +474,8 @@ class FootballRepository {
       allowMock: _allowMockFallback(fid),
       memoryKey: memKey,
       memoryTtl: ttl,
-      fetch: () => _remote.fetchMatchStatistics(fid),
+      forceRefresh: forceRefresh,
+      fetch: () => _remote.fetchMatchStatistics(fid, skipCache: forceRefresh),
       mockValue: () => _mockMatchById(matchId)?.stats ?? const [],
       emptyValue: () => const <MatchStatisticModel>[],
     );
@@ -421,11 +485,15 @@ class FootballRepository {
     int matchId, {
     int? fixtureId,
     int? leagueId,
+    bool forceRefresh = false,
   }) async {
     final fid = _resolvedFixtureId(fixtureId, matchId);
     final match = _mockMatchById(matchId);
     final memKey = 'mem_lineups_$fid';
     final ttl = ApiCachePolicy.matchDetailResourceTtl(_knownFixtureStatus(fid, matchId));
+    if (forceRefresh) {
+      _memory.remove(memKey);
+    }
     return _loadRemoteFixtureDetail(
       operation: 'getMatchLineups',
       endpoint: '/lineups',
@@ -434,6 +502,7 @@ class FootballRepository {
       allowMock: _allowMockFallback(fid),
       memoryKey: memKey,
       memoryTtl: ttl,
+      forceRefresh: forceRefresh,
       fetch: () => _remote.fetchLineups(fid),
       mockValue: () => (home: match?.homeLineup, away: match?.awayLineup),
       emptyValue: () => (home: null, away: null),
@@ -1003,12 +1072,13 @@ class FootballRepository {
     bool Function(T value)? isEmpty,
     String? memoryKey,
     Duration? memoryTtl,
+    bool forceRefresh = false,
   }) async {
     if (!_remoteFetchEnabled) {
       return DataState.success(mockValue(), fromMock: true);
     }
     final dedupeKey = memoryKey ?? 'detail_${operation}_$fixtureId';
-    if (memoryKey != null && memoryTtl != null) {
+    if (!forceRefresh && memoryKey != null && memoryTtl != null) {
       final hit = _readMemory<T>(memoryKey, memoryTtl);
       if (hit != null) return hit;
     }
@@ -1029,7 +1099,15 @@ class FootballRepository {
           failed: false,
         );
         final result = DataState.success(data, fromMock: false);
-        if (memoryKey != null) _storeMemory(memoryKey, result, false);
+        _maybeStoreFixtureDetailMemory(
+          memoryKey: memoryKey,
+          fixtureId: fixtureId,
+          matchId: fixtureId,
+          result: result,
+          data: data,
+          isEmpty: empty,
+          forceRefresh: forceRefresh,
+        );
         return result;
       } on ApiException catch (e) {
         if (e.isNotConfigured || allowMock) {
@@ -1047,7 +1125,15 @@ class FootballRepository {
             failed: false,
           );
           final result = DataState.success(empty, fromMock: false);
-          if (memoryKey != null) _storeMemory(memoryKey, result, false);
+          _maybeStoreFixtureDetailMemory(
+            memoryKey: memoryKey,
+            fixtureId: fixtureId,
+            matchId: fixtureId,
+            result: result,
+            data: empty,
+            isEmpty: true,
+            forceRefresh: forceRefresh,
+          );
           return result;
         }
         logMatchDetailsEndpoint(
@@ -1099,29 +1185,114 @@ class FootballRepository {
   }
 
   bool _isSameCalendarDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+      ApiDateTime.isSameLocalDay(a, b);
 
   MatchStatus _knownFixtureStatus(int fixtureId, int matchId) {
+    final live = _liveSnapshotFor(fixtureId);
+    if (live != null) return live.status;
+
     final remembered = _memory.get<MatchStatus>(
       _fixtureStatusKey(fixtureId),
       const Duration(hours: 24),
     );
-    if (remembered != null) return remembered;
+    if (remembered == MatchStatus.live || remembered == MatchStatus.finished) {
+      return remembered!;
+    }
 
     final disk = _remote.readCachedMatchDetails(fixtureId);
-    if (disk != null) return disk.status;
+    if (disk != null) {
+      return _preferStatus(remembered, disk.status);
+    }
 
     final mock = _mockMatchById(matchId);
     if (mock != null) return mock.status;
 
-    return MatchStatus.upcoming;
+    return remembered ?? MatchStatus.upcoming;
   }
 
   void _rememberFixtureStatus(int fixtureId, MatchStatus status) {
-    _memory.put(_fixtureStatusKey(fixtureId), status);
+    final existing = _memory.get<MatchStatus>(
+      _fixtureStatusKey(fixtureId),
+      const Duration(hours: 24),
+    );
+    _memory.put(_fixtureStatusKey(fixtureId), _preferStatus(existing, status));
+  }
+
+  MatchStatus _preferStatus(MatchStatus? current, MatchStatus incoming) {
+    if (current == null) return incoming;
+    return LiveMatchOverlay.freshnessRank(incoming) >=
+            LiveMatchOverlay.freshnessRank(current)
+        ? incoming
+        : current;
+  }
+
+  MatchModel _harmonizeMatch(MatchModel match) => applyLiveTruth(match);
+
+  void _indexLiveSnapshot(Iterable<MatchModel> live) {
+    for (final match in live) {
+      final id = match.resolvedFixtureId;
+      final existing = _liveSnapshotById[id];
+      if (existing == null) {
+        _liveSnapshotById[id] = match;
+      } else {
+        _liveSnapshotById[id] = LiveMatchOverlay.preferNewer(existing, match);
+      }
+      _rememberFixtureStatus(id, _liveSnapshotById[id]!.status);
+    }
+  }
+
+  MatchModel? _liveSnapshotFor(int fixtureId) => _liveSnapshotById[fixtureId];
+
+  Future<List<MatchModel>> _fetchLiveSnapshot({
+    bool forceRefresh = false,
+    int? competitionId,
+  }) async {
+    final state = await getLiveMatches(
+      competitionId: competitionId,
+      forceRefresh: forceRefresh,
+    );
+    return state.data ?? const [];
+  }
+
+  DataState<T>? _readMemoryDynamic<T>(
+    String key,
+    Duration Function(DataState<T> value) ttlFor,
+  ) {
+    final cached = _memory.getWithDynamicTtl<DataState<T>>(key, ttlFor);
+    if (cached == null) {
+      ApiDebugLog.cache(
+        key: key,
+        hit: false,
+        bucket: 'memory',
+        layer: 'memory',
+      );
+      return null;
+    }
+    ApiDebugLog.cache(
+      key: key,
+      hit: true,
+      bucket: 'memory',
+      layer: 'memory',
+    );
+    return cached.copyWith(fromCache: true);
   }
 
   String _fixtureStatusKey(int fixtureId) => 'mem_fixture_status_$fixtureId';
+
+  void _maybeStoreFixtureDetailMemory<T>({
+    required String? memoryKey,
+    required int fixtureId,
+    required int matchId,
+    required DataState<T> result,
+    required T data,
+    required bool isEmpty,
+    required bool forceRefresh,
+  }) {
+    if (memoryKey == null || result.hasError) return;
+    final status = _knownFixtureStatus(fixtureId, matchId);
+    if (isEmpty && status == MatchStatus.live) return;
+    _storeMemory(memoryKey, result, false);
+  }
 
   Future<DataState<T>> _dedupe<T>(
     String key,

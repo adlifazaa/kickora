@@ -23,6 +23,7 @@ import '../widgets/live_update_indicator.dart';
 import '../widgets/match_timeline.dart';
 import '../widgets/match/premium_football_pitch.dart';
 import '../widgets/player_avatar.dart';
+import '../utils/live_match_overlay.dart';
 import '../utils/match_share_formatter.dart';
 import '../widgets/team_logo.dart';
 
@@ -44,6 +45,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   int _displayMinute = 0;
   int _commentaryIndex = 0;
   late MatchModel _match;
+  late final MatchModel _routeMatch;
   bool _refreshingDetails = false;
   DateTime? _lastUpdated;
   String? _detailsError;
@@ -58,6 +60,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   @override
   void initState() {
     super.initState();
+    _routeMatch = widget.match;
     _match = displayMatchFor(
       widget.match,
       allowMockFill: !widget.match.isApiFixture,
@@ -84,7 +87,12 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   }
 
   void _onAutoRefresh() {
-    if (m.status == MatchStatus.live) {
+    if (!mounted) return;
+    final repo = AppScope.footballRepositoryOf(context);
+    final liveSnap = repo.liveSnapshotFor(_fixtureId);
+    if (m.status == MatchStatus.live ||
+        _routeMatch.status == MatchStatus.live ||
+        liveSnap?.status == MatchStatus.live) {
       _loadDetails(silent: true);
     }
   }
@@ -134,7 +142,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     return !state.fromMock;
   }
 
-  Future<void> _loadDetails({bool silent = false}) async {
+  Future<void> _loadDetails({
+    bool silent = false,
+    bool forceRefresh = false,
+  }) async {
     if (mounted) {
       setState(() {
         _refreshingDetails = true;
@@ -146,6 +157,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
     final fixtureId = _fixtureId;
     final matchId = _match.id;
     final leagueId = _match.competition.id;
+    final forceDetailRefresh = _isApiFixture &&
+        (forceRefresh || !silent || m.status == MatchStatus.live);
 
     var base = _match;
     var events = _match.events;
@@ -158,8 +171,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       final matchState = await repo.getMatchById(
         matchId,
         fixtureId: fixtureId,
-        forceRefresh:
-            _isApiFixture && (!silent || m.status == MatchStatus.live),
+        forceRefresh: forceDetailRefresh,
       );
       logMatchDetails(
         'fixture=$fixtureId match=${matchState.fromMock ? "mock-fallback" : "api"} '
@@ -168,18 +180,20 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
       if (_acceptRepositoryResult(matchState)) {
         final refreshed = matchState.data;
         if (refreshed != null) {
+          var merged = LiveMatchOverlay.preferNewer(_routeMatch, refreshed);
+          merged = repo.applyLiveTruth(merged);
           base = _match.copyWith(
             fixtureId: fixtureId,
-            homeTeam: refreshed.homeTeam,
-            awayTeam: refreshed.awayTeam,
-            homeScore: refreshed.homeScore,
-            awayScore: refreshed.awayScore,
-            status: refreshed.status,
-            timeLabel: refreshed.timeLabel,
-            competition: refreshed.competition,
-            date: refreshed.date,
-            stadium: refreshed.stadium.isNotEmpty
-                ? refreshed.stadium
+            homeTeam: merged.homeTeam,
+            awayTeam: merged.awayTeam,
+            homeScore: merged.homeScore,
+            awayScore: merged.awayScore,
+            status: merged.status,
+            timeLabel: merged.timeLabel,
+            competition: merged.competition,
+            date: merged.date,
+            stadium: merged.stadium.isNotEmpty
+                ? merged.stadium
                 : _match.stadium,
             liveCommentary: _isApiFixture
                 ? const []
@@ -196,6 +210,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         matchId,
         fixtureId: fixtureId,
         leagueId: leagueId,
+        forceRefresh: forceDetailRefresh,
       );
       logMatchDetails(
         'events fixture=$fixtureId source=${eventsState.fromMock ? "mock-fallback" : "api"} '
@@ -215,6 +230,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         matchId,
         fixtureId: fixtureId,
         leagueId: leagueId,
+        forceRefresh: forceDetailRefresh,
       );
       logMatchDetails(
         'stats fixture=$fixtureId source=${statsState.fromMock ? "mock-fallback" : "api"} '
@@ -234,6 +250,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
         matchId,
         fixtureId: fixtureId,
         leagueId: leagueId,
+        forceRefresh: forceDetailRefresh,
       );
       logMatchDetails(
         'lineups fixture=$fixtureId source=${lineupsState.fromMock ? "mock-fallback" : "api"} '
@@ -363,7 +380,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen>
   Future<void> _onPullRefresh() async {
     final refresh = AppScope.matchRefreshServiceOf(context);
     await refresh.refresh(MatchRefreshCategory.live, force: true);
-    await _loadDetails(silent: true);
+    await _loadDetails(silent: true, forceRefresh: true);
   }
 
   int _parseMinute(MatchModel match) {

@@ -112,6 +112,18 @@ class WorldCupHubLoader extends ChangeNotifier {
 
 
 
+  /// Re-applies the global live feed onto hub fixtures (same as Home/Matches).
+  Future<void> refreshLiveOverlay({bool forceRefresh = false}) async {
+    if (matches.isEmpty) return;
+    matches = await _repo.syncMatchesWithLive(
+      matches,
+      forceRefresh: forceRefresh,
+      competitionId: competitionId,
+    );
+    lastUpdated = DateTime.now();
+    notifyListeners();
+  }
+
   /// Overview reads fixtures already loaded by [loadSchedule] — no extra API calls.
 
   Future<void> loadOverview() async {
@@ -177,6 +189,8 @@ class WorldCupHubLoader extends ChangeNotifier {
         matches = _mergeMatches([...matches, ...state.data!]);
 
       }
+
+      await refreshLiveOverlay(forceRefresh: forceRefresh);
 
       WorldCupDebugLog.fixtureRounds(matches);
 

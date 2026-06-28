@@ -74,17 +74,18 @@ class FavoritesResolver {
     required Set<int> matchIds,
   }) async {
     final matches = await _resolveMatches(matchIds);
+    final synced = await _repository.syncMatchesWithLive(matches);
     final competitions = await _resolveCompetitions(competitionIds);
     final teams = await _resolveTeams(
       teamIds: teamIds,
-      matches: matches,
+      matches: synced,
       competitionIds: competitionIds,
     );
 
     return FavoritesSnapshot(
       teams: teams,
       competitions: competitions,
-      matches: matches,
+      matches: synced,
     );
   }
 

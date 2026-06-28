@@ -1,3 +1,4 @@
+import '../../utils/api_datetime.dart';
 import '../mock_data.dart';
 import 'competition_model.dart';
 import 'lineup_model.dart';
@@ -77,6 +78,9 @@ class MatchModel {
   final DateTime date;
   final String stadium;
 
+  /// Kickoff in the device local timezone (safe for display and date grouping).
+  DateTime get localDate => ApiDateTime.toLocalKickoff(date);
+
   /// API-Football `league.round` (e.g. Group Stage - 1, Round of 16).
   final String round;
 
@@ -115,7 +119,8 @@ class MatchModel {
       status: parseMatchStatus(json['status']?.toString() ?? ''),
       timeLabel: (json['timeLabel'] ?? '').toString(),
       competition: competition,
-      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      date: ApiDateTime.parseKickoffLocal(json['date']?.toString()) ??
+          DateTime.now(),
       stadium: (json['stadium'] ?? '').toString(),
       round: (json['round'] ?? '').toString(),
       momentumHome: ((json['momentumHome'] ?? 0.5) as num).toDouble(),

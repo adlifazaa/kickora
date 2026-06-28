@@ -1,6 +1,7 @@
 import '../../data/models/match_model.dart';
 import 'world_cup_round_classifier.dart';
 import 'world_cup_schedule.dart';
+import '../../utils/api_datetime.dart';
 
 /// Filters for the World Cup fixture schedule.
 enum WorldCupScheduleFilter {
@@ -80,8 +81,10 @@ class WorldCupScheduleView {
     return groups;
   }
 
-  static String _dateKey(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  static String _dateKey(DateTime d) {
+    final local = ApiDateTime.toLocalKickoff(d);
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  }
 
   /// Human-readable stage from API round string.
   static String stageLabel(String round, {required bool isArabic}) {

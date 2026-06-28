@@ -114,7 +114,7 @@ class WorldCupPriority {
           (m) =>
               isWorldCupMatch(m) &&
               m.status == MatchStatus.upcoming &&
-              sameDay(m.date),
+              sameDay(m.localDate),
         )
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));

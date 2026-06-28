@@ -169,7 +169,12 @@ class RemoteFootballSource {
         season: season,
       ),
     );
-    await _writeMatches(cacheKey, list, CacheBucket.competitionFixtures);
+    await _writeMatches(
+      cacheKey,
+      list,
+      CacheBucket.competitionFixtures,
+      ttl: ApiCachePolicy.competitionFixturesTtlFor(list),
+    );
     _log('getCompetitionMatches', _sourceLabel, list.length);
     return list;
   }
@@ -336,38 +341,72 @@ class RemoteFootballSource {
     return list == null || list.isEmpty ? null : list.first;
   }
 
-  Future<List<MatchEventModel>> fetchMatchEvents(int matchId) async {
+  Future<void> invalidateMatchDetailResources(
+    int matchId, {
+    bool events = true,
+    bool statistics = true,
+  }) async {
+    if (events) {
+      await _cache?.remove('remote_events_$matchId');
+    }
+    if (statistics) {
+      await _cache?.remove('remote_stats_$matchId');
+    }
+  }
+
+  Future<List<MatchEventModel>> fetchMatchEvents(
+    int matchId, {
+    bool skipCache = false,
+  }) async {
     _ensureActive();
     final cacheKey = 'remote_events_$matchId';
-    final cached = _readMatchEvents(cacheKey);
-    if (cached != null) {
-      _log('getMatchEvents', 'cache', cached.length);
-      return cached;
+    if (!skipCache) {
+      final cached = _readMatchEvents(cacheKey);
+      if (cached != null) {
+        _log('getMatchEvents', 'cache', cached.length);
+        return cached;
+      }
     }
     final list = await _call(
       () => _apiFootball.getMatchEvents(matchId),
       () => _backendProxy.getMatchEvents(matchId),
     );
-    await _writeMatchEvents(cacheKey, list, ttl: _detailDiskTtl(matchId));
+    if (_shouldPersistDetailList(list, matchId)) {
+      await _writeMatchEvents(cacheKey, list, ttl: _detailDiskTtl(matchId));
+    }
     _log('getMatchEvents', _sourceLabel, list.length);
     return list;
   }
 
-  Future<List<MatchStatisticModel>> fetchMatchStatistics(int matchId) async {
+  Future<List<MatchStatisticModel>> fetchMatchStatistics(
+    int matchId, {
+    bool skipCache = false,
+  }) async {
     _ensureActive();
     final cacheKey = 'remote_stats_$matchId';
-    final cached = _readMatchStatistics(cacheKey);
-    if (cached != null) {
-      _log('getMatchStatistics', 'cache', cached.length);
-      return cached;
+    if (!skipCache) {
+      final cached = _readMatchStatistics(cacheKey);
+      if (cached != null) {
+        _log('getMatchStatistics', 'cache', cached.length);
+        return cached;
+      }
     }
     final list = await _call(
       () => _apiFootball.getMatchStatistics(matchId),
       () => _backendProxy.getMatchStatistics(matchId),
     );
-    await _writeMatchStatistics(cacheKey, list, ttl: _detailDiskTtl(matchId));
+    if (_shouldPersistDetailList(list, matchId)) {
+      await _writeMatchStatistics(cacheKey, list, ttl: _detailDiskTtl(matchId));
+    }
     _log('getMatchStatistics', _sourceLabel, list.length);
     return list;
+  }
+
+  /// Avoid caching empty events/stats for live fixtures (prevents stale blanks).
+  bool _shouldPersistDetailList<T>(List<T> list, int matchId) {
+    if (list.isNotEmpty) return true;
+    final status = readCachedMatchDetails(matchId)?.status;
+    return status != MatchStatus.live;
   }
 
   Future<({LineupModel? home, LineupModel? away})> fetchLineups(

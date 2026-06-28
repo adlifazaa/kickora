@@ -40,6 +40,14 @@ class ApiCachePolicy {
   static const Duration matchStatistics = Duration(seconds: 45);
   static const Duration matchLineups = Duration(seconds: 45);
 
+  /// Competition fixture lists use live TTL while any fixture is in play.
+  static Duration competitionFixturesTtlFor(Iterable<MatchModel> matches) {
+    for (final match in matches) {
+      if (match.status == MatchStatus.live) return liveMatches;
+    }
+    return competitionFixtures;
+  }
+
   /// Status-aware TTL for match detail sub-resources (events, stats, lineups).
   static Duration matchDetailResourceTtl(MatchStatus status) {
     switch (status) {

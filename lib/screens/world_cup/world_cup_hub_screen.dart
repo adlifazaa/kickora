@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_colors.dart';
 import '../../app/app_scope.dart';
 import '../../app/app_text.dart';
 import '../../app/routes.dart';
+import '../../core/refresh/match_refresh_category.dart';
+import '../../core/refresh/match_refresh_service.dart';
 import '../../core/world_cup/world_cup_hub_loader.dart';
 import '../../core/world_cup/world_cup_schedule_view.dart';
 import 'world_cup_schedule_tab.dart';
@@ -42,6 +46,7 @@ class _WorldCupHubScreenState extends State<WorldCupHubScreen>
   late final TabController _tabs;
   late final WorldCupHubLoader _loader;
   final Set<int> _visitedTabs = {1};
+  MatchRefreshService? _refresh;
 
   @override
   void initState() {
@@ -50,8 +55,18 @@ class _WorldCupHubScreenState extends State<WorldCupHubScreen>
     _loader = WorldCupHubLoader(AppScope.footballRepositoryOf(context));
     _tabs.addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refresh = AppScope.matchRefreshServiceOf(context);
+      _refresh!.addListener(_onAutoRefresh);
       _loader.loadSchedule();
     });
+  }
+
+  void _onAutoRefresh() {
+    final category = _refresh?.lastRefreshCategory;
+    if (category == MatchRefreshCategory.all ||
+        category == MatchRefreshCategory.live) {
+      unawaited(_loader.refreshLiveOverlay());
+    }
   }
 
   void _onTabChanged() {
@@ -81,6 +96,7 @@ class _WorldCupHubScreenState extends State<WorldCupHubScreen>
 
   @override
   void dispose() {
+    _refresh?.removeListener(_onAutoRefresh);
     _tabs.removeListener(_onTabChanged);
     _tabs.dispose();
     _loader.dispose();

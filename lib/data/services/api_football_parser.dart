@@ -1,4 +1,5 @@
 import '../../core/display/player_profile_display.dart';
+import '../../utils/api_datetime.dart';
 import '../models/competition_model.dart';
 import '../models/formation_model.dart';
 import '../../core/lineup/formation_lineup_layout.dart';
@@ -48,6 +49,8 @@ class ApiFootballParser {
     final awayScore = _goalCount(goals['away'], score, 'away');
 
     final fixtureId = _int(fixture['id']);
+    final kickoffLocal =
+        ApiDateTime.parseKickoffLocal(fixture['date']?.toString());
     return MatchModel(
       id: fixtureId,
       fixtureId: fixtureId,
@@ -65,11 +68,10 @@ class ApiFootballParser {
       timeLabel: _timeLabel(
         statusShort,
         elapsed,
-        kickoff: DateTime.tryParse(fixture['date']?.toString() ?? ''),
+        kickoff: kickoffLocal,
       ),
       competition: _competitionFromLeagueJson(league),
-      date: DateTime.tryParse(fixture['date']?.toString() ?? '') ??
-          DateTime.now(),
+      date: kickoffLocal ?? DateTime.now(),
       stadium: _map(fixture['venue'])['name']?.toString() ?? '',
       round: league['round']?.toString() ?? '',
     );

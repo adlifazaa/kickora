@@ -73,4 +73,25 @@ void main() {
     expect(merged.single.homeScore, 1);
     expect(merged.single.status, MatchStatus.finished);
   });
+
+  test('preferNewer keeps route live score over stale detail cache', () {
+    final route = _match(
+      id: 100,
+      homeScore: 3,
+      awayScore: 1,
+      status: MatchStatus.live,
+      timeLabel: "70'",
+    );
+    final cache = _match(
+      id: 100,
+      homeScore: 0,
+      awayScore: 0,
+      status: MatchStatus.upcoming,
+      timeLabel: '19:00',
+    );
+
+    final kept = LiveMatchOverlay.preferNewer(route, cache);
+    expect(kept.homeScore, 3);
+    expect(kept.awayScore, 1);
+  });
 }

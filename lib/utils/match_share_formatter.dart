@@ -1,5 +1,6 @@
 import '../data/models/match_model.dart';
 import '../widgets/api_display_text.dart';
+import 'api_datetime.dart';
 
 const String matchSharePlayStoreUrl =
     'play.google.com/store/apps/details?id=com.kickora.worldcup';
@@ -72,7 +73,7 @@ String _formatUpcomingSchedule(MatchModel match) {
 }
 
 String _formatShareDate(MatchModel match) {
-  final date = match.date;
+  final date = match.localDate;
   if (date.year < 2000) return '';
 
   final day = date.day.toString().padLeft(2, '0');
@@ -84,9 +85,7 @@ String _formatShareDate(MatchModel match) {
   }
 
   if (date.hour != 0 || date.minute != 0) {
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-    return '$datePart — ${_ltr('$hour:$minute')}';
+    return '$datePart — ${_ltr(ApiDateTime.formatClock(date))}';
   }
 
   return datePart;

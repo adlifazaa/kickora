@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../../core/cache/cache_manager.dart';
 import '../../../core/cache/cache_service.dart';
+import '../../../core/constants/api_cache_policy.dart';
 import '../../../core/competition/competition_season_resolver.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/world_cup/world_cup_debug_log.dart';
@@ -219,7 +220,12 @@ class BackendProxyService {
           envelope: envelope,
           matches: matches,
         );
-        await _writeMatches(cacheKey, matches, CacheBucket.competitionFixtures);
+        await _writeMatches(
+          cacheKey,
+          matches,
+          CacheBucket.competitionFixtures,
+          ttl: ApiCachePolicy.competitionFixturesTtlFor(matches),
+        );
         return matches;
       });
 
@@ -443,8 +449,9 @@ class BackendProxyService {
   Future<void> _writeMatches(
     String key,
     List<MatchModel> matches,
-    CacheBucket bucket,
-  ) async {
+    CacheBucket bucket, {
+    Duration? ttl,
+  }) async {
     await _cache?.writeJsonList(
       key,
       matches
@@ -471,6 +478,7 @@ class BackendProxyService {
           )
           .toList(),
       bucket,
+      ttl: ttl,
     );
   }
 

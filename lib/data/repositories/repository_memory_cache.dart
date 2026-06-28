@@ -12,6 +12,22 @@ class RepositoryMemoryCache {
     return entry.value as T;
   }
 
+  /// Like [get] but TTL is derived from the cached value (e.g. live-aware lists).
+  T? getWithDynamicTtl<T>(
+    String key,
+    Duration Function(T value) ttlFor,
+  ) {
+    final entry = _store[key];
+    if (entry == null) return null;
+    final value = entry.value as T;
+    final ttl = ttlFor(value);
+    if (DateTime.now().difference(entry.storedAt) > ttl) {
+      _store.remove(key);
+      return null;
+    }
+    return value;
+  }
+
   void put<T>(String key, T value) {
     _store[key] = _Entry(value, DateTime.now());
   }
