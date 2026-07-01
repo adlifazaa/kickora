@@ -1,5 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../app/app_version_info.dart';
 import '../app/app_colors.dart';
@@ -191,7 +190,7 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: app.setNotifyFavoriteMatchUpdatesEnabled,
               ),
               const SizedBox(height: 12),
-              if (kDebugMode)
+              if (app.showNotificationDiagnostics) ...[
                 _SettingsTile(
                   icon: Icons.bug_report_outlined,
                   iconColor: Colors.amber,
@@ -206,7 +205,8 @@ class SettingsScreen extends StatelessWidget {
                   trailing: Icon(Icons.chevron_right_rounded,
                       color: Theme.of(context).hintColor),
                 ),
-              if (kDebugMode) const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               const SizedBox(height: 26),
               SectionHeader(
                 title: text.isArabic ? 'Kickora Premium' : 'Kickora Premium',

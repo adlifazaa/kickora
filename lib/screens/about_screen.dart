@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/app_branding.dart';
 import '../app/app_colors.dart';
 import '../app/app_contact.dart';
 import '../app/app_text.dart';
@@ -115,6 +116,21 @@ class AboutScreen extends StatelessWidget {
                         : 'Favorites: teams, competitions & matches',
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _Section(
+              title: text.isArabic ? 'إخلاء مسؤولية' : 'Independence notice',
+              child: Text(
+                text.isArabic
+                    ? AppBranding.independenceDisclaimerArabic
+                    : AppBranding.independenceDisclaimerEnglish,
+                style: TextStyle(
+                  color: Theme.of(context).hintColor,
+                  height: 1.55,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(height: 14),

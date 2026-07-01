@@ -1,5 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
@@ -124,12 +123,6 @@ class AppRoutes {
             settings: settings,
             builder: (context) => const GlobalSearchScreen());
       case notificationDiagnostics:
-        if (!kDebugMode) {
-          return MaterialPageRoute(
-            settings: settings,
-            builder: (context) => const MainNavigationScreen(),
-          );
-        }
         return PremiumPageRoute(
             settings: settings,
             builder: (context) {

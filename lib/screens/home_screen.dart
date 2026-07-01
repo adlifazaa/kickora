@@ -546,15 +546,15 @@ class _WorldCupShortcutCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFFD4AF37).withValues(alpha: 0.28),
-                  primary.withValues(alpha: 0.22),
+                  AppColors.teal.withValues(alpha: 0.22),
+                  primary.withValues(alpha: 0.18),
                   isDark
                       ? const Color(0xFF0A3D32)
                       : primary.withValues(alpha: 0.08),
                 ],
               ),
               border: Border.all(
-                color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+                color: AppColors.teal.withValues(alpha: 0.4),
               ),
               boxShadow: [
                 BoxShadow(
@@ -566,7 +566,7 @@ class _WorldCupShortcutCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const WorldCupLogo(size: 52),
+                const WorldCupLogo(size: 59),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -583,8 +583,8 @@ class _WorldCupShortcutCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         text.isArabic
-                            ? '2026 • المباريات والنتائج والترتيب'
-                            : '2026 • Matches, results & standings',
+                            ? 'المباريات والنتائج والترتيب'
+                            : 'Matches, results & standings',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

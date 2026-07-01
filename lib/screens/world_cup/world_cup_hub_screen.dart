@@ -44,19 +44,28 @@ class WorldCupHubScreen extends StatefulWidget {
 class _WorldCupHubScreenState extends State<WorldCupHubScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
-  late final WorldCupHubLoader _loader;
+  late WorldCupHubLoader _loader;
   final Set<int> _visitedTabs = {1};
   MatchRefreshService? _refresh;
+  bool _dependenciesReady = false;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 7, vsync: this, initialIndex: 1);
-    _loader = WorldCupHubLoader(AppScope.footballRepositoryOf(context));
     _tabs.addListener(_onTabChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_dependenciesReady) return;
+    _dependenciesReady = true;
+    _loader = WorldCupHubLoader(AppScope.footballRepositoryOf(context));
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _refresh = AppScope.matchRefreshServiceOf(context);
-      _refresh!.addListener(_onAutoRefresh);
+      _refresh?.addListener(_onAutoRefresh);
       _loader.loadSchedule();
     });
   }
@@ -139,7 +148,7 @@ class _WorldCupHubScreenState extends State<WorldCupHubScreen>
                 foregroundColor: Colors.white,
                 surfaceTintColor: Colors.transparent,
                 title: Text(
-                  text.isArabic ? 'كأس العالم 2026' : widget.competition.name,
+                  widget.competition.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -162,7 +171,10 @@ class _WorldCupHubScreenState extends State<WorldCupHubScreen>
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  background: _HubHero(isArabic: text.isArabic),
+                  background: _HubHero(
+                    isArabic: text.isArabic,
+                    competitionName: widget.competition.name,
+                  ),
                 ),
                 bottom: TabBar(
                   controller: _tabs,
@@ -203,9 +215,13 @@ class _WorldCupHubScreenState extends State<WorldCupHubScreen>
 }
 
 class _HubHero extends StatelessWidget {
-  const _HubHero({required this.isArabic});
+  const _HubHero({
+    required this.isArabic,
+    required this.competitionName,
+  });
 
   final bool isArabic;
+  final String competitionName;
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +254,7 @@ class _HubHero extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  isArabic ? 'كأس العالم' : 'FIFA World Cup',
+                  competitionName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,

@@ -7,6 +7,8 @@
 
 Kickora (`com.kickora.worldcup`) is a football scores and statistics app. This policy describes what data we process and why.
 
+**Independence notice:** Kickora is not affiliated with, endorsed by, sponsored by, or licensed by FIFA or any football governing body. Competition names and logos belong to their respective owners.
+
 ## Data we collect
 
 Kickora does not require sign-in or an account. We do not collect your name, email, or phone number.

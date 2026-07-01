@@ -94,7 +94,7 @@ void main() {
   test('footer mentions matches and competitions', () {
     expect(
       matchShareFooter,
-      'تابع نتائج المباريات والبطولات عبر Kickora | كأس العالم 2026',
+      'تابع نتائج المباريات والبطولات عبر كيكورا | نتائج كرة القدم',
     );
   });
 

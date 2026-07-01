@@ -46,5 +46,6 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon/app_icon.png
-    - assets/icon/play_store_icon_512.png
+    - assets/branding/final/app_icon_1024.png
+    - assets/branding/final/play_store_icon_512.png
+    - assets/images/world_cup_badge.png

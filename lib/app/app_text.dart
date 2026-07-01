@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../app/app_branding.dart';
 import 'app_scope.dart';
 
 /// Lightweight localisation surface. Centralised here so every screen can
@@ -15,7 +16,9 @@ class AppText {
     return AppText(controller.isArabic);
   }
 
-  String get appName => 'Kickora';
+  String get appName => _isArabic ? AppBranding.arabicAppName : 'Kickora';
+  String get appDisplayName =>
+      _isArabic ? AppBranding.arabicDisplayName : 'Kickora';
   String get appTagline =>
       _isArabic ? 'رفيقك المباشر لعالم كرة القدم' : 'Your live football companion';
   String get homeSubtitle => _isArabic

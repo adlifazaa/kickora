@@ -1,47 +1,30 @@
 import 'package:flutter/material.dart';
 
-/// Kickora World Cup identity — uses the Play Store app icon locally (no FIFA assets).
+/// World Cup / international competition section badge.
+///
+/// Displays the approved raster badge exactly as provided — no vector redraw.
 class WorldCupLogo extends StatelessWidget {
   const WorldCupLogo({super.key, required this.size, this.borderRadius});
 
-  static const assetPath = 'assets/icon/app_icon.png';
+  static const String assetPath = 'assets/images/world_cup_badge.png';
 
   final double size;
+
+  /// Kept for call-site compatibility; the PNG is shown without extra clipping.
   final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    final radius = borderRadius ?? BorderRadius.circular(size * 0.22);
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-            blurRadius: size * 0.18,
-            offset: Offset(0, size * 0.06),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.55),
-          width: size * 0.03,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Image.asset(
-          assetPath,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Icon(
-            Icons.emoji_events_rounded,
-            size: size * 0.55,
-            color: const Color(0xFFD4AF37),
-          ),
-        ),
+      child: Image.asset(
+        assetPath,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
       ),
     );
   }

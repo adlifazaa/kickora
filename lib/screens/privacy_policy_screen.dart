@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/app_branding.dart';
 import '../app/app_colors.dart';
 import '../app/app_contact.dart';
 import '../app/app_text.dart';
@@ -26,6 +27,16 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _Header(isArabic: ar),
             const SizedBox(height: 18),
             _IntroCard(ar: ar),
+            const SizedBox(height: 14),
+            _Section(
+              icon: Icons.info_outline_rounded,
+              title: ar ? 'تطبيق مستقل' : 'Independent app',
+              child: _Paragraph(
+                ar
+                    ? AppBranding.independenceDisclaimerArabic
+                    : AppBranding.independenceDisclaimerEnglish,
+              ),
+            ),
             const SizedBox(height: 14),
             _Section(
               icon: Icons.dataset_outlined,

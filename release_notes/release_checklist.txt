@@ -23,9 +23,9 @@ A. PROJECT & BUILD (blocking)
 --------------------------------------------------------------------------------
 B. ANDROID CONFIGURATION
 --------------------------------------------------------------------------------
-[ ] App name: Kickora (strings.xml + Play Console)
+[ ] App name: كيكورا | نتائج كرة القدم (strings.xml + Play Console)
 [ ] applicationId: com.kickora.worldcup (matches Play Console app ID)
-[ ] Launcher icons: branded mipmap assets (replace Flutter placeholders if any)
+[ ] Launcher icons: add assets/branding/final/app_icon_1024.png, run dart run flutter_launcher_icons
 [ ] Splash / LaunchTheme references valid resources
 [ ] INTERNET permission present in AndroidManifest.xml
 [ ] No API keys or secrets in source control or APK strings
@@ -33,7 +33,7 @@ B. ANDROID CONFIGURATION
 --------------------------------------------------------------------------------
 C. PLAY CONSOLE — STORE LISTING
 --------------------------------------------------------------------------------
-[ ] App name: Kickora
+[ ] App name: كيكورا | نتائج كرة القدم
 [ ] Short description (EN) — from play_store_listing_en.txt (≤80 chars)
 [ ] Full description (EN) — from play_store_listing_en.txt
 [ ] Short description (AR) — from play_store_listing_ar.txt (if listing in Arabic)

@@ -1,12 +1,12 @@
 import '../data/models/match_model.dart';
 import '../widgets/api_display_text.dart';
 import 'api_datetime.dart';
+import '../app/app_branding.dart';
 
 const String matchSharePlayStoreUrl =
     'play.google.com/store/apps/details?id=com.kickora.worldcup';
 
-const String matchShareFooter =
-    'تابع نتائج المباريات والبطولات عبر Kickora | كأس العالم 2026';
+const String matchShareFooter = AppBranding.shareFooterArabic;
 
 const String matchShareDownloadLine = '📲 حمّل Kickora:';
 
