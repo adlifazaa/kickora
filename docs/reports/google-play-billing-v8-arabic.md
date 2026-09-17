@@ -189,7 +189,7 @@ No `KICKORA_API_KEY` dart-define. Temporary local Gradle heap reduction was used
 |------|--------|
 | Original Billing implementation | `b2877907076af5c26044ef8368cd7311428c203d` |
 | Identity correction commit | `23aca45d63a16ecbd114fd76926abb4ee91daf95` |
-| Updated report commit | *(this report file on `main` after the following commit)* |
+| Updated report commit | `50002a86996062003834f73b6e870639ff4a5981` |
 | Push | Arabic `origin/main` `https://github.com/adlifazaa/kickora.git` |
 
 ## 14. Manual Google Play steps
