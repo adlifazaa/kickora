@@ -1,4 +1,4 @@
-package com.kickora.worldcup
+package com.sugarkeys.kickora
 
 import io.flutter.embedding.android.FlutterActivity
 
