@@ -212,8 +212,8 @@ Temporary local Gradle heap reduction was required because the default `-Xmx8G` 
 | Item | Value |
 |------|--------|
 | Implementation commit | `b2877907076af5c26044ef8368cd7311428c203d` |
-| Report commit | `e6f7ebcf45bef48181f27a5db6d3fffb94448f32` (content hash recorded in follow-up commit on `main`) |
-| Push | Attempted to `origin` (`https://github.com/adlifazaa/kickora.git`) `main`. Remote was `origin/main` behind local and not diverged at task start. |
+| Report commit | `e6f7ebcf45bef48181f27a5db6d3fffb94448f32` (hash line updated in later commits on `main`) |
+| Push | **Pushed** fast-forward to `origin/main` (`https://github.com/adlifazaa/kickora.git`): `421d897..9687cc7`. English app repository was not used. |
 
 Remaining **unrelated** dirty/untracked files (preserved, not committed):
 
