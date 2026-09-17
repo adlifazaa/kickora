@@ -212,8 +212,8 @@ Temporary local Gradle heap reduction was required because the default `-Xmx8G` 
 | Item | Value |
 |------|--------|
 | Implementation commit | `b2877907076af5c26044ef8368cd7311428c203d` |
-| Report commit | *(this file’s commit on `main`; see `git log -1 -- docs/reports/google-play-billing-v8-arabic.md`)* |
-| Push | To be recorded after `git push` to `origin` (`https://github.com/adlifazaa/kickora.git`), branch `main`. Remote was `origin/main` behind local by 3 commits at task start (not diverged). |
+| Report commit | `e6f7ebcf45bef48181f27a5db6d3fffb94448f32` (content hash recorded in follow-up commit on `main`) |
+| Push | Attempted to `origin` (`https://github.com/adlifazaa/kickora.git`) `main`. Remote was `origin/main` behind local and not diverged at task start. |
 
 Remaining **unrelated** dirty/untracked files (preserved, not committed):
 
