@@ -61,3 +61,18 @@ lib/firebase_options.dart
 # Kickora backend proxy (Node)
 backend/node_modules/
 backend/.env
+
+# Local device/UI verification dumps (screenshots, UI XML, crash traces)
+.verify_run/
+
+# JVM/Gradle heap dumps
+*.hprof
+
+# Generated validation logs
+backend/scripts/*-validation-output.txt
+
+# Temporary generated branding / screenshot inspection artifacts
+assets/branding/final/*_NEUTRAL_TEMP.png
+assets/branding/final/screenshots/*.xml
+assets/branding/final/screenshots/_test_*.png
+assets/branding/final/screenshots/*_transparency_check.png
