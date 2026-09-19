@@ -10,6 +10,8 @@ import '../core/startup/startup_timing.dart';
 import '../data/repositories/football_repository.dart';
 import '../notifications/notification_manager.dart';
 import '../notifications/services/kickora_notification_service.dart';
+import '../subscription/mock_subscription_bridge.dart';
+import '../subscription/play_billing_bridge.dart';
 import '../subscription/premium_service.dart';
 import '../subscription/premium_subscription_service.dart';
 import '../app/app_locale.dart';
@@ -54,6 +56,7 @@ class AppController extends ChangeNotifier {
   final MatchRefreshService matchRefreshService;
   final PremiumSubscriptionService premiumSubscriptionService;
   final PremiumService premiumService;
+  PlayBillingBridge? _billingBridge;
 
   static const String _themeKey = 'theme_mode';
   static const String _languageKey = 'language_code';
@@ -260,6 +263,22 @@ class AppController extends ChangeNotifier {
     );
     await favoriteManager.onNotificationPreferencesChanged();
     notifyListeners();
+  }
+
+  Future<void> completeBillingSetup({PlayBillingBridge? bridge}) async {
+    await _billingBridge?.dispose();
+    _billingBridge = bridge;
+    PremiumService.configurePayments(enabled: bridge != null);
+    premiumService.attachBilling(bridge);
+    premiumSubscriptionService.attachPaymentBridge(
+      bridge ?? const MockSubscriptionBridge(),
+    );
+    notifyListeners();
+  }
+
+  Future<void> retryPremiumStore() async {
+    final bridge = await PlayBillingBridge.create();
+    await completeBillingSetup(bridge: bridge);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

@@ -5,7 +5,6 @@ import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../core/state/data_state.dart';
-import '../core/world_cup/world_cup_priority.dart';
 import '../models/competition_model.dart';
 import '../models/match_model.dart';
 import '../models/player_model.dart';
@@ -56,9 +55,6 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
 
     final repo = AppScope.footballRepositoryOf(context);
     final cid = widget.competition.id;
-    if (WorldCupPriority.isWorldCupCompetition(widget.competition)) {
-      await repo.ensureWorldCupReady();
-    }
 
     final today = DateTime.now();
     final results = await Future.wait([
@@ -137,7 +133,6 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
     final matches = _matches;
     final teams = _teams;
     final scorers = _scorers;
-    final isWorldCup = WorldCupPriority.isWorldCupCompetition(widget.competition);
     final featured = _pickFeaturedMatch(matches);
 
     return DefaultTabController(
@@ -253,16 +248,10 @@ class _CompetitionDetailsScreenState extends State<CompetitionDetailsScreen> {
                   padding: const EdgeInsets.all(24),
                   child: AppEmptyState(
                     icon: Icons.article_outlined,
-                    title: text.isArabic
-                        ? (isWorldCup ? 'الأخبار قريباً' : 'الأخبار قريبًا')
-                        : 'News coming soon',
-                    subtitle: text.isArabic
-                        ? (isWorldCup
-                            ? 'نعمل على جلب أبرز أخبار كأس العالم والتحديثات المهمة.'
-                            : 'نعمل على جلب أبرز أخبار البطولات.')
-                        : (isWorldCup
-                            ? 'We are working on top World Cup news and key updates.'
-                            : 'We are working on bringing top competition news.'),
+                    title: text.news,
+                    subtitle: text.newsUnavailable,
+                    actionLabel: text.retry,
+                    onAction: _load,
                   ),
                 ),
               ),

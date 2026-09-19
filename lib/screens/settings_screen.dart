@@ -45,15 +45,6 @@ Future<void> _openContactEmail(BuildContext context, {required bool isArabic}) a
   );
 }
 
-void _showPremiumUnavailable(BuildContext context, {required bool isArabic}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(isArabic ? 'غير متوفر' : 'Unavailable'),
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
-}
-
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -217,13 +208,15 @@ class SettingsScreen extends StatelessWidget {
                 icon: Icons.block_rounded,
                 iconColor: AppColors.neonGreen,
                 title: text.removeAdsTitle,
-                subtitle: text.isArabic ? 'غير متوفر' : 'Unavailable',
-                onTap: () => _showPremiumUnavailable(
-                  context,
-                  isArabic: text.isArabic,
-                ),
-                trailing: Icon(Icons.chevron_right_rounded,
-                    color: Theme.of(context).hintColor),
+                subtitle: app.isPremium
+                    ? text.premiumActiveSubtitle
+                    : text.removeAdsSettingsSubtitle,
+                onTap: () => Navigator.pushNamed(context, AppRoutes.premium),
+                trailing: app.isPremium
+                    ? Icon(Icons.verified_rounded,
+                        color: Theme.of(context).colorScheme.primary)
+                    : Icon(Icons.chevron_right_rounded,
+                        color: Theme.of(context).hintColor),
               ),
               const SizedBox(height: 26),
               SectionHeader(

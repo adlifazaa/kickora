@@ -16,7 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('PremiumScreen shows benefits and Coming Soon', (tester) async {
+  testWidgets('PremiumScreen shows benefits and a retry-safe store state', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final controller = AppController(
@@ -47,7 +47,7 @@ void main() {
 
     expect(find.text('Kickora Premium'), findsWidgets);
     expect(find.text('Remove ads'), findsOneWidget);
-    expect(find.text('Coming Soon'), findsOneWidget);
+    expect(find.text('Retry'), findsWidgets);
     expect(find.textContaining('Restore'), findsOneWidget);
     expect(PremiumService.paymentsEnabled, isFalse);
   });

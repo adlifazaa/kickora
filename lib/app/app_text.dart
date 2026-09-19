@@ -276,6 +276,23 @@ class AppText {
   String get searchTypeCompetition => _isArabic ? 'بطولة' : 'Competition';
   String get searchTypeMatch => _isArabic ? 'مباراة' : 'Match';
 
+  String get topCompetitions =>
+      _isArabic ? 'أهم البطولات' : 'Top competitions';
+
+  String get newsUnavailable => _isArabic
+      ? 'الأخبار غير متاحة مؤقتًا، حاول مرة أخرى لاحقًا.'
+      : 'News is temporarily unavailable. Please try again later.';
+
+  String get premiumCheckingStore =>
+      _isArabic ? 'جاري التحقق من المتجر…' : 'Checking the store…';
+
+  String get premiumCurrentlyUnavailable =>
+      _isArabic ? 'غير متوفر حاليًا' : 'Currently unavailable';
+
+  String get premiumStoreConnectionError => _isArabic
+      ? 'تعذر الاتصال بمتجر Google Play. حاول مرة أخرى.'
+      : 'Could not connect to Google Play. Please try again.';
+
   String get retry => _isArabic ? 'إعادة المحاولة' : 'Retry';
   String get errorTitle => _isArabic ? 'حدث خطأ' : 'Something went wrong';
   String get errorSub => _isArabic

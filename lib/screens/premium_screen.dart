@@ -6,6 +6,7 @@ import '../app/app_text.dart';
 import '../core/firebase/analytics_service.dart';
 import '../subscription/premium_product_offer.dart';
 import '../subscription/premium_service.dart';
+import '../subscription/premium_store_status.dart';
 import '../subscription/subscription_plan.dart';
 
 /// Kickora Premium paywall — yearly IAP when billing is available on device.
@@ -19,6 +20,7 @@ class PremiumScreen extends StatefulWidget {
 class _PremiumScreenState extends State<PremiumScreen> {
   PremiumProductOffer? _yearlyOffer;
   bool _loadingOffer = false;
+  PremiumStoreUiState _storeState = PremiumStoreUiState.checking;
 
   @override
   void initState() {
@@ -29,15 +31,27 @@ class _PremiumScreenState extends State<PremiumScreen> {
     });
   }
 
-  Future<void> _loadOffer() async {
+  Future<void> _loadOffer({bool retryStore = false}) async {
     final app = AppScope.of(context);
-    if (!PremiumService.paymentsEnabled) return;
-    setState(() => _loadingOffer = true);
-    final offer = await app.premiumService.loadYearlyOffer();
+    setState(() {
+      _loadingOffer = true;
+      _storeState = PremiumStoreUiState.checking;
+    });
+    if (retryStore) {
+      await app.retryPremiumStore();
+      if (!mounted) return;
+    }
+    final result = await app.premiumService.queryYearlyProduct();
     if (!mounted) return;
     setState(() {
-      _yearlyOffer = offer;
+      _yearlyOffer = result.offer;
       _loadingOffer = false;
+      _storeState = PremiumStoreStatusMapper.fromQuery(
+        paymentsEnabled: PremiumService.paymentsEnabled,
+        loading: false,
+        isPremium: app.isPremium,
+        result: result,
+      );
     });
   }
 
@@ -69,18 +83,34 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 if (isPremium) ...[
                   _ActiveBanner(text: text),
                   const SizedBox(height: 16),
-                ] else if (yearly != null) ...[
-                  _YearlyPlanCard(
-                    plan: yearly,
-                    text: text,
-                    storePrice: _yearlyOffer?.priceLabel,
-                  ),
+                ] else ...[
+                  if (yearly != null)
+                    _YearlyPlanCard(
+                      plan: yearly,
+                      text: text,
+                      storePrice: _yearlyOffer?.priceLabel,
+                    ),
                   const SizedBox(height: 14),
+                  Text(
+                    PremiumStoreStatusMapper.message(
+                      _storeState,
+                      isArabic: text.isArabic,
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).hintColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _ComingSoonButton(
                     text: text,
                     label: _purchaseButtonLabel(text),
                     loading: _loadingOffer,
-                    onPressed: () => _onPurchase(context, text, premium),
+                    onPressed: _storeState == PremiumStoreUiState.available
+                        ? () => _onPurchase(context, text, premium)
+                        : () => _loadOffer(retryStore: true),
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -108,13 +138,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   String _purchaseButtonLabel(AppText text) {
-    if (!PremiumService.paymentsEnabled) {
-      return text.isArabic ? 'قريبًا' : 'Coming Soon';
+    if (_loadingOffer || _storeState == PremiumStoreUiState.checking) {
+      return text.premiumCheckingStore;
     }
-    if (_yearlyOffer == null && !_loadingOffer) {
-      return text.isArabic ? 'غير متوفر' : 'Unavailable';
+    if (_storeState == PremiumStoreUiState.available) {
+      return text.isArabic ? 'اشترك سنويًا' : 'Subscribe yearly';
     }
-    return text.isArabic ? 'اشترك سنويًا' : 'Subscribe yearly';
+    return text.retry;
   }
 
   Future<void> _onPurchase(
@@ -130,7 +160,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
     if (_yearlyOffer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(text.paymentsComingSoonMessage)),
+        SnackBar(
+          content: Text(
+            PremiumStoreStatusMapper.message(
+              _storeState,
+              isArabic: text.isArabic,
+            ),
+          ),
+        ),
       );
       return;
     }

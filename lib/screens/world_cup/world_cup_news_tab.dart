@@ -6,6 +6,7 @@ import '../../data/models/news_article_model.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/skeleton_box.dart';
+import '../../core/news/news_user_messages.dart';
 import '../../core/world_cup/world_cup_hub_loader.dart';
 
 /// Real World Cup news tab — loads from backend only when opened.
@@ -54,6 +55,7 @@ class WorldCupNewsTab extends StatelessWidget {
     final articles = result.articles;
 
     if (loader.newsError != null) {
+      NewsUserMessages.logTechnical(loader.newsError);
       return RefreshIndicator(
         onRefresh: loader.refreshNews,
         child: ListView(
@@ -63,8 +65,8 @@ class WorldCupNewsTab extends StatelessWidget {
               height: MediaQuery.sizeOf(context).height * 0.45,
               child: AppEmptyState(
                 icon: Icons.cloud_off_outlined,
-                title: isArabic ? 'تعذّر تحميل الأخبار' : 'Could not load news',
-                subtitle: loader.newsError ?? '',
+                title: isArabic ? 'الأخبار' : 'News',
+                subtitle: NewsUserMessages.unavailable(isArabic: isArabic),
                 actionLabel: isArabic ? 'إعادة المحاولة' : 'Retry',
                 onAction: () => loader.loadNews(force: true),
               ),
@@ -75,6 +77,7 @@ class WorldCupNewsTab extends StatelessWidget {
     }
 
     if (!result.configured) {
+      NewsUserMessages.logTechnical(result.errorMessage ?? 'news not configured');
       return RefreshIndicator(
         onRefresh: loader.refreshNews,
         child: ListView(
@@ -84,12 +87,10 @@ class WorldCupNewsTab extends StatelessWidget {
               height: MediaQuery.sizeOf(context).height * 0.5,
               child: AppEmptyState(
                 icon: Icons.article_outlined,
-                title: isArabic
-                    ? 'الأخبار غير متاحة حالياً'
-                    : 'News not available',
-                subtitle: isArabic
-                    ? 'مزود الأخبار غير مُعدّ على الخادم. أضف NEWS_API_KEY إلى backend.'
-                    : 'News provider is not configured on the backend (NEWS_API_KEY).',
+                title: isArabic ? 'الأخبار' : 'News',
+                subtitle: NewsUserMessages.unavailable(isArabic: isArabic),
+                actionLabel: isArabic ? 'إعادة المحاولة' : 'Retry',
+                onAction: () => loader.loadNews(force: true),
               ),
             ),
           ],
@@ -182,9 +183,30 @@ class _NewsCard extends StatelessWidget {
               CachedNetworkImage(
                 imageUrl: article.imageUrl,
                 height: 160,
+                width: double.infinity,
                 fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                  height: 120,
+                placeholder: (_, _) => Container(
+                  height: 160,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.08),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 160,
                   color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                   child: Icon(
                     Icons.image_not_supported_outlined,

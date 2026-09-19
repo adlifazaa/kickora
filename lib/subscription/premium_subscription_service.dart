@@ -22,7 +22,11 @@ class PremiumSubscriptionService extends ChangeNotifier {
   static const Duration mockYearlyDuration = Duration(days: 365);
 
   final SharedPreferences _preferences;
-  final SubscriptionPaymentBridge _paymentBridge;
+  SubscriptionPaymentBridge _paymentBridge;
+
+  void attachPaymentBridge(SubscriptionPaymentBridge bridge) {
+    _paymentBridge = bridge;
+  }
 
   bool _premiumActive = false;
   bool _trialUsed = false;

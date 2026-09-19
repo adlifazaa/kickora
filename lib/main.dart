@@ -122,7 +122,7 @@ Future<void> _completeDeferredStartup({
   StartupTiming.mark('firebase_ready');
 
   final billingBridge = await PlayBillingBridge.create();
-  PremiumService.configurePayments(enabled: billingBridge != null);
+  await controller.completeBillingSetup(bridge: billingBridge);
 
   ApiFootballService().logStatus();
   BackendProxyService(cache: CacheManager(preferences)).logStatus();

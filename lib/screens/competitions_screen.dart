@@ -4,6 +4,7 @@ import '../app/app_scope.dart';
 import '../app/app_text.dart';
 import '../app/routes.dart';
 import '../core/competition/competition_country_filter.dart';
+import '../core/competition/competition_priority_resolver.dart';
 import '../core/constants/api_mode_service.dart';
 import '../core/startup/startup_timing.dart';
 import '../core/debug/competition_debug_log.dart';
@@ -113,8 +114,11 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
               c.region.toLowerCase().contains(_query.toLowerCase());
           return qOk && _categoryMatch(c);
         }).toList();
-        _logCompetitionFilterDebug(filtered);
-        return _buildScaffold(context, app, text, filtered);
+        final ranked = CompetitionPriorityResolver.rankForCompetitionsScreen(
+          competitions: filtered,
+        );
+        _logCompetitionFilterDebug(ranked);
+        return _buildScaffold(context, app, text, ranked);
       },
     );
   }

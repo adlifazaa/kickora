@@ -35,56 +35,22 @@ class WorldCupPriority {
 
   static List<CompetitionModel> sortCompetitions(List<CompetitionModel> list) {
     final copy = List<CompetitionModel>.from(list);
-    copy.sort((a, b) {
-      final aw = isWorldCupCompetition(a) ? 0 : 1;
-      final bw = isWorldCupCompetition(b) ? 0 : 1;
-      if (aw != bw) return aw.compareTo(bw);
-      return a.name.compareTo(b.name);
-    });
+    copy.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return copy;
   }
 
   static List<MatchModel> sortMatches(List<MatchModel> list) {
     final copy = List<MatchModel>.from(list);
-    copy.sort((a, b) {
-      final aw = isWorldCupMatch(a) ? 0 : 1;
-      final bw = isWorldCupMatch(b) ? 0 : 1;
-      if (aw != bw) return aw.compareTo(bw);
-      return a.date.compareTo(b.date);
-    });
+    copy.sort((a, b) => a.date.compareTo(b.date));
     return copy;
   }
 
-  /// Ensures World Cup is present and marked featured; does not remove others.
+  /// Kept for hub internals. Does not pin World Cup in current-season lists.
   static List<CompetitionModel> applyCompetitionPriority(
     List<CompetitionModel> list, {
     CompetitionModel? fetchedWorldCup,
   }) {
-    var out = List<CompetitionModel>.from(list);
-    final hasWorldCup = out.any(isWorldCupCompetition);
-    if (!hasWorldCup && fetchedWorldCup != null) {
-      out.insert(0, fetchedWorldCup.copyWith(isFeatured: true));
-    }
-    out = out
-        .map(
-          (c) => isWorldCupCompetition(c)
-              ? CompetitionModel(
-                  id: c.id,
-                  name: c.name,
-                  region: c.region,
-                  logo: c.logo,
-                  countryCode: c.countryCode,
-                  countryFlagUrl: c.countryFlagUrl,
-                  season: c.season ?? WorldCupConfig.season,
-                  competitionType: c.competitionType,
-                  isFeatured: true,
-                  teamCount: c.teamCount,
-                  matchesToday: c.matchesToday,
-                )
-              : c,
-        )
-        .toList();
-    return sortCompetitions(out);
+    return List<CompetitionModel>.from(list);
   }
 
   static CompetitionModel? findWorldCup(List<CompetitionModel> list) {
@@ -114,7 +80,7 @@ class WorldCupPriority {
           (m) =>
               isWorldCupMatch(m) &&
               m.status == MatchStatus.upcoming &&
-              sameDay(m.localDate),
+              sameDay(m.date),
         )
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
@@ -132,26 +98,5 @@ class WorldCupPriority {
     if (anyLive.isNotEmpty) return sortMatches(anyLive).first;
 
     return null;
-  }
-}
-
-extension _CompetitionCopy on CompetitionModel {
-  CompetitionModel copyWith({
-    bool? isFeatured,
-    int? season,
-  }) {
-    return CompetitionModel(
-      id: id,
-      name: name,
-      region: region,
-      logo: logo,
-      countryCode: countryCode,
-      countryFlagUrl: countryFlagUrl,
-      season: season ?? this.season,
-      competitionType: competitionType,
-      isFeatured: isFeatured ?? this.isFeatured,
-      teamCount: teamCount,
-      matchesToday: matchesToday,
-    );
   }
 }

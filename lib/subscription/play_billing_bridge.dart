@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 import 'mock_subscription_bridge.dart';
 import 'premium_product_offer.dart';
+import 'premium_store_status.dart';
 import 'subscription_plan.dart';
 
 /// Google Play / App Store billing via [in_app_purchase] (no fake unlocks).
@@ -19,6 +21,9 @@ class PlayBillingBridge implements SubscriptionPaymentBridge {
     try {
       final iap = InAppPurchase.instance;
       final available = await iap.isAvailable();
+      if (kDebugMode) {
+        debugPrint('[Kickora Premium] store available=$available');
+      }
       if (!available) return null;
       final bridge = PlayBillingBridge._(iap);
       bridge._listen();
@@ -48,44 +53,119 @@ class PlayBillingBridge implements SubscriptionPaymentBridge {
       final completer = _purchaseCompleter.remove(productId);
       final ok = purchase.status == PurchaseStatus.purchased ||
           purchase.status == PurchaseStatus.restored;
-      completer?.complete(ok);
+      if (purchase.status == PurchaseStatus.error && kDebugMode) {
+        debugPrint(
+          '[Kickora Premium] purchase state=error code=${purchase.error?.code}',
+        );
+      }
+      if (completer != null && !completer.isCompleted) {
+        completer.complete(ok);
+      }
       if (purchase.pendingCompletePurchase) {
         _iap.completePurchase(purchase);
       }
     }
   }
 
-  Future<PremiumProductOffer?> queryYearlyOffer() async {
+  Future<PremiumProductQueryResult> queryYearlyProduct() async {
+    const requested = {PremiumServiceProductIds.yearly};
     try {
-      final response = await _iap.queryProductDetails(
-        {PremiumServiceProductIds.yearly},
-      );
-      if (response.error != null || response.productDetails.isEmpty) {
-        return null;
+      final available = await _iap.isAvailable();
+      if (kDebugMode) {
+        debugPrint(
+          '[Kickora Premium] query start store=$available ids=$requested',
+        );
+      }
+      if (!available) {
+        return const PremiumProductQueryResult(
+          storeAvailable: false,
+          requestedIds: [PremiumServiceProductIds.yearly],
+          queryStatus: 'store_unavailable',
+        );
+      }
+      final response = await _iap.queryProductDetails(requested);
+      if (kDebugMode) {
+        debugPrint(
+          '[Kickora Premium] query status=${response.error?.code ?? 'ok'} '
+          'found=${response.productDetails.length} '
+          'notFound=${response.notFoundIDs}',
+        );
+      }
+      if (response.error != null) {
+        return PremiumProductQueryResult(
+          storeAvailable: true,
+          requestedIds: requested.toList(),
+          queryStatus: 'error',
+          notFoundIds: response.notFoundIDs.toList(),
+          errorCode: response.error!.code,
+        );
+      }
+      if (response.productDetails.isEmpty) {
+        return PremiumProductQueryResult(
+          storeAvailable: true,
+          requestedIds: requested.toList(),
+          queryStatus: 'empty',
+          notFoundIds: response.notFoundIDs.toList(),
+        );
       }
       final product = response.productDetails.first;
-      return PremiumProductOffer(
-        productId: product.id,
-        priceLabel: product.price,
-        isAvailable: true,
+      return PremiumProductQueryResult(
+        storeAvailable: true,
+        requestedIds: requested.toList(),
+        queryStatus: 'success',
+        notFoundIds: response.notFoundIDs.toList(),
+        offer: PremiumProductOffer(
+          productId: product.id,
+          priceLabel: product.price,
+          isAvailable: true,
+        ),
       );
-    } catch (_) {
-      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Kickora Premium] query failed: $e');
+      }
+      return const PremiumProductQueryResult(
+        storeAvailable: false,
+        requestedIds: [PremiumServiceProductIds.yearly],
+        queryStatus: 'error',
+        errorCode: 'query_failed',
+      );
     }
+  }
+
+  Future<PremiumProductOffer?> queryYearlyOffer() async {
+    final result = await queryYearlyProduct();
+    return result.offer;
+  }
+
+  PurchaseParam _purchaseParam(ProductDetails product) {
+    if (product is GooglePlayProductDetails) {
+      return GooglePlayPurchaseParam(
+        productDetails: product,
+        offerToken: product.offerToken,
+      );
+    }
+    return PurchaseParam(productDetails: product);
   }
 
   @override
   Future<bool> purchase(SubscriptionPlan plan) async {
     try {
       final response = await _iap.queryProductDetails({plan.productId});
+      if (kDebugMode) {
+        debugPrint(
+          '[Kickora Premium] purchase query notFound=${response.notFoundIDs}',
+        );
+      }
       if (response.error != null || response.productDetails.isEmpty) {
         return false;
       }
       final product = response.productDetails.first;
       final completer = Completer<bool>();
       _purchaseCompleter[plan.productId] = completer;
-      final param = PurchaseParam(productDetails: product);
-      final started = await _iap.buyNonConsumable(purchaseParam: param);
+      final started = await _iap.buyNonConsumable(
+        purchaseParam: _purchaseParam(product),
+      );
       if (!started) {
         _purchaseCompleter.remove(plan.productId);
         return false;
@@ -129,7 +209,10 @@ class PlayBillingBridge implements SubscriptionPaymentBridge {
       );
       await sub.cancel();
       return restored;
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Kickora Premium] restore failed: $e');
+      }
       return false;
     }
   }

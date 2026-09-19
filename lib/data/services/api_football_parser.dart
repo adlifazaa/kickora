@@ -454,7 +454,7 @@ class ApiFootballParser {
       countryFlagUrl: country['flag']?.toString() ?? '',
       season: _seasonYearFromLeagueEntry(json),
       competitionType: league['type']?.toString() ?? '',
-      isFeatured: _int(league['id']) == 1,
+      isFeatured: false,
       teamCount: 0,
       matchesToday: 0,
     );
@@ -470,7 +470,7 @@ class ApiFootballParser {
       countryCode: country.code,
       countryFlagUrl: country.flagUrl,
       competitionType: league['type']?.toString() ?? '',
-      isFeatured: _int(league['id']) == 1,
+      isFeatured: false,
     );
   }
 

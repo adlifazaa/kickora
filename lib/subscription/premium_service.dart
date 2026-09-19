@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'play_billing_bridge.dart';
 import 'premium_features.dart';
 import 'premium_product_offer.dart';
+import 'premium_store_status.dart';
 import 'premium_subscription_service.dart';
 import 'subscription_plan.dart';
 
@@ -16,13 +17,20 @@ class PremiumService extends ChangeNotifier {
   }
 
   final PremiumSubscriptionService _subscription;
-  final PlayBillingBridge? _billingBridge;
+  PlayBillingBridge? _billingBridge;
+  PremiumProductQueryResult? lastQueryResult;
 
   /// Set at startup when Play/App Store billing is available on device.
   static bool paymentsEnabled = false;
 
   static void configurePayments({required bool enabled}) {
     paymentsEnabled = enabled;
+  }
+
+  void attachBilling(PlayBillingBridge? bridge) {
+    _billingBridge = bridge;
+    paymentsEnabled = bridge != null;
+    notifyListeners();
   }
 
   static const String yearlyProductId = 'kickora_premium_yearly';
@@ -70,8 +78,21 @@ class PremiumService extends ChangeNotifier {
 
   /// Loads yearly SKU from store when billing bridge is available.
   Future<PremiumProductOffer?> loadYearlyOffer() async {
-    if (!paymentsEnabled) return null;
-    return _billingBridge?.queryYearlyOffer();
+    final result = await queryYearlyProduct();
+    return result.offer;
+  }
+
+  Future<PremiumProductQueryResult> queryYearlyProduct() async {
+    if (_billingBridge == null) {
+      lastQueryResult = const PremiumProductQueryResult(
+        storeAvailable: false,
+        requestedIds: [yearlyProductId],
+        queryStatus: 'store_unavailable',
+      );
+      return lastQueryResult!;
+    }
+    lastQueryResult = await _billingBridge!.queryYearlyProduct();
+    return lastQueryResult!;
   }
 
   /// Future IAP entry — returns false while [paymentsEnabled] is false.

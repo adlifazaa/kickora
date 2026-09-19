@@ -7,9 +7,9 @@ import '../../core/constants/api_constants.dart';
 import '../../core/constants/api_mode.dart';
 import '../../core/constants/api_mode_service.dart';
 import '../../core/competition/competition_season_resolver.dart';
+import '../../core/competition/competition_priority_resolver.dart';
 import '../../core/constants/world_cup_config.dart';
 import '../../core/world_cup/world_cup_discovery.dart';
-import '../../core/world_cup/world_cup_priority.dart';
 import '../../core/player/player_photo_resolver.dart';
 import '../../core/errors/api_error_messages.dart';
 import '../../core/errors/api_exception.dart';
@@ -1371,21 +1371,9 @@ class FootballRepository {
   ) async {
     CompetitionSeasonResolver.registerAll(raw);
     WorldCupDiscovery.applyFromCompetitions(raw);
-    var list = WorldCupPriority.applyCompetitionPriority(raw);
-    if (WorldCupPriority.findWorldCup(list) != null || !_remoteFetchEnabled) {
-      return list;
-    }
-    try {
-      final wcState = await getCompetitionById(WorldCupConfig.competitionId);
-      final wc = wcState.data;
-      if (wc != null) {
-        list = WorldCupPriority.applyCompetitionPriority(
-          list,
-          fetchedWorldCup: wc,
-        );
-      }
-    } catch (_) {}
-    return list;
+    return CompetitionPriorityResolver.rankForCompetitionsScreen(
+      competitions: raw,
+    );
   }
 
   Future<void> _refreshTeamsQuietly(int competitionId, String memKey) async {
