@@ -124,7 +124,13 @@ Floors (C: 8 GB / D: 2 GB) were not crossed. Gradle/Pub caches were not cleaned.
 
 ## Git commit / push
 
-Identity, diff, tests (recorded), version `1.0.16+17`, AAB copy, and destination remote were verified before commit. Push target is `origin` = `https://github.com/adlifazaa/kickora.git` only.
+| Item | Value |
+| --- | --- |
+| Commit | `1e944ef3aa33ad4582d59fa42c24931dd38aa896` |
+| Message | Release 1.0.16+17 current football focus, Premium store states, and friendly News copy. |
+| Push target | `origin` = `https://github.com/adlifazaa/kickora.git` |
+
+Identity, diff, tests (recorded 181 passed), version `1.0.16+17`, AAB copy, and destination remote were verified before this commit.
 
 ## Remaining warnings / manual checks
 
