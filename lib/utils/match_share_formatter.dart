@@ -4,7 +4,7 @@ import 'api_datetime.dart';
 import '../app/app_branding.dart';
 
 const String matchSharePlayStoreUrl =
-    'play.google.com/store/apps/details?id=com.kickora.worldcup';
+    'play.google.com/store/apps/details?id=com.sugarkeys.kickora';
 
 const String matchShareFooter = AppBranding.shareFooterArabic;
 

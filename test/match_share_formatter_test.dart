@@ -94,7 +94,7 @@ void main() {
   test('footer mentions matches and competitions', () {
     expect(
       matchShareFooter,
-      'تابع نتائج المباريات والبطولات عبر كيكورا | نتائج كرة القدم',
+      'تابع نتائج المباريات والبطولات عبر كيكورا - نتائج كرة القدم',
     );
   });
 
@@ -104,7 +104,7 @@ void main() {
     expect(text, contains(matchSharePlayStoreUrl));
     expect(
       matchSharePlayStoreUrl,
-      'play.google.com/store/apps/details?id=com.kickora.worldcup',
+      'play.google.com/store/apps/details?id=com.sugarkeys.kickora',
     );
   });
 }

@@ -1,4 +1,4 @@
-/// Approved Arabic brand identity for `com.kickora.worldcup`.
+/// Approved Arabic brand identity for `com.sugarkeys.kickora`.
 
 ///
 
@@ -14,7 +14,7 @@ class AppBranding {
 
   /// Play Console / device display name (Arabic).
 
-  static const String arabicDisplayName = 'كيكورا | نتائج كرة القدم';
+  static const String arabicDisplayName = 'Kickora | نتائج كرة القدم مباشرة';
 
 
 
@@ -46,7 +46,7 @@ class AppBranding {
 
   static const String shareFooterArabic =
 
-      'تابع نتائج المباريات والبطولات عبر كيكورا | نتائج كرة القدم';
+      'تابع نتائج المباريات والبطولات عبر كيكورا - نتائج كرة القدم';
 
 
 

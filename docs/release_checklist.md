@@ -29,7 +29,7 @@ Optional (only when ready):
 
 ## Firebase Console
 
-- [ ] `google-services.json` matches `com.kickora.worldcup`
+- [ ] `google-services.json` matches `com.sugarkeys.kickora`
 - [ ] Cloud Messaging topics tested
 - [ ] Analytics + Crashlytics enabled for release
 
@@ -56,4 +56,4 @@ Optional (only when ready):
 
 ## Package name
 
-Confirm: `com.kickora.worldcup`
+Confirm: `com.sugarkeys.kickora`
