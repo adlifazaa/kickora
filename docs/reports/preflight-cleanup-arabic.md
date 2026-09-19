@@ -309,9 +309,16 @@ Cleanup commits on `main` (after starting HEAD `2e4784a`):
 | `fe84122` | Ignore local verification dumps and generated branding artifacts |
 | `44688ec` | Retire unused trophy icons and document branding replacements |
 | `81c1a8d` | Add Play listing graphics, screenshots, and branding tooling |
-| *(this report)* | Document Arabic preflight cleanup |
+| `7137635` | Document Arabic preflight cleanup |
 
-Push: see section 12 after the report commit. Remote is the Arabic repository `https://github.com/adlifazaa/kickora.git` on `main`. No force-push.
+Push (no force):
+
+```
+To https://github.com/adlifazaa/kickora.git
+   2e4784a..7137635  HEAD -> main
+```
+
+Remote is the Arabic repository. Branch `main` tracks `origin/main`.
 
 ## 11. Remaining risks / manual actions
 
@@ -325,4 +332,8 @@ Push: see section 12 after the report commit. Remote is the Arabic repository `h
 
 ## 12. Final git status
 
-Recorded after the report commit and push in the closing steps of this task.
+```
+## main...origin/main
+```
+
+`git status --short` is empty. Working tree clean.
